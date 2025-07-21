@@ -14,6 +14,7 @@ import { nanoid } from "nanoid";
 export interface IStorage {
   // Representatives
   getRepresentatives(): Promise<Representative[]>;
+  getRepresentative(id: number): Promise<Representative | undefined>;
   getRepresentativeByCode(code: string): Promise<Representative | undefined>;
   getRepresentativeByPanelUsername(panelUsername: string): Promise<Representative | undefined>;
   getRepresentativeByPublicId(publicId: string): Promise<Representative | undefined>;
@@ -67,6 +68,11 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   async getRepresentatives(): Promise<Representative[]> {
     return await db.select().from(representatives).orderBy(desc(representatives.createdAt));
+  }
+
+  async getRepresentative(id: number): Promise<Representative | undefined> {
+    const [rep] = await db.select().from(representatives).where(eq(representatives.id, id));
+    return rep || undefined;
   }
 
   async getRepresentativeByCode(code: string): Promise<Representative | undefined> {
