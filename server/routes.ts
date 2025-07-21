@@ -327,7 +327,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         chatId = chatIdSetting.value;
       }
 
-      const messageTemplate = template || getDefaultTelegramTemplate();
+      // Get saved template from database
+      const savedTemplate = await storage.getSetting('telegram_template');
+      const messageTemplate = template || savedTemplate?.value || getDefaultTelegramTemplate();
       const invoices = [];
       
       // Get invoice details for each ID

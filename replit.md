@@ -172,3 +172,5 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Fixed Save Button**: Added missing save functionality to telegram message template form
 - **Proper Form Handling**: Implemented complete form submission flow for template updates
 - **UI Consistency**: Ensured all settings sections have proper save buttons and feedback
+- **Template Integration**: Fixed database template retrieval for actual telegram messages
+- **SQL Error Resolution**: Resolved PostgreSQL array syntax error in invoice marking functionality

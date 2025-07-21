@@ -8,7 +8,7 @@ import {
   type Setting, type InsertSetting
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
-import { eq, desc, sql, and, or, ilike } from "drizzle-orm";
+import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 // Database operation wrapper with retry logic and error handling
@@ -238,13 +238,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markInvoicesAsSentToTelegram(invoiceIds: number[]): Promise<void> {
+    // Use OR conditions for multiple IDs instead of ANY array syntax
+    const whereConditions = invoiceIds.map(id => eq(invoices.id, id));
+    const whereClause = whereConditions.length === 1 ? whereConditions[0] : or(...whereConditions);
+    
     await db
       .update(invoices)
       .set({ 
         sentToTelegram: true, 
         telegramSentAt: new Date() 
       })
-      .where(sql`${invoices.id} = ANY(${invoiceIds})`);
+      .where(whereClause);
 
     await this.createActivityLog({
       type: "telegram_sent",
