@@ -609,10 +609,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set default Telegram template
       await storage.updateSetting('telegram_template', getDefaultTelegramTemplate());
       
-      // Set default calculation settings
-      await storage.updateSetting('invoice_base_rate', '1000');
-      await storage.updateSetting('invoice_due_days', '30');
-      
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "خطا در راه‌اندازی اولیه" });

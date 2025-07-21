@@ -8,7 +8,6 @@ import {
   Send, 
   Key,
   MessageSquare,
-  Calculator,
   Palette,
   Bell,
   Shield,
@@ -65,10 +64,7 @@ const invoiceTemplateSchema = z.object({
   showAdminUsername: z.boolean().default(true),
 });
 
-const calculationSettingsSchema = z.object({
-  baseRate: z.string().min(1, "نرخ پایه الزامی است"),
-  dueDays: z.string().min(1, "روزهای سررسید الزامی است"),
-});
+
 
 const aiSettingsSchema = z.object({
   geminiApiKey: z.string().min(1, "کلید API الزامی است"),
@@ -77,7 +73,6 @@ const aiSettingsSchema = z.object({
 });
 
 type TelegramSettingsData = z.infer<typeof telegramSettingsSchema>;
-type CalculationSettingsData = z.infer<typeof calculationSettingsSchema>;
 type AiSettingsData = z.infer<typeof aiSettingsSchema>;
 type PortalSettingsData = z.infer<typeof portalSettingsSchema>;
 type InvoiceTemplateData = z.infer<typeof invoiceTemplateSchema>;
@@ -100,13 +95,7 @@ export default function Settings() {
     queryKey: ["/api/settings/telegram_template"]
   });
   
-  const { data: baseRate } = useQuery({
-    queryKey: ["/api/settings/invoice_base_rate"]
-  });
-  
-  const { data: dueDays } = useQuery({
-    queryKey: ["/api/settings/invoice_due_days"]
-  });
+
 
   // Fetch invoice template settings
   const { data: showUsageDetails } = useQuery({
@@ -167,13 +156,7 @@ export default function Settings() {
     }
   });
 
-  const calculationForm = useForm<CalculationSettingsData>({
-    resolver: zodResolver(calculationSettingsSchema),
-    defaultValues: {
-      baseRate: "1000",
-      dueDays: "30"
-    }
-  });
+
 
   const aiForm = useForm<AiSettingsData>({
     resolver: zodResolver(aiSettingsSchema),
@@ -189,8 +172,6 @@ export default function Settings() {
     if ((telegramBotToken as any)?.value) telegramForm.setValue('botToken', (telegramBotToken as any).value);
     if ((telegramChatId as any)?.value) telegramForm.setValue('chatId', (telegramChatId as any).value);
     if ((telegramTemplate as any)?.value) telegramForm.setValue('template', (telegramTemplate as any).value);
-    if ((baseRate as any)?.value) calculationForm.setValue('baseRate', (baseRate as any).value);
-    if ((dueDays as any)?.value) calculationForm.setValue('dueDays', (dueDays as any).value);
     
     // Update invoice template form with settings values
     if ((showUsageDetails as any)?.value !== undefined) {
@@ -208,7 +189,7 @@ export default function Settings() {
     if ((showAdminUsername as any)?.value !== undefined) {
       invoiceTemplateForm.setValue('showAdminUsername', (showAdminUsername as any).value === 'true');
     }
-  }, [telegramBotToken, telegramChatId, telegramTemplate, baseRate, dueDays, showUsageDetails, showEventTimestamp, showEventType, showDescription, showAdminUsername]);
+  }, [telegramBotToken, telegramChatId, telegramTemplate, showUsageDetails, showEventTimestamp, showEventType, showDescription, showAdminUsername]);
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string, value: string }) => {
@@ -258,10 +239,7 @@ export default function Settings() {
     await updateSettingMutation.mutateAsync({ key: 'telegram_template', value: data.template });
   };
 
-  const onCalculationSubmit = async (data: CalculationSettingsData) => {
-    await updateSettingMutation.mutateAsync({ key: 'invoice_base_rate', value: data.baseRate });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_due_days', value: data.dueDays });
-  };
+
 
   const onAiSubmit = async (data: AiSettingsData) => {
     await updateSettingMutation.mutateAsync({ key: 'gemini_api_key', value: data.geminiApiKey });
@@ -298,7 +276,7 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="telegram" className="flex items-center">
             <Send className="w-4 h-4 mr-2" />
             تلگرام
@@ -306,10 +284,6 @@ export default function Settings() {
           <TabsTrigger value="invoice-template" className="flex items-center">
             <FileText className="w-4 h-4 mr-2" />
             قالب فاکتور
-          </TabsTrigger>
-          <TabsTrigger value="calculation" className="flex items-center">
-            <Calculator className="w-4 h-4 mr-2" />
-            محاسبات
           </TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center">
             <Bot className="w-4 h-4 mr-2" />
@@ -647,77 +621,7 @@ export default function Settings() {
           </div>
         </TabsContent>
 
-        {/* Calculation Settings */}
-        <TabsContent value="calculation">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calculator className="w-5 h-5 ml-2" />
-                تنظیمات محاسبات مالی
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...calculationForm}>
-                <form onSubmit={calculationForm.handleSubmit(onCalculationSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={calculationForm.control}
-                      name="baseRate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>نرخ پایه (تومان برای هر واحد)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="1000" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            نرخ پایه برای محاسبه فاکتورها بر اساس میزان مصرف
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={calculationForm.control}
-                      name="dueDays"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>روزهای سررسید</FormLabel>
-                          <FormControl>
-                            <Input placeholder="30" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            تعداد روزهای اعتبار فاکتور تا سررسید
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
 
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
-                      منطق محاسبه قیمت‌گذاری طبقه‌بندی شده
-                    </h4>
-                    <div className="space-y-2 text-sm text-blue-800 dark:text-blue-300">
-                      <div>• تا ۱۰۰ واحد: نرخ پایه</div>
-                      <div>• ۱۰۱ تا ۵۰۰ واحد: ۱۰% تخفیف</div>
-                      <div>• بالای ۵۰۰ واحد: ۲۰% تخفیف</div>
-                    </div>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    disabled={updateSettingMutation.isPending}
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    {updateSettingMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* AI Settings */}
         <TabsContent value="ai">
