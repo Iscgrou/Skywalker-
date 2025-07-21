@@ -342,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Found representative for invoice ${id}:`, !!representative);
           
           if (representative) {
-            const portalLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost:5000'}/portal/${representative.publicId}`;
+            const portalLink = `https://agent-portal-shield-info9071.replit.app/portal/${representative.publicId}`;
             
             invoices.push({
               representativeName: representative.name,

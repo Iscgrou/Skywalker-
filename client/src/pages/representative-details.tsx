@@ -158,7 +158,7 @@ export default function RepresentativeDetails() {
   const handleCopyPortalLink = () => {
     if (!repData?.representative) return;
     
-    const portalLink = `${window.location.origin}/portal/${repData.representative.publicId}`;
+    const portalLink = `https://agent-portal-shield-info9071.replit.app/portal/${repData.representative.publicId}`;
     navigator.clipboard.writeText(portalLink);
     toast({
       title: "لینک کپی شد",

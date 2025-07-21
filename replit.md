@@ -118,4 +118,5 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Public Portal Access**: Secure portal links with publicId system
 - **AI Financial Analysis**: Gemini API integration providing insights
 - **Dashboard Analytics**: Real-time financial overview and activity logs
-- **Telegram Integration**: API endpoints ready (requires bot configuration)
+- **Telegram Integration**: API endpoints ready, bot tested and working
+- **Portal URL Structure**: Fixed to use standard deployed URL (https://agent-portal-shield-info9071.replit.app)
