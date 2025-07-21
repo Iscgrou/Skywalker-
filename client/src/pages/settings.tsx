@@ -379,30 +379,43 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <Form {...telegramForm}>
-                  <FormField
-                    control={telegramForm.control}
-                    name="template"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>قالب پیام</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="قالب پیام خود را وارد کنید..."
-                            rows={12}
-                            className="font-mono text-sm"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription className="space-y-1">
-                          <div>متغیرهای قابل استفاده:</div>
-                          <div className="text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded">
-                            {`{invoice_number}, {representative_name}, {shop_owner}, {panel_id}, {amount}, {issue_date}, {status}, {portal_link}`}
-                          </div>
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <form onSubmit={telegramForm.handleSubmit(onTelegramSubmit)} className="space-y-4">
+                    <FormField
+                      control={telegramForm.control}
+                      name="template"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>قالب پیام</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="قالب پیام خود را وارد کنید..."
+                              rows={12}
+                              className="font-mono text-sm"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription className="space-y-1">
+                            <div>متغیرهای قابل استفاده:</div>
+                            <div className="text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded">
+                              {`{invoice_number}, {representative_name}, {shop_owner}, {panel_id}, {amount}, {issue_date}, {status}, {portal_link}`}
+                            </div>
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="pt-4">
+                      <Button 
+                        type="submit" 
+                        disabled={updateSettingMutation.isPending}
+                        className="w-full"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {updateSettingMutation.isPending ? "در حال ذخیره..." : "ذخیره قالب پیام"}
+                      </Button>
+                    </div>
+                  </form>
                 </Form>
               </CardContent>
             </Card>

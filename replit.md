@@ -159,3 +159,16 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Backend API Enhancement**: Extended portal API to include complete usage data for detailed viewing
 - **Template Configuration**: Added database settings for controlling usage details display columns and formatting
 - **Component Synchronization**: Ensured seamless integration between settings panel and public portal display rendering
+
+## System Optimization (July 21, 2025)
+
+### Financial Calculation Cleanup ✅
+- **Removed Calculation Settings**: Eliminated unused financial calculation section from settings panel to prevent confusion
+- **JSON-Based Pricing**: System now exclusively uses actual pricing data from MarFaNet JSON files
+- **Settings Panel Streamlining**: Reduced settings tabs from 5 to 4 for better user experience
+- **Backend Cleanup**: Removed invoice_base_rate and invoice_due_days settings from initialization
+
+### Telegram Template Enhancement ✅
+- **Fixed Save Button**: Added missing save functionality to telegram message template form
+- **Proper Form Handling**: Implemented complete form submission flow for template updates
+- **UI Consistency**: Ensured all settings sections have proper save buttons and feedback
