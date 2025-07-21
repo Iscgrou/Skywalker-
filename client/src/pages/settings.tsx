@@ -228,7 +228,7 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="telegram" className="flex items-center">
             <Send className="w-4 h-4 mr-2" />
             تلگرام
@@ -240,14 +240,6 @@ export default function Settings() {
           <TabsTrigger value="ai" className="flex items-center">
             <Bot className="w-4 h-4 mr-2" />
             هوش مصنوعی
-          </TabsTrigger>
-          <TabsTrigger value="portal" className="flex items-center">
-            <Palette className="w-4 h-4 mr-2" />
-            پورتال عمومی
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center">
-            <FileText className="w-4 h-4 mr-2" />
-            قالب‌ها
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center">
             <Shield className="w-4 h-4 mr-2" />
@@ -547,60 +539,7 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Appearance Settings */}
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Palette className="w-5 h-5 ml-2" />
-                تنظیمات ظاهری
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <Label className="text-base font-medium">تم رنگی</Label>
-                  <div className="grid grid-cols-3 gap-4 mt-3">
-                    <div className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <div className="w-full h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded mb-2"></div>
-                      <p className="text-sm font-medium">پیش‌فرض</p>
-                    </div>
-                    <div className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <div className="w-full h-8 bg-gradient-to-r from-green-500 to-blue-600 rounded mb-2"></div>
-                      <p className="text-sm font-medium">سبز</p>
-                    </div>
-                    <div className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <div className="w-full h-8 bg-gradient-to-r from-orange-500 to-red-600 rounded mb-2"></div>
-                      <p className="text-sm font-medium">نارنجی</p>
-                    </div>
-                  </div>
-                </div>
 
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label>حالت تاریک</Label>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        فعال‌سازی حالت تاریک برای محیط کاری راحت‌تر
-                      </p>
-                    </div>
-                    <Switch />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-base font-medium">فونت سیستم</Label>
-                  <select className="w-full mt-2 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
-                    <option value="inter">Inter (پیش‌فرض)</option>
-                    <option value="vazir">وزیر</option>
-                    <option value="yekan">یکان</option>
-                    <option value="tahoma">تاهوما</option>
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Security Settings */}
         <TabsContent value="security">

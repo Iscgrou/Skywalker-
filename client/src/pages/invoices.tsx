@@ -63,8 +63,8 @@ interface Invoice {
 
 export default function Invoices() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [telegramFilter, setTelegramFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [telegramFilter, setTelegramFilter] = useState<string>("all");
   const [selectedInvoices, setSelectedInvoices] = useState<number[]>([]);
   const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
   
@@ -110,10 +110,10 @@ export default function Invoices() {
       (invoice.representativeName && invoice.representativeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (invoice.representativeCode && invoice.representativeCode.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesStatus = !statusFilter || invoice.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
     
     const matchesTelegram = 
-      !telegramFilter || 
+      telegramFilter === "all" || 
       (telegramFilter === "sent" && invoice.sentToTelegram) ||
       (telegramFilter === "unsent" && !invoice.sentToTelegram);
     
@@ -337,7 +337,7 @@ export default function Invoices() {
                 <SelectValue placeholder="وضعیت فاکتور" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">همه وضعیت‌ها</SelectItem>
+                <SelectItem value="all">همه وضعیت‌ها</SelectItem>
                 <SelectItem value="unpaid">پرداخت نشده</SelectItem>
                 <SelectItem value="paid">پرداخت شده</SelectItem>
                 <SelectItem value="overdue">سررسید گذشته</SelectItem>
@@ -349,7 +349,7 @@ export default function Invoices() {
                 <SelectValue placeholder="وضعیت تلگرام" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">همه</SelectItem>
+                <SelectItem value="all">همه</SelectItem>
                 <SelectItem value="sent">ارسال شده</SelectItem>
                 <SelectItem value="unsent">ارسال نشده</SelectItem>
               </SelectContent>

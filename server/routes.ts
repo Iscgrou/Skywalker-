@@ -519,6 +519,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Telegram connection
+  app.post("/api/test-telegram", async (req, res) => {
+    try {
+      console.log('Testing Telegram connection...');
+      
+      // Get Telegram settings from environment variables or database
+      let botToken = process.env.TELEGRAM_BOT_TOKEN;
+      let chatId = process.env.TELEGRAM_CHAT_ID;
+      
+      console.log('Env Bot Token exists:', !!botToken);
+      console.log('Env Chat ID exists:', !!chatId);
+      
+      // Fallback to database settings if env vars not available
+      if (!botToken || !chatId) {
+        const botTokenSetting = await storage.getSetting('telegram_bot_token');
+        const chatIdSetting = await storage.getSetting('telegram_chat_id');
+        
+        console.log('DB Bot Token exists:', !!botTokenSetting?.value);
+        console.log('DB Chat ID exists:', !!chatIdSetting?.value);
+        
+        if (!botTokenSetting?.value || !chatIdSetting?.value) {
+          return res.status(400).json({ 
+            error: "تنظیمات تلگرام کامل نیست - ابتدا توکن ربات و شناسه چت را ذخیره کنید",
+            hasEnvToken: !!botToken,
+            hasEnvChatId: !!chatId,
+            hasDbToken: !!botTokenSetting?.value,
+            hasDbChatId: !!chatIdSetting?.value
+          });
+        }
+        
+        botToken = botTokenSetting.value;
+        chatId = chatIdSetting.value;
+      }
+      
+      console.log('Using Bot Token:', botToken ? `${botToken.substring(0, 10)}...` : 'none');
+      console.log('Using Chat ID:', chatId);
+      
+      // Test message
+      const testMessage = `🤖 تست اتصال سیستم مدیریت مالی MarFaNet
+      
+✅ اتصال با موفقیت برقرار شد
+📅 تاریخ تست: ${new Date().toLocaleString('fa-IR')}
+🔧 نسخه سیستم: 1.0.0
+
+این پیام برای تست اتصال ربات ارسال شده است.`;
+
+      // Send test message using the same method as invoice sending
+      const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+      
+      const response = await fetch(telegramApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: testMessage,
+          parse_mode: 'HTML'
+        })
+      });
+      
+      console.log('Telegram API response status:', response.status);
+      const result = await response.json();
+      console.log('Telegram API response:', result);
+      
+      if (!response.ok) {
+        throw new Error(result.description || `Telegram API error: ${response.status}`);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "پیام تست با موفقیت ارسال شد",
+        telegramResponse: result
+      });
+    } catch (error: any) {
+      console.error('Telegram test error:', error);
+      res.status(500).json({ 
+        error: `خطا در تست اتصال تلگرام: ${error.message}`,
+        details: error.toString()
+      });
+    }
+  });
+
   // Initialize default settings on first run
   app.post("/api/init", async (req, res) => {
     try {

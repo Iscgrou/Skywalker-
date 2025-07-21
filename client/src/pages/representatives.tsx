@@ -387,8 +387,8 @@ export default function Representatives() {
                       <FormItem>
                         <FormLabel>همکار فروش معرف (اختیاری)</FormLabel>
                         <Select 
-                          onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                          value={field.value?.toString()}
+                          onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                          value={field.value?.toString() || "none"}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -396,7 +396,7 @@ export default function Representatives() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">بدون همکار فروش</SelectItem>
+                            <SelectItem value="none">بدون همکار فروش</SelectItem>
                             {salesPartners?.filter(p => p.isActive).map((partner) => (
                               <SelectItem key={partner.id} value={partner.id.toString()}>
                                 {partner.name}
@@ -741,8 +741,8 @@ export default function Representatives() {
                   <FormItem>
                     <FormLabel>همکار فروش معرف (اختیاری)</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                      value={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -750,7 +750,7 @@ export default function Representatives() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">بدون همکار فروش</SelectItem>
+                        <SelectItem value="none">بدون همکار فروش</SelectItem>
                         {salesPartners?.filter(p => p.isActive).map((partner) => (
                           <SelectItem key={partner.id} value={partner.id.toString()}>
                             {partner.name}

@@ -94,8 +94,8 @@ type PaymentFormData = z.infer<typeof paymentSchema>;
 
 export default function Payments() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [representativeFilter, setRepresentativeFilter] = useState<string>("");
-  const [allocationFilter, setAllocationFilter] = useState<string>("");
+  const [representativeFilter, setRepresentativeFilter] = useState<string>("all");
+  const [allocationFilter, setAllocationFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   
@@ -187,11 +187,11 @@ export default function Payments() {
       (payment.representativeCode && payment.representativeCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (payment.description && payment.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesRepresentative = !representativeFilter || 
+    const matchesRepresentative = representativeFilter === "all" || 
       payment.representativeId.toString() === representativeFilter;
     
     const matchesAllocation = 
-      !allocationFilter ||
+      allocationFilter === "all" ||
       (allocationFilter === "allocated" && payment.isAllocated) ||
       (allocationFilter === "unallocated" && !payment.isAllocated);
     
@@ -435,7 +435,7 @@ export default function Payments() {
                 <SelectValue placeholder="نماینده" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">همه نمایندگان</SelectItem>
+                <SelectItem value="all">همه نمایندگان</SelectItem>
                 {representatives?.map((rep) => (
                   <SelectItem key={rep.id} value={rep.id.toString()}>
                     {rep.name}
@@ -449,7 +449,7 @@ export default function Payments() {
                 <SelectValue placeholder="وضعیت تخصیص" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">همه</SelectItem>
+                <SelectItem value="all">همه</SelectItem>
                 <SelectItem value="allocated">تخصیص یافته</SelectItem>
                 <SelectItem value="unallocated">تخصیص نیافته</SelectItem>
               </SelectContent>
