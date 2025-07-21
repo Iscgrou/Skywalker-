@@ -7,9 +7,34 @@ import {
   type ActivityLog, type InsertActivityLog,
   type Setting, type InsertSetting
 } from "@shared/schema";
-import { db } from "./db";
+import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike } from "drizzle-orm";
 import { nanoid } from "nanoid";
+
+// Database operation wrapper with retry logic and error handling
+async function withDatabaseRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries: number = 3
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      console.error(`Database operation "${operationName}" failed (attempt ${attempt}/${maxRetries}):`, error.message);
+      
+      if (attempt === maxRetries) {
+        throw new Error(`Database operation "${operationName}" failed after ${maxRetries} attempts: ${error.message}`);
+      }
+      
+      // Exponential backoff: wait 2^attempt seconds
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+  
+  // This should never be reached, but TypeScript requires it
+  throw new Error(`Database operation "${operationName}" failed unexpectedly`);
+}
 
 export interface IStorage {
   // Representatives
@@ -67,17 +92,30 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getRepresentatives(): Promise<Representative[]> {
-    return await db.select().from(representatives).orderBy(desc(representatives.createdAt));
+    return await withDatabaseRetry(
+      () => db.select().from(representatives).orderBy(desc(representatives.createdAt)),
+      'getRepresentatives'
+    );
   }
 
   async getRepresentative(id: number): Promise<Representative | undefined> {
-    const [rep] = await db.select().from(representatives).where(eq(representatives.id, id));
-    return rep || undefined;
+    return await withDatabaseRetry(
+      async () => {
+        const [rep] = await db.select().from(representatives).where(eq(representatives.id, id));
+        return rep || undefined;
+      },
+      'getRepresentative'
+    );
   }
 
   async getRepresentativeByCode(code: string): Promise<Representative | undefined> {
-    const [rep] = await db.select().from(representatives).where(eq(representatives.code, code));
-    return rep || undefined;
+    return await withDatabaseRetry(
+      async () => {
+        const [rep] = await db.select().from(representatives).where(eq(representatives.code, code));
+        return rep || undefined;
+      },
+      'getRepresentativeByCode'
+    );
   }
 
   async getRepresentativeByPanelUsername(panelUsername: string): Promise<Representative | undefined> {
@@ -304,53 +342,55 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDashboardData() {
-    // Get financial totals
-    const [totalRevenueResult] = await db
-      .select({ 
-        totalRevenue: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
-      })
-      .from(invoices)
-      .where(eq(invoices.status, "paid"));
+    return await withDatabaseRetry(async () => {
+      // Get financial totals
+      const [totalRevenueResult] = await db
+        .select({ 
+          totalRevenue: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+        })
+        .from(invoices)
+        .where(eq(invoices.status, "paid"));
 
-    const [totalDebtResult] = await db
-      .select({ 
-        totalDebt: sql<string>`COALESCE(SUM(CAST(total_debt as DECIMAL)), 0)` 
-      })
-      .from(representatives);
+      const [totalDebtResult] = await db
+        .select({ 
+          totalDebt: sql<string>`COALESCE(SUM(CAST(total_debt as DECIMAL)), 0)` 
+        })
+        .from(representatives);
 
-    // Count representatives and invoices
-    const [activeReps] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(representatives)
-      .where(eq(representatives.isActive, true));
+      // Count representatives and invoices
+      const [activeReps] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(representatives)
+        .where(eq(representatives.isActive, true));
 
-    const [pendingInvs] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(invoices)
-      .where(eq(invoices.status, "unpaid"));
+      const [pendingInvs] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(invoices)
+        .where(eq(invoices.status, "unpaid"));
 
-    const [overdueInvs] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(invoices)
-      .where(eq(invoices.status, "overdue"));
+      const [overdueInvs] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(invoices)
+        .where(eq(invoices.status, "overdue"));
 
-    const [totalPartners] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(salesPartners)
-      .where(eq(salesPartners.isActive, true));
+      const [totalPartners] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(salesPartners)
+        .where(eq(salesPartners.isActive, true));
 
-    // Get recent activities
-    const recentActivities = await this.getActivityLogs(10);
+      // Get recent activities
+      const recentActivities = await this.getActivityLogs(10);
 
-    return {
-      totalRevenue: totalRevenueResult.totalRevenue || "0",
-      totalDebt: totalDebtResult.totalDebt || "0",
-      activeRepresentatives: activeReps.count,
-      pendingInvoices: pendingInvs.count,
-      overdueInvoices: overdueInvs.count,
-      totalSalesPartners: totalPartners.count,
-      recentActivities
-    };
+      return {
+        totalRevenue: totalRevenueResult.totalRevenue || "0",
+        totalDebt: totalDebtResult.totalDebt || "0",
+        activeRepresentatives: activeReps.count,
+        pendingInvoices: pendingInvs.count,
+        overdueInvoices: overdueInvs.count,
+        totalSalesPartners: totalPartners.count,
+        recentActivities
+      };
+    }, 'getDashboardData');
   }
 
   async updateRepresentativeFinancials(repId: number): Promise<void> {
