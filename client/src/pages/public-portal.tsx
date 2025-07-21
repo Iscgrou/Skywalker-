@@ -1,5 +1,7 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import React from "react";
 import { 
   Shield, 
   User, 
@@ -9,10 +11,17 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  CreditCard
+  CreditCard,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  Server,
+  Database,
+  Cpu
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   Table, 
   TableBody, 
@@ -21,6 +30,19 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -37,6 +59,7 @@ interface PublicPortalData {
     issueDate: string;
     dueDate: string;
     status: string;
+    usageData?: any; // JSON usage data from uploaded file
   }>;
   payments: Array<{
     amount: string;
@@ -47,12 +70,44 @@ interface PublicPortalData {
 
 export default function PublicPortal() {
   const { publicId } = useParams<{ publicId: string }>();
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
 
   const { data: portalData, isLoading, error } = useQuery<PublicPortalData>({
     queryKey: [`/api/portal/${publicId}`],
     enabled: !!publicId,
     retry: false
   });
+
+  const toggleInvoiceExpansion = (invoiceNumber: string) => {
+    const newExpanded = new Set(expandedInvoices);
+    if (newExpanded.has(invoiceNumber)) {
+      newExpanded.delete(invoiceNumber);
+    } else {
+      newExpanded.add(invoiceNumber);
+    }
+    setExpandedInvoices(newExpanded);
+  };
+
+  const formatUsageData = (usageData: any) => {
+    if (!usageData || typeof usageData !== 'object') return null;
+
+    // Handle different usage data formats from JSON uploads
+    const formatValue = (key: string, value: any): string => {
+      if (typeof value === 'number') {
+        return toPersianDigits(value.toLocaleString());
+      }
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value, null, 2);
+      }
+      return String(value || '');
+    };
+
+    return usageData;
+  };
 
   const getInvoiceStatusBadge = (status: string) => {
     switch (status) {
@@ -314,26 +369,68 @@ export default function PublicPortal() {
                   <TableBody>
                     {portalData.invoices.length > 0 ? (
                       portalData.invoices.slice(0, 10).map((invoice, index) => (
-                        <TableRow key={index} className="border-gray-700 hover:bg-gray-700/50">
-                          <TableCell className="font-mono text-white">
-                            {invoice.invoiceNumber}
-                          </TableCell>
-                          <TableCell className="font-semibold text-white">
-                            {formatCurrency(invoice.amount)} تومان
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            <div className="flex items-center">
-                              <Calendar className="w-4 h-4 ml-1 text-gray-400" />
-                              {invoice.issueDate}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-gray-300">
-                            {invoice.dueDate || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {getInvoiceStatusBadge(invoice.status)}
-                          </TableCell>
-                        </TableRow>
+                        <React.Fragment key={index}>
+                          <TableRow className="border-gray-700 hover:bg-gray-700/50">
+                            <TableCell className="font-mono text-white">
+                              <div className="flex items-center space-x-2 space-x-reverse">
+                                {invoice.invoiceNumber}
+                                {invoice.usageData && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => toggleInvoiceExpansion(invoice.invoiceNumber)}
+                                    className="text-blue-400 hover:text-blue-300 hover:bg-gray-700"
+                                  >
+                                    {expandedInvoices.has(invoice.invoiceNumber) ? (
+                                      <ChevronUp className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronDown className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold text-white">
+                              {formatCurrency(invoice.amount)} تومان
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              <div className="flex items-center">
+                                <Calendar className="w-4 h-4 ml-1 text-gray-400" />
+                                {invoice.issueDate}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-gray-300">
+                              {invoice.dueDate || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {getInvoiceStatusBadge(invoice.status)}
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Usage Data Details Row */}
+                          {invoice.usageData && expandedInvoices.has(invoice.invoiceNumber) && (
+                            <TableRow className="border-gray-700 bg-gray-800/50">
+                              <TableCell colSpan={5} className="p-6">
+                                <div className="bg-gray-700 rounded-lg p-4">
+                                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                                    <Database className="w-5 h-5 ml-2" />
+                                    جزئیات مصرف
+                                  </h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {Object.entries(invoice.usageData).map(([key, value]) => (
+                                      <div key={key} className="bg-gray-600 p-3 rounded">
+                                        <div className="text-sm text-gray-300 mb-1">{key}</div>
+                                        <div className="text-white font-mono text-sm">
+                                          {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
                       ))
                     ) : (
                       <TableRow className="border-gray-700">

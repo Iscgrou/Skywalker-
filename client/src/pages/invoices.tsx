@@ -35,6 +35,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -150,6 +151,27 @@ export default function Invoices() {
       return;
     }
     setIsSendDialogOpen(true);
+  };
+
+  const handleSingleInvoiceSend = (invoiceId: number) => {
+    sendToTelegramMutation.mutate([invoiceId]);
+  };
+
+  const handleSendAllUnsent = () => {
+    const unsentInvoices = filteredInvoices
+      .filter(inv => !inv.sentToTelegram)
+      .map(inv => inv.id);
+    
+    if (unsentInvoices.length > 0) {
+      sendToTelegramMutation.mutate(unsentInvoices);
+      setSelectedInvoices([]);
+    } else {
+      toast({
+        title: "هیچ فاکتور ارسال نشده‌ای وجود ندارد",
+        description: "تمام فاکتورها قبلاً به تلگرام ارسال شده‌اند",
+        variant: "destructive",
+      });
+    }
   };
 
   const getInvoiceStatusBadge = (invoice: Invoice) => {
@@ -366,18 +388,44 @@ export default function Invoices() {
               <FileText className="w-5 h-5 ml-2" />
               فاکتورها ({toPersianDigits(filteredInvoices.length.toString())})
             </CardTitle>
-            <div className="flex items-center space-x-2 space-x-reverse">
-              <Checkbox
-                checked={
-                  filteredInvoices.filter(inv => !inv.sentToTelegram).length > 0 &&
-                  selectedInvoices.length === 
-                    filteredInvoices.filter(inv => !inv.sentToTelegram).length
-                }
-                onCheckedChange={handleSelectAll}
-              />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                انتخاب همه فاکتورهای ارسال نشده
-              </span>
+            <div className="flex items-center space-x-4 space-x-reverse">
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <Checkbox
+                  checked={
+                    filteredInvoices.filter(inv => !inv.sentToTelegram).length > 0 &&
+                    selectedInvoices.length === 
+                      filteredInvoices.filter(inv => !inv.sentToTelegram).length
+                  }
+                  onCheckedChange={handleSelectAll}
+                />
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  انتخاب همه فاکتورهای ارسال نشده
+                </span>
+              </div>
+              
+              {selectedInvoices.length > 0 && (
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsSendDialogOpen(true)}
+                    disabled={sendToTelegramMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Send className="w-4 h-4 ml-1" />
+                    ارسال {toPersianDigits(selectedInvoices.length.toString())} فاکتور به تلگرام
+                  </Button>
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSendAllUnsent}
+                    disabled={sendToTelegramMutation.isPending}
+                  >
+                    <Send className="w-4 h-4 ml-1" />
+                    ارسال تمام فاکتورهای ارسال نشده
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -478,15 +526,14 @@ export default function Invoices() {
                       </Button>
                       
                       {!invoice.sentToTelegram && (
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={() => {
-                            setSelectedInvoices([invoice.id]);
-                            handleSendToTelegram();
-                          }}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSingleInvoiceSend(invoice.id)}
+                          disabled={sendToTelegramMutation.isPending}
                         >
-                          <Send className="w-4 h-4" />
+                          <Send className="w-4 h-4 ml-1" />
+                          ارسال
                         </Button>
                       )}
                       

@@ -143,7 +143,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amount: inv.amount,
           issueDate: inv.issueDate,
           dueDate: inv.dueDate,
-          status: inv.status
+          status: inv.status,
+          usageData: inv.usageData // Include usage data for detailed view
         })),
         payments: payments.map(pay => ({
           amount: pay.amount,
