@@ -94,6 +94,8 @@ export default function Representatives() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "card">("table");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -130,7 +132,14 @@ export default function Representatives() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/representatives'] });
       setIsAddDialogOpen(false);
-      form.reset();
+      form.reset({
+        code: "",
+        name: "",
+        ownerName: "",
+        panelUsername: "",
+        phone: "",
+        isActive: true,
+      });
     },
     onError: (error: any) => {
       toast({
@@ -216,11 +225,22 @@ export default function Representatives() {
     });
   };
 
-  const filteredRepresentatives = representatives?.filter(rep =>
-    rep.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rep.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rep.panelUsername.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  // Sort representatives by debt (highest first) and filter
+  const sortedAndFilteredReps = representatives
+    ?.sort((a, b) => parseFloat(b.totalDebt) - parseFloat(a.totalDebt))
+    .filter(rep => {
+      const matchesSearch = rep.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           rep.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           rep.panelUsername.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    }) || [];
+
+  // Pagination logic
+  const totalItems = sortedAndFilteredReps.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const filteredRepresentatives = sortedAndFilteredReps.slice(startIndex, endIndex);
 
   const getDebtStatus = (debt: string) => {
     const amount = parseFloat(debt);
@@ -762,6 +782,57 @@ export default function Representatives() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Pagination Component */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            قبلی
+          </Button>
+          
+          {/* Page Numbers */}
+          {(() => {
+            const pages = [];
+            const maxVisiblePages = 5;
+            const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            for (let i = startPage; i <= endPage; i++) {
+              pages.push(
+                <Button
+                  key={i}
+                  variant={i === currentPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(i)}
+                  className="mx-1"
+                >
+                  {toPersianDigits(i.toString())}
+                </Button>
+              );
+            }
+            return pages;
+          })()}
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            بعدی
+          </Button>
+          
+          <span className="text-sm text-gray-600 dark:text-gray-400 mr-4">
+            صفحه {toPersianDigits(currentPage.toString())} از {toPersianDigits(totalPages.toString())} 
+            ({toPersianDigits(totalItems.toString())} نماینده)
+          </span>
+        </div>
+      )}
     </div>
   );
 }
