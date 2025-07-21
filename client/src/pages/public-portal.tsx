@@ -92,21 +92,91 @@ export default function PublicPortal() {
   const formatUsageData = (usageData: any) => {
     if (!usageData || typeof usageData !== 'object') return null;
 
-    // Handle different usage data formats from JSON uploads
-    const formatValue = (key: string, value: any): string => {
-      if (typeof value === 'number') {
-        return toPersianDigits(value.toLocaleString());
-      }
-      if (typeof value === 'string') {
-        return value;
-      }
-      if (typeof value === 'object' && value !== null) {
-        return JSON.stringify(value, null, 2);
-      }
-      return String(value || '');
-    };
+    // Check if data is an array of usage records (like from the image)
+    if (Array.isArray(usageData)) {
+      return usageData;
+    }
 
-    return usageData;
+    // If it's an object, check if it has properties that look like usage records
+    if (usageData.admin_username || usageData.event_timestamp || usageData.description) {
+      return [usageData]; // Convert single record to array
+    }
+
+    // Try to find array properties within the object
+    const arrayProperties = Object.entries(usageData).find(([key, value]) => Array.isArray(value));
+    if (arrayProperties && arrayProperties[1]) {
+      return arrayProperties[1];
+    }
+
+    // Convert object to array format
+    return Object.entries(usageData).map(([key, value]) => ({
+      admin_username: key,
+      description: String(value),
+      amount: typeof value === 'number' ? value : null
+    }));
+  };
+
+  const renderUsageDetailsTable = (usageData: any) => {
+    const formattedData = formatUsageData(usageData);
+    if (!formattedData || !Array.isArray(formattedData)) return null;
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-600">
+          <thead className="bg-gray-600">
+            <tr>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                نام کاربری ادمین
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                زمان رویداد
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                نوع رویداد
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                توضیحات
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                مبلغ
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-gray-700 divide-y divide-gray-600">
+            {formattedData.map((record: any, index: number) => (
+              <tr key={index} className="hover:bg-gray-600/50">
+                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-white">
+                  {record.admin_username || 'نامشخص'}
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                  {record.event_timestamp || record.timestamp || '-'}
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                  <Badge 
+                    className={`${
+                      record.event_type === 'CREATE' ? 'bg-green-600 hover:bg-green-700' :
+                      record.event_type === 'RENEWAL' ? 'bg-blue-600 hover:bg-blue-700' :
+                      record.event_type === 'EXPIRE' ? 'bg-red-600 hover:bg-red-700' :
+                      'bg-gray-600 hover:bg-gray-700'
+                    } text-white`}
+                  >
+                    {record.event_type || record.type || 'نامشخص'}
+                  </Badge>
+                </td>
+                <td className="px-4 py-4 text-sm text-gray-300 max-w-xs">
+                  <div className="truncate" title={record.description || record.desc || ''}>
+                    {record.description || record.desc || '-'}
+                  </div>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-green-400">
+                  {record.amount ? `${formatCurrency(record.amount.toString())} تومان` : '-'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   const getInvoiceStatusBadge = (status: string) => {
@@ -411,21 +481,63 @@ export default function PublicPortal() {
                           {invoice.usageData && expandedInvoices.has(invoice.invoiceNumber) && (
                             <TableRow className="border-gray-700 bg-gray-800/50">
                               <TableCell colSpan={5} className="p-6">
-                                <div className="bg-gray-700 rounded-lg p-4">
-                                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                                <div className="bg-gray-700 rounded-lg p-6">
+                                  <h4 className="text-lg font-semibold text-white mb-6 flex items-center">
                                     <Database className="w-5 h-5 ml-2" />
-                                    جزئیات مصرف
+                                    جزئیات مصرف فاکتور {invoice.invoiceNumber}
                                   </h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {Object.entries(invoice.usageData).map(([key, value]) => (
-                                      <div key={key} className="bg-gray-600 p-3 rounded">
-                                        <div className="text-sm text-gray-300 mb-1">{key}</div>
-                                        <div className="text-white font-mono text-sm">
-                                          {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                                        </div>
-                                      </div>
-                                    ))}
+                                  
+                                  {/* Structured Usage Table */}
+                                  <div className="bg-gray-800 rounded-lg overflow-hidden">
+                                    {renderUsageDetailsTable(invoice.usageData)}
                                   </div>
+
+                                  {/* Summary Section */}
+                                  {formatUsageData(invoice.usageData) && (
+                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                      <Card className="bg-gray-600 border-gray-500">
+                                        <CardContent className="p-4">
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <p className="text-sm text-gray-300">تعداد رویدادها</p>
+                                              <p className="text-2xl font-bold text-white">
+                                                {toPersianDigits((formatUsageData(invoice.usageData) as any)?.length?.toString() || '0')}
+                                              </p>
+                                            </div>
+                                            <FileText className="w-8 h-8 text-blue-400" />
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+
+                                      <Card className="bg-gray-600 border-gray-500">
+                                        <CardContent className="p-4">
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <p className="text-sm text-gray-300">مجموع مبلغ</p>
+                                              <p className="text-2xl font-bold text-green-400">
+                                                {formatCurrency(invoice.amount)} تومان
+                                              </p>
+                                            </div>
+                                            <DollarSign className="w-8 h-8 text-green-400" />
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+
+                                      <Card className="bg-gray-600 border-gray-500">
+                                        <CardContent className="p-4">
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <p className="text-sm text-gray-300">وضعیت فاکتور</p>
+                                              <div className="mt-1">
+                                                {getInvoiceStatusBadge(invoice.status)}
+                                              </div>
+                                            </div>
+                                            <CheckCircle className="w-8 h-8 text-yellow-400" />
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    </div>
+                                  )}
                                 </div>
                               </TableCell>
                             </TableRow>

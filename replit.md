@@ -140,3 +140,22 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Storage Interface**: Added missing `getRepresentative(id)` method to prevent undefined method errors
 - **Connection Stability**: Resolved WebSocket connection issues causing server crashes
 - **Error Propagation**: Fixed error handling middleware to prevent server termination on API errors
+
+## Enhanced Features Implementation (July 21, 2025)
+
+### Invoice Management Enhancements ✅
+- **Advanced Telegram Integration**: Implemented comprehensive Telegram sending with single/multiple/all invoice options
+- **Structured Usage Data Display**: Created professional table-based display for invoice usage details in public portal
+- **Dynamic Invoice Details**: Added expandable invoice rows with detailed usage information and summary statistics
+- **Template Customization System**: Integrated settings panel for customizing invoice template and usage details display
+
+### UI/UX Improvements ✅
+- **SelectItem Component Fixes**: Resolved empty value issues across all forms and dropdown components
+- **Enhanced Public Portal**: Added professional usage details table with color-coded event types and structured data presentation
+- **Settings Panel Integration**: Created comprehensive invoice template configuration tab with real-time preview
+- **Persian RTL Support**: Maintained proper right-to-left text flow and Persian number formatting throughout enhancements
+
+### System Integration ✅
+- **Backend API Enhancement**: Extended portal API to include complete usage data for detailed viewing
+- **Template Configuration**: Added database settings for controlling usage details display columns and formatting
+- **Component Synchronization**: Ensured seamless integration between settings panel and public portal display rendering

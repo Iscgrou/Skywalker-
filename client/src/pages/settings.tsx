@@ -58,6 +58,11 @@ const invoiceTemplateSchema = z.object({
   invoiceFooter: z.string().optional(),
   showUsageDetails: z.boolean(),
   usageFormat: z.string().optional(),
+  usageTableColumns: z.string().optional(), // Column configuration for usage details table
+  showEventTimestamp: z.boolean().default(true),
+  showEventType: z.boolean().default(true),
+  showDescription: z.boolean().default(true),
+  showAdminUsername: z.boolean().default(true),
 });
 
 const calculationSettingsSchema = z.object({
@@ -103,6 +108,27 @@ export default function Settings() {
     queryKey: ["/api/settings/invoice_due_days"]
   });
 
+  // Fetch invoice template settings
+  const { data: showUsageDetails } = useQuery({
+    queryKey: ["/api/settings/invoice_show_usage_details"]
+  });
+
+  const { data: showEventTimestamp } = useQuery({
+    queryKey: ["/api/settings/invoice_show_event_timestamp"]
+  });
+
+  const { data: showEventType } = useQuery({
+    queryKey: ["/api/settings/invoice_show_event_type"]
+  });
+
+  const { data: showDescription } = useQuery({
+    queryKey: ["/api/settings/invoice_show_description"]
+  });
+
+  const { data: showAdminUsername } = useQuery({
+    queryKey: ["/api/settings/invoice_show_admin_username"]
+  });
+
   // Forms
   const telegramForm = useForm<TelegramSettingsData>({
     resolver: zodResolver(telegramSettingsSchema),
@@ -123,6 +149,21 @@ export default function Settings() {
 {portal_link}
 
 تولید شده توسط سیستم مدیریت مالی 🤖`
+    }
+  });
+
+  const invoiceTemplateForm = useForm<InvoiceTemplateData>({
+    resolver: zodResolver(invoiceTemplateSchema),
+    defaultValues: {
+      invoiceHeader: "سیستم مدیریت مالی MarFaNet",
+      invoiceFooter: "",
+      showUsageDetails: true,
+      usageFormat: "table",
+      usageTableColumns: "admin_username,event_timestamp,event_type,description,amount",
+      showEventTimestamp: true,
+      showEventType: true,
+      showDescription: true,
+      showAdminUsername: true
     }
   });
 
@@ -211,6 +252,18 @@ export default function Settings() {
     await updateSettingMutation.mutateAsync({ key: 'ai_analysis_frequency', value: data.analysisFrequency });
   };
 
+  const onInvoiceTemplateSubmit = async (data: InvoiceTemplateData) => {
+    await updateSettingMutation.mutateAsync({ key: 'invoice_header', value: data.invoiceHeader });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_footer', value: data.invoiceFooter || '' });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_show_usage_details', value: data.showUsageDetails.toString() });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_usage_format', value: data.usageFormat || 'table' });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_usage_table_columns', value: data.usageTableColumns || 'admin_username,event_timestamp,event_type,description,amount' });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_show_event_timestamp', value: data.showEventTimestamp.toString() });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_show_event_type', value: data.showEventType.toString() });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_show_description', value: data.showDescription.toString() });
+    await updateSettingMutation.mutateAsync({ key: 'invoice_show_admin_username', value: data.showAdminUsername.toString() });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -228,10 +281,14 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="telegram" className="flex items-center">
             <Send className="w-4 h-4 mr-2" />
             تلگرام
+          </TabsTrigger>
+          <TabsTrigger value="invoice-template" className="flex items-center">
+            <FileText className="w-4 h-4 mr-2" />
+            قالب فاکتور
           </TabsTrigger>
           <TabsTrigger value="calculation" className="flex items-center">
             <Calculator className="w-4 h-4 mr-2" />
@@ -356,6 +413,218 @@ export default function Settings() {
                     )}
                   />
                 </Form>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Invoice Template Settings */}
+        <TabsContent value="invoice-template">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <FileText className="w-5 h-5 ml-2" />
+                  تنظیمات قالب فاکتور
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...invoiceTemplateForm}>
+                  <form onSubmit={invoiceTemplateForm.handleSubmit(onInvoiceTemplateSubmit)} className="space-y-4">
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="invoiceHeader"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>سربرگ فاکتور</FormLabel>
+                          <FormControl>
+                            <Input placeholder="سیستم مدیریت مالی MarFaNet" {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            متن سربرگ که در بالای فاکتور نمایش داده می‌شود
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="invoiceFooter"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>پاورقی فاکتور</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="متن پاورقی اختیاری..." rows={2} {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            متن اختیاری که در پایین فاکتور نمایش داده می‌شود
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="showUsageDetails"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش جزئیات مصرف</FormLabel>
+                            <FormDescription>
+                              نمایش جدول ریز جزئیات مصرف در پورتال عمومی
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="pt-4">
+                      <Button 
+                        type="submit" 
+                        disabled={updateSettingMutation.isPending}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {updateSettingMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Palette className="w-5 h-5 ml-2" />
+                  تنظیمات نمایش جدول ریز جزئیات
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Form {...invoiceTemplateForm}>
+                  <div className="space-y-4">
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="showAdminUsername"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش نام کاربری ادمین</FormLabel>
+                            <FormDescription>
+                              نمایش ستون admin_username در جدول
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="showEventTimestamp"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش زمان رویداد</FormLabel>
+                            <FormDescription>
+                              نمایش ستون event_timestamp در جدول
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="showEventType"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش نوع رویداد</FormLabel>
+                            <FormDescription>
+                              نمایش ستون event_type در جدول
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={invoiceTemplateForm.control}
+                      name="showDescription"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش توضیحات</FormLabel>
+                            <FormDescription>
+                              نمایش ستون description در جدول
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </Form>
+
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium text-green-900 dark:text-green-200 mb-2">
+                    پیش‌نمایش قالب جدول
+                  </h4>
+                  <div className="text-sm text-green-800 dark:text-green-300">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-xs border border-green-200 dark:border-green-700">
+                        <thead className="bg-green-100 dark:bg-green-800">
+                          <tr>
+                            <th className="px-2 py-1 text-right border border-green-200 dark:border-green-700">نام کاربری ادمین</th>
+                            <th className="px-2 py-1 text-right border border-green-200 dark:border-green-700">زمان رویداد</th>
+                            <th className="px-2 py-1 text-right border border-green-200 dark:border-green-700">نوع رویداد</th>
+                            <th className="px-2 py-1 text-right border border-green-200 dark:border-green-700">توضیحات</th>
+                            <th className="px-2 py-1 text-right border border-green-200 dark:border-green-700">مبلغ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="px-2 py-1 border border-green-200 dark:border-green-700">mohamadrzmb</td>
+                            <td className="px-2 py-1 border border-green-200 dark:border-green-700">2025-07-09 12:53:58</td>
+                            <td className="px-2 py-1 border border-green-200 dark:border-green-700">CREATE</td>
+                            <td className="px-2 py-1 border border-green-200 dark:border-green-700">ایجاد کاربر: aghayeyousefi_sh2</td>
+                            <td className="px-2 py-1 border border-green-200 dark:border-green-700">27000.00</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
