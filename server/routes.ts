@@ -1,0 +1,485 @@
+import type { Express, Request } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import multer from "multer";
+
+// Extend Request interface to include multer file
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
+import { z } from "zod";
+import { 
+  insertRepresentativeSchema, 
+  insertSalesPartnerSchema, 
+  insertInvoiceSchema, 
+  insertPaymentSchema 
+} from "@shared/schema";
+import { parseUsageJsonData, processUsageData, validateUsageData } from "./services/invoice";
+import { 
+  sendInvoiceToTelegram, 
+  sendBulkInvoicesToTelegram, 
+  getDefaultTelegramTemplate, 
+  formatInvoiceStatus 
+} from "./services/telegram";
+import { 
+  analyzeFinancialData, 
+  analyzeRepresentative, 
+  generateFinancialReport, 
+  answerFinancialQuestion 
+} from "./services/gemini";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req: any, file: any, cb: any) => {
+    if (file.mimetype === 'application/json') {
+      cb(null, true);
+    } else {
+      cb(new Error('فقط فایل‌های JSON پذیرفته می‌شود'));
+    }
+  }
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Dashboard API
+  app.get("/api/dashboard", async (req, res) => {
+    try {
+      const dashboardData = await storage.getDashboardData();
+      res.json(dashboardData);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت اطلاعات داشبورد" });
+    }
+  });
+
+  // Representatives API
+  app.get("/api/representatives", async (req, res) => {
+    try {
+      const representatives = await storage.getRepresentatives();
+      res.json(representatives);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت نمایندگان" });
+    }
+  });
+
+  app.get("/api/representatives/:code", async (req, res) => {
+    try {
+      const representative = await storage.getRepresentativeByCode(req.params.code);
+      if (!representative) {
+        return res.status(404).json({ error: "نماینده یافت نشد" });
+      }
+      
+      // Get related data
+      const invoices = await storage.getInvoicesByRepresentative(representative.id);
+      const payments = await storage.getPaymentsByRepresentative(representative.id);
+      
+      res.json({
+        representative,
+        invoices,
+        payments
+      });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت اطلاعات نماینده" });
+    }
+  });
+
+  app.post("/api/representatives", async (req, res) => {
+    try {
+      const validatedData = insertRepresentativeSchema.parse(req.body);
+      const representative = await storage.createRepresentative(validatedData);
+      res.json(representative);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
+      } else {
+        res.status(500).json({ error: "خطا در ایجاد نماینده" });
+      }
+    }
+  });
+
+  app.put("/api/representatives/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const representative = await storage.updateRepresentative(id, req.body);
+      res.json(representative);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در بروزرسانی نماینده" });
+    }
+  });
+
+  app.delete("/api/representatives/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteRepresentative(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در حذف نماینده" });
+    }
+  });
+
+  // Public Portal API
+  app.get("/api/portal/:publicId", async (req, res) => {
+    try {
+      const representative = await storage.getRepresentativeByPublicId(req.params.publicId);
+      if (!representative) {
+        return res.status(404).json({ error: "پورتال یافت نشد" });
+      }
+      
+      const invoices = await storage.getInvoicesByRepresentative(representative.id);
+      const payments = await storage.getPaymentsByRepresentative(representative.id);
+      
+      // Don't expose sensitive data in public portal
+      const publicData = {
+        name: representative.name,
+        code: representative.code,
+        panelUsername: representative.panelUsername,
+        totalDebt: representative.totalDebt,
+        totalSales: representative.totalSales,
+        credit: representative.credit,
+        invoices: invoices.map(inv => ({
+          invoiceNumber: inv.invoiceNumber,
+          amount: inv.amount,
+          issueDate: inv.issueDate,
+          dueDate: inv.dueDate,
+          status: inv.status
+        })),
+        payments: payments.map(pay => ({
+          amount: pay.amount,
+          paymentDate: pay.paymentDate,
+          description: pay.description
+        }))
+      };
+      
+      res.json(publicData);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت اطلاعات پورتال" });
+    }
+  });
+
+  // Sales Partners API
+  app.get("/api/sales-partners", async (req, res) => {
+    try {
+      const partners = await storage.getSalesPartners();
+      res.json(partners);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت همکاران فروش" });
+    }
+  });
+
+  app.post("/api/sales-partners", async (req, res) => {
+    try {
+      const validatedData = insertSalesPartnerSchema.parse(req.body);
+      const partner = await storage.createSalesPartner(validatedData);
+      res.json(partner);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
+      } else {
+        res.status(500).json({ error: "خطا در ایجاد همکار فروش" });
+      }
+    }
+  });
+
+  // Invoices API
+  app.get("/api/invoices", async (req, res) => {
+    try {
+      const invoices = await storage.getInvoices();
+      res.json(invoices);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت فاکتورها" });
+    }
+  });
+
+  app.get("/api/invoices/telegram-pending", async (req, res) => {
+    try {
+      const invoices = await storage.getInvoicesForTelegram();
+      res.json(invoices);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت فاکتورهای در انتظار ارسال" });
+    }
+  });
+
+  // Invoice generation from JSON file
+  app.post("/api/invoices/generate", upload.single('usageFile'), async (req: MulterRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "فایل JSON ارسال نشده است" });
+      }
+
+      const jsonData = req.file.buffer.toString('utf-8');
+      const usageRecords = parseUsageJsonData(jsonData);
+      
+      const { valid, invalid } = validateUsageData(usageRecords);
+      
+      if (valid.length === 0) {
+        return res.status(400).json({ 
+          error: "هیچ رکورد معتبری یافت نشد", 
+          invalid 
+        });
+      }
+
+      const processedInvoices = processUsageData(valid);
+      const createdInvoices = [];
+      
+      // Create invoices for existing representatives
+      for (const processedInvoice of processedInvoices) {
+        const representative = await storage.getRepresentativeByCode(processedInvoice.representativeCode);
+        
+        if (representative) {
+          const invoice = await storage.createInvoice({
+            representativeId: representative.id,
+            amount: processedInvoice.amount.toString(),
+            issueDate: processedInvoice.issueDate,
+            dueDate: processedInvoice.dueDate,
+            status: "unpaid",
+            usageData: processedInvoice.usageData
+          });
+          createdInvoices.push({
+            ...invoice,
+            representativeName: representative.name,
+            representativeCode: representative.code
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        created: createdInvoices.length,
+        invalid: invalid.length,
+        invoices: createdInvoices,
+        invalidRecords: invalid
+      });
+    } catch (error) {
+      console.error('خطا در تولید فاکتور:', error);
+      res.status(500).json({ error: "خطا در پردازش فایل JSON" });
+    }
+  });
+
+  // Send invoices to Telegram
+  app.post("/api/invoices/send-telegram", async (req, res) => {
+    try {
+      const { invoiceIds, template } = req.body;
+      
+      if (!invoiceIds || !Array.isArray(invoiceIds)) {
+        return res.status(400).json({ error: "شناسه فاکتورها مشخص نشده" });
+      }
+
+      // Get Telegram settings
+      const botTokenSetting = await storage.getSetting('telegram_bot_token');
+      const chatIdSetting = await storage.getSetting('telegram_chat_id');
+      
+      if (!botTokenSetting || !chatIdSetting) {
+        return res.status(400).json({ error: "تنظیمات تلگرام کامل نیست" });
+      }
+
+      const messageTemplate = template || getDefaultTelegramTemplate();
+      const invoices = [];
+      
+      // Get invoice details for each ID
+      for (const id of invoiceIds) {
+        const allInvoices = await storage.getInvoices();
+        const invoice = allInvoices.find(inv => inv.id === id);
+        
+        if (invoice) {
+          const representative = await storage.getRepresentativeByCode(
+            // Get rep code from invoice - this would need proper join
+            'temp_code'
+          );
+          
+          if (representative) {
+            const portalLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost:5000'}/portal/${representative.publicId}`;
+            
+            invoices.push({
+              representativeName: representative.name,
+              shopOwner: representative.ownerName,
+              panelId: representative.panelUsername,
+              amount: invoice.amount,
+              issueDate: invoice.issueDate,
+              status: formatInvoiceStatus(invoice.status),
+              portalLink,
+              invoiceNumber: invoice.invoiceNumber
+            });
+          }
+        }
+      }
+
+      const result = await sendBulkInvoicesToTelegram(
+        botTokenSetting.value,
+        chatIdSetting.value,
+        invoices,
+        messageTemplate
+      );
+
+      if (result.success > 0) {
+        await storage.markInvoicesAsSentToTelegram(invoiceIds);
+      }
+
+      res.json({
+        success: result.success,
+        failed: result.failed,
+        total: invoices.length
+      });
+    } catch (error) {
+      console.error('خطا در ارسال به تلگرام:', error);
+      res.status(500).json({ error: "خطا در ارسال پیام‌های تلگرام" });
+    }
+  });
+
+  // Payments API
+  app.get("/api/payments", async (req, res) => {
+    try {
+      const payments = await storage.getPayments();
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت پرداخت‌ها" });
+    }
+  });
+
+  app.post("/api/payments", async (req, res) => {
+    try {
+      const validatedData = insertPaymentSchema.parse(req.body);
+      const payment = await storage.createPayment(validatedData);
+      res.json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
+      } else {
+        res.status(500).json({ error: "خطا در ثبت پرداخت" });
+      }
+    }
+  });
+
+  app.put("/api/payments/:id/allocate", async (req, res) => {
+    try {
+      const paymentId = parseInt(req.params.id);
+      const { invoiceId } = req.body;
+      
+      await storage.allocatePaymentToInvoice(paymentId, invoiceId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در تخصیص پرداخت" });
+    }
+  });
+
+  // Activity Logs API
+  app.get("/api/activity-logs", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      const logs = await storage.getActivityLogs(limit);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت فعالیت‌ها" });
+    }
+  });
+
+  // Settings API
+  app.get("/api/settings/:key", async (req, res) => {
+    try {
+      const setting = await storage.getSetting(req.params.key);
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت تنظیمات" });
+    }
+  });
+
+  app.put("/api/settings/:key", async (req, res) => {
+    try {
+      const { value } = req.body;
+      const setting = await storage.updateSetting(req.params.key, value);
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در بروزرسانی تنظیمات" });
+    }
+  });
+
+  // AI Assistant API
+  app.post("/api/ai/analyze-financial", async (req, res) => {
+    try {
+      const dashboardData = await storage.getDashboardData();
+      const analysis = await analyzeFinancialData(
+        dashboardData.totalRevenue,
+        dashboardData.totalDebt,
+        dashboardData.activeRepresentatives,
+        dashboardData.overdueInvoices
+      );
+      res.json(analysis);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در تحلیل مالی هوشمند" });
+    }
+  });
+
+  app.post("/api/ai/analyze-representative", async (req, res) => {
+    try {
+      const { representativeCode } = req.body;
+      const representative = await storage.getRepresentativeByCode(representativeCode);
+      
+      if (!representative) {
+        return res.status(404).json({ error: "نماینده یافت نشد" });
+      }
+
+      const invoices = await storage.getInvoicesByRepresentative(representative.id);
+      
+      const analysis = await analyzeRepresentative({
+        name: representative.name,
+        totalDebt: representative.totalDebt || "0",
+        totalSales: representative.totalSales || "0",
+        invoiceCount: invoices.length
+      });
+      
+      res.json(analysis);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در تحلیل نماینده" });
+    }
+  });
+
+  app.post("/api/ai/question", async (req, res) => {
+    try {
+      const { question } = req.body;
+      const answer = await answerFinancialQuestion(question);
+      res.json({ answer });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت پاسخ از دستیار هوشمند" });
+    }
+  });
+
+  app.post("/api/ai/generate-report", async (req, res) => {
+    try {
+      const dashboardData = await storage.getDashboardData();
+      const representatives = await storage.getRepresentatives();
+      const invoices = await storage.getInvoices();
+      
+      const reportData = {
+        dashboard: dashboardData,
+        representatives: representatives.slice(0, 10), // Top 10
+        invoices: invoices.slice(0, 20) // Recent 20
+      };
+      
+      const report = await generateFinancialReport(reportData);
+      res.json({ report });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در تولید گزارش" });
+    }
+  });
+
+  // Initialize default settings on first run
+  app.post("/api/init", async (req, res) => {
+    try {
+      // Set default Telegram template
+      await storage.updateSetting('telegram_template', getDefaultTelegramTemplate());
+      
+      // Set default calculation settings
+      await storage.updateSetting('invoice_base_rate', '1000');
+      await storage.updateSetting('invoice_due_days', '30');
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در راه‌اندازی اولیه" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}

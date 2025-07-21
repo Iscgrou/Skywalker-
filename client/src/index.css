@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(240, 10%, 3.9%);
+  --muted: hsl(240, 4.8%, 95.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(240, 10%, 3.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(240, 10%, 3.9%);
+  --border: hsl(240, 5.9%, 90%);
+  --input: hsl(240, 5.9%, 90%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(120, 61%, 50%);
+  --secondary-foreground: hsl(222.2, 84%, 4.9%);
+  --accent: hsl(32, 95%, 44%);
+  --accent-foreground: hsl(210, 40%, 98%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --ring: hsl(240, 10%, 3.9%);
+  --radius: 0.5rem;
+  
+  /* Custom MarFaNet colors */
+  --marfanet-primary: hsl(207, 90%, 54%);
+  --marfanet-secondary: hsl(120, 61%, 50%);
+  --marfanet-accent: hsl(32, 95%, 44%);
+  --marfanet-error: hsl(0, 84%, 60%);
+  --marfanet-surface: hsl(240, 4.8%, 95.9%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 3.7%, 15.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(207, 90%, 54%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+  
+  /* Dark mode MarFaNet colors */
+  --marfanet-primary: hsl(207, 90%, 60%);
+  --marfanet-secondary: hsl(120, 61%, 55%);
+  --marfanet-accent: hsl(32, 95%, 50%);
+  --marfanet-error: hsl(0, 84%, 65%);
+  --marfanet-surface: hsl(240, 3.7%, 15.9%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    direction: rtl;
+    font-family: 'Inter', 'Tahoma', 'Arial', sans-serif;
+  }
+
+  /* RTL Support */
+  .rtl {
+    direction: rtl;
+  }
+  
+  .ltr {
+    direction: ltr;
+  }
+}
+
+@layer components {
+  /* Custom component styles */
+  .sidebar-nav {
+    @apply w-64 bg-white dark:bg-gray-900 shadow-lg border-l border-gray-200 dark:border-gray-700;
+  }
+  
+  .main-content {
+    @apply mr-64 min-h-screen bg-gray-50 dark:bg-gray-900;
+  }
+  
+  .stat-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow cursor-pointer;
+  }
+  
+  .invoice-status-unpaid {
+    @apply px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 text-xs rounded-full;
+  }
+  
+  .invoice-status-paid {
+    @apply px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full;
+  }
+  
+  .invoice-status-overdue {
+    @apply px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 text-xs rounded-full;
+  }
+  
+  .telegram-connected {
+    @apply px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm;
+  }
+  
+  .ai-assistant-card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6;
+  }
+  
+  .activity-item {
+    @apply flex items-start space-x-3 space-x-reverse p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg;
+  }
+}
+
+@layer utilities {
+  /* Persian/Farsi number utilities */
+  .persian-digits {
+    font-variant-numeric: normal;
+  }
+  
+  /* Loading states */
+  .loading-shimmer {
+    @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
+  }
+  
+  /* Portal-specific dark theme */
+  .portal-dark {
+    @apply bg-gray-900 text-white;
+  }
+  
+  .portal-card {
+    @apply bg-gray-800 rounded-lg p-4;
+  }
+  
+  .portal-stat-value {
+    @apply text-2xl font-bold;
+  }
+  
+  .portal-debt {
+    @apply text-red-400;
+  }
+  
+  .portal-credit {
+    @apply text-green-400;
+  }
+  
+  .portal-warning {
+    @apply text-yellow-400;
+  }
+}
+
+/* Custom scrollbar for RTL */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500 dark:bg-gray-500;
+}
+
+/* Upload area styles */
+.upload-area {
+  @apply border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-colors hover:border-primary hover:bg-blue-50 dark:hover:bg-blue-900;
+}
+
+.upload-area.dragover {
+  @apply border-primary bg-blue-100 dark:bg-blue-900;
+}
+
+/* Animation for success states */
+.success-animation {
+  animation: successPulse 0.6s ease-in-out;
+}
+
+@keyframes successPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Telegram status indicators */
+.telegram-sent {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.telegram-pending {
+  @apply text-orange-600 dark:text-orange-400;
+}
+
+.telegram-failed {
+  @apply text-red-600 dark:text-red-400;
+}
