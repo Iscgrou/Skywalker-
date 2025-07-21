@@ -302,6 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Telegram Bot Token exists:', !!botToken);
       console.log('Telegram Chat ID exists:', !!chatId);
+      console.log('Invoice IDs to process:', invoiceIds);
       
       // Fallback to database settings if env vars not available
       if (!botToken || !chatId) {
@@ -333,18 +334,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const allInvoices = await storage.getInvoices();
         const invoice = allInvoices.find(inv => inv.id === id);
         
+        console.log(`Processing invoice ${id}:`, !!invoice);
+        
         if (invoice) {
-          const representative = await storage.getRepresentativeByCode(
-            // Get rep code from invoice - this would need proper join
-            'temp_code'
-          );
+          const representative = await storage.getRepresentative(invoice.representativeId);
+          
+          console.log(`Found representative for invoice ${id}:`, !!representative);
           
           if (representative) {
             const portalLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'localhost:5000'}/portal/${representative.publicId}`;
             
             invoices.push({
               representativeName: representative.name,
-              shopOwner: representative.ownerName,
+              representativeCode: representative.code,
+              shopOwner: representative.ownerName || representative.name,
               panelId: representative.panelUsername,
               amount: invoice.amount,
               issueDate: invoice.issueDate,
@@ -355,6 +358,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
+      
+      console.log(`Prepared ${invoices.length} invoices for Telegram`);
 
       const result = await sendBulkInvoicesToTelegram(
         botToken,
