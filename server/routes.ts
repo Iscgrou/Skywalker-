@@ -296,12 +296,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "شناسه فاکتورها مشخص نشده" });
       }
 
-      // Get Telegram settings
-      const botTokenSetting = await storage.getSetting('telegram_bot_token');
-      const chatIdSetting = await storage.getSetting('telegram_chat_id');
+      // Get Telegram settings from environment variables or database
+      let botToken = process.env.TELEGRAM_BOT_TOKEN;
+      let chatId = process.env.TELEGRAM_CHAT_ID;
       
-      if (!botTokenSetting || !chatIdSetting) {
-        return res.status(400).json({ error: "تنظیمات تلگرام کامل نیست" });
+      console.log('Telegram Bot Token exists:', !!botToken);
+      console.log('Telegram Chat ID exists:', !!chatId);
+      
+      // Fallback to database settings if env vars not available
+      if (!botToken || !chatId) {
+        const botTokenSetting = await storage.getSetting('telegram_bot_token');
+        const chatIdSetting = await storage.getSetting('telegram_chat_id');
+        
+        console.log('DB Bot Token exists:', !!botTokenSetting?.value);
+        console.log('DB Chat ID exists:', !!chatIdSetting?.value);
+        
+        if (!botTokenSetting || !chatIdSetting) {
+          return res.status(400).json({ 
+            error: "تنظیمات تلگرام کامل نیست - نیاز به توکن ربات و شناسه چت",
+            hasEnvToken: !!botToken,
+            hasEnvChatId: !!chatId,
+            hasDbToken: !!botTokenSetting?.value,
+            hasDbChatId: !!chatIdSetting?.value
+          });
+        }
+        
+        botToken = botTokenSetting.value;
+        chatId = chatIdSetting.value;
       }
 
       const messageTemplate = template || getDefaultTelegramTemplate();
@@ -336,8 +357,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = await sendBulkInvoicesToTelegram(
-        botTokenSetting.value,
-        chatIdSetting.value,
+        botToken,
+        chatId,
         invoices,
         messageTemplate
       );
