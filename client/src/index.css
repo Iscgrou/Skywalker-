@@ -89,11 +89,36 @@
   }
   
   .main-content {
-    @apply mr-64 min-h-screen bg-gray-50 dark:bg-gray-900;
+    @apply min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-300;
+  }
+
+  @media (min-width: 1024px) {
+    .main-content {
+      @apply mr-64;
+    }
   }
   
   .stat-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow cursor-pointer;
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6 hover:shadow-md transition-shadow cursor-pointer;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .sidebar-nav {
+      @apply w-80;
+    }
+    
+    .grid-mobile-optimize {
+      @apply grid-cols-1 gap-3;
+    }
+    
+    .text-mobile-sm {
+      @apply text-sm;
+    }
+    
+    .p-mobile-sm {
+      @apply p-3;
+    }
   }
   
   .invoice-status-unpaid {

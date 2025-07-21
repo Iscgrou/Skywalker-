@@ -1,4 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
+import { useState } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,12 +23,16 @@ import PublicPortal from "@/pages/public-portal";
 import NotFound from "@/pages/not-found";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="main-content">
-        <Header />
-        <main className="p-6">
+      <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
+      <div className="main-content lg:mr-64 mr-0">
+        <Header onMenuClick={toggleSidebar} />
+        <main className="p-4 lg:p-6">
           {children}
         </main>
       </div>

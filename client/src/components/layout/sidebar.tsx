@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useState } from "react";
 import { 
   BarChart3, 
   Users, 
@@ -9,9 +10,12 @@ import {
   Bot, 
   Settings, 
   Shield,
-  LogOut
+  LogOut,
+  Menu,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "داشبورد", href: "/dashboard", icon: BarChart3 },
@@ -24,21 +28,52 @@ const navigation = [
   { name: "تنظیمات", href: "/settings", icon: Settings },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
+
+export default function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
   const [location] = useLocation();
 
   return (
-    <div className="sidebar-nav fixed right-0 top-0 h-screen z-50">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <div className={cn(
+        "sidebar-nav fixed right-0 top-0 h-screen z-50 transform transition-transform duration-300 ease-in-out",
+        "lg:translate-x-0",
+        isOpen ? "translate-x-0" : "translate-x-full"
+      )}>
       {/* Logo Section */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3 space-x-reverse">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 space-x-reverse">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">MarFaNet</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">سیستم مدیریت مالی</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">MarFaNet</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">سیستم مدیریت مالی</p>
-          </div>
+          
+          {/* Close button for mobile */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={onToggle}
+          >
+            <X className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
@@ -84,5 +119,6 @@ export default function Sidebar() {
         </div>
       </div>
     </div>
+    </>
   );
 }
