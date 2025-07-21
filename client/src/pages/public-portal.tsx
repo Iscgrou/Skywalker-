@@ -90,35 +90,83 @@ export default function PublicPortal() {
   };
 
   const formatUsageData = (usageData: any) => {
-    if (!usageData || typeof usageData !== 'object') return null;
+    if (!usageData || typeof usageData !== 'object') return [];
 
-    // Check if data is an array of usage records (like from the image)
+    console.log('Raw usage data:', usageData);
+
+    // Check if data is already an array of usage records
     if (Array.isArray(usageData)) {
+      console.log('Data is array, length:', usageData.length);
       return usageData;
     }
 
-    // If it's an object, check if it has properties that look like usage records
-    if (usageData.admin_username || usageData.event_timestamp || usageData.description) {
-      return [usageData]; // Convert single record to array
+    // Handle the specific format from our database: {admin_username: "...", records: [...]}
+    if (usageData.records && Array.isArray(usageData.records)) {
+      console.log('Found records array, length:', usageData.records.length);
+      return usageData.records;
+    }
+
+    // If it's an object with admin_username property that contains the records
+    if (usageData.admin_username && typeof usageData === 'object') {
+      console.log('Single record with admin_username detected');
+      // If it has records property, use that
+      if (usageData.records && Array.isArray(usageData.records)) {
+        return usageData.records;
+      }
+      // Otherwise treat the whole object as a single record
+      return [usageData];
     }
 
     // Try to find array properties within the object
     const arrayProperties = Object.entries(usageData).find(([key, value]) => Array.isArray(value));
     if (arrayProperties && arrayProperties[1]) {
-      return arrayProperties[1];
+      console.log('Found array property:', arrayProperties[0]);
+      return arrayProperties[1] as any[];
     }
 
-    // Convert object to array format
-    return Object.entries(usageData).map(([key, value]) => ({
-      admin_username: key,
-      description: String(value),
-      amount: typeof value === 'number' ? value : null
-    }));
+    // Handle legacy format: object with multiple properties
+    if (typeof usageData === 'object') {
+      const records: any[] = [];
+      Object.entries(usageData).forEach(([key, value]) => {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          records.push({
+            admin_username: key,
+            event_timestamp: (value as any).timestamp || (value as any).event_timestamp || '-',
+            event_type: (value as any).type || (value as any).event_type || 'CREATE',
+            description: (value as any).description || (value as any).desc || `${key}: ${JSON.stringify(value)}`,
+            amount: (value as any).amount || (value as any).price || 0
+          });
+        } else if (key !== 'admin_username' && key !== 'records') {
+          records.push({
+            admin_username: usageData.admin_username || key,
+            event_timestamp: '-',
+            event_type: 'CREATE',
+            description: String(value || ''),
+            amount: typeof value === 'number' ? value : 0
+          });
+        }
+      });
+      console.log('Generated records from object properties:', records.length);
+      return records;
+    }
+
+    console.log('No valid data format found');
+    return [];
   };
 
   const renderUsageDetailsTable = (usageData: any) => {
     const formattedData = formatUsageData(usageData);
-    if (!formattedData || !Array.isArray(formattedData)) return null;
+    
+    console.log('Rendering table with data:', formattedData);
+    
+    if (!formattedData || !Array.isArray(formattedData) || formattedData.length === 0) {
+      return (
+        <div className="text-center py-8 text-gray-400">
+          <Database className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>هیچ اطلاعات ریز جزئیاتی برای نمایش وجود ندارد</p>
+        </div>
+      );
+    }
 
     return (
       <div className="overflow-x-auto">
@@ -175,6 +223,9 @@ export default function PublicPortal() {
             ))}
           </tbody>
         </table>
+        <div className="bg-gray-600 px-4 py-2 text-sm text-gray-300">
+          مجموع رکوردها: {toPersianDigits(formattedData.length.toString())} رکورد
+        </div>
       </div>
     );
   };
@@ -478,66 +529,64 @@ export default function PublicPortal() {
                           </TableRow>
                           
                           {/* Usage Data Details Row */}
-                          {invoice.usageData && expandedInvoices.has(invoice.invoiceNumber) && (
+                          {expandedInvoices.has(invoice.invoiceNumber) && (
                             <TableRow className="border-gray-700 bg-gray-800/50">
-                              <TableCell colSpan={5} className="p-6">
-                                <div className="bg-gray-700 rounded-lg p-6">
-                                  <h4 className="text-lg font-semibold text-white mb-6 flex items-center">
-                                    <Database className="w-5 h-5 ml-2" />
-                                    جزئیات مصرف فاکتور {invoice.invoiceNumber}
-                                  </h4>
-                                  
-                                  {/* Structured Usage Table */}
-                                  <div className="bg-gray-800 rounded-lg overflow-hidden">
-                                    {renderUsageDetailsTable(invoice.usageData)}
+                              <TableCell colSpan={5} className="p-0">
+                                {/* Invoice Details Card - Mobile First Design */}
+                                <div className="bg-gradient-to-br from-gray-800 to-gray-900 m-4 rounded-xl shadow-xl border border-gray-600">
+                                  {/* Header Section */}
+                                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-xl">
+                                    <div className="flex items-center justify-between text-white">
+                                      <div className="flex items-center space-x-3 space-x-reverse">
+                                        <div className="bg-white/20 p-2 rounded-full">
+                                          <FileText className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                          <h3 className="text-lg font-bold">جزئیات مصرف فاکتور</h3>
+                                          <p className="text-blue-100 text-sm">فاکتور شماره {invoice.invoiceNumber}</p>
+                                        </div>
+                                      </div>
+                                      <Badge className="bg-white/20 text-white border-white/30">
+                                        INV-{invoice.invoiceNumber.slice(-4)}
+                                      </Badge>
+                                    </div>
                                   </div>
 
-                                  {/* Summary Section */}
-                                  {formatUsageData(invoice.usageData) && (
-                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                      <Card className="bg-gray-600 border-gray-500">
-                                        <CardContent className="p-4">
-                                          <div className="flex items-center justify-between">
-                                            <div>
-                                              <p className="text-sm text-gray-300">تعداد رویدادها</p>
-                                              <p className="text-2xl font-bold text-white">
-                                                {toPersianDigits((formatUsageData(invoice.usageData) as any)?.length?.toString() || '0')}
-                                              </p>
-                                            </div>
-                                            <FileText className="w-8 h-8 text-blue-400" />
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-
-                                      <Card className="bg-gray-600 border-gray-500">
-                                        <CardContent className="p-4">
-                                          <div className="flex items-center justify-between">
-                                            <div>
-                                              <p className="text-sm text-gray-300">مجموع مبلغ</p>
-                                              <p className="text-2xl font-bold text-green-400">
-                                                {formatCurrency(invoice.amount)} تومان
-                                              </p>
-                                            </div>
-                                            <DollarSign className="w-8 h-8 text-green-400" />
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-
-                                      <Card className="bg-gray-600 border-gray-500">
-                                        <CardContent className="p-4">
-                                          <div className="flex items-center justify-between">
-                                            <div>
-                                              <p className="text-sm text-gray-300">وضعیت فاکتور</p>
-                                              <div className="mt-1">
-                                                {getInvoiceStatusBadge(invoice.status)}
-                                              </div>
-                                            </div>
-                                            <CheckCircle className="w-8 h-8 text-yellow-400" />
-                                          </div>
-                                        </CardContent>
-                                      </Card>
+                                  {/* Invoice Summary Cards */}
+                                  <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-gray-700">
+                                    <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                      <div className="text-2xl font-bold text-green-400 mb-1">
+                                        {formatCurrency(invoice.amount)} تومان
+                                      </div>
+                                      <div className="text-sm text-gray-300">مجموع مبلغ</div>
                                     </div>
-                                  )}
+                                    
+                                    <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                      <div className="text-2xl font-bold text-white mb-1">
+                                        {toPersianDigits((formatUsageData(invoice.usageData) as any[]).length.toString())}
+                                      </div>
+                                      <div className="text-sm text-gray-300">تعداد رویدادها</div>
+                                    </div>
+
+                                    <div className="bg-gray-700 rounded-lg p-4 text-center">
+                                      <div className="mb-1">
+                                        {getInvoiceStatusBadge(invoice.status)}
+                                      </div>
+                                      <div className="text-sm text-gray-300">وضعیت فاکتور</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Usage Details Table */}
+                                  <div className="p-6">
+                                    <div className="flex items-center mb-4">
+                                      <Database className="w-5 h-5 text-blue-400 ml-2" />
+                                      <h4 className="text-lg font-semibold text-white">ریز جزئیات مصرف</h4>
+                                    </div>
+                                    
+                                    <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-600">
+                                      {renderUsageDetailsTable(invoice.usageData)}
+                                    </div>
+                                  </div>
                                 </div>
                               </TableCell>
                             </TableRow>

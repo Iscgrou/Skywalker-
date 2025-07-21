@@ -191,7 +191,24 @@ export default function Settings() {
     if ((telegramTemplate as any)?.value) telegramForm.setValue('template', (telegramTemplate as any).value);
     if ((baseRate as any)?.value) calculationForm.setValue('baseRate', (baseRate as any).value);
     if ((dueDays as any)?.value) calculationForm.setValue('dueDays', (dueDays as any).value);
-  }, [telegramBotToken, telegramChatId, telegramTemplate, baseRate, dueDays]);
+    
+    // Update invoice template form with settings values
+    if ((showUsageDetails as any)?.value !== undefined) {
+      invoiceTemplateForm.setValue('showUsageDetails', (showUsageDetails as any).value === 'true');
+    }
+    if ((showEventTimestamp as any)?.value !== undefined) {
+      invoiceTemplateForm.setValue('showEventTimestamp', (showEventTimestamp as any).value === 'true');
+    }
+    if ((showEventType as any)?.value !== undefined) {
+      invoiceTemplateForm.setValue('showEventType', (showEventType as any).value === 'true');
+    }
+    if ((showDescription as any)?.value !== undefined) {
+      invoiceTemplateForm.setValue('showDescription', (showDescription as any).value === 'true');
+    }
+    if ((showAdminUsername as any)?.value !== undefined) {
+      invoiceTemplateForm.setValue('showAdminUsername', (showAdminUsername as any).value === 'true');
+    }
+  }, [telegramBotToken, telegramChatId, telegramTemplate, baseRate, dueDays, showUsageDetails, showEventTimestamp, showEventType, showDescription, showAdminUsername]);
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string, value: string }) => {
