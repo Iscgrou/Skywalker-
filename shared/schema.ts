@@ -70,6 +70,16 @@ export const activityLogs = pgTable("activity_logs", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Admin Users (کاربران ادمین)
+export const adminUsers = pgTable("admin_users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Settings (تنظیمات)
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
@@ -147,12 +157,21 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   createdAt: true
 });
 
+export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
+  id: true,
+  lastLoginAt: true,
+  createdAt: true
+});
+
 export const insertSettingSchema = createInsertSchema(settings).omit({
   id: true,
   updatedAt: true
 });
 
 // Types
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+
 export type Representative = typeof representatives.$inferSelect;
 export type InsertRepresentative = z.infer<typeof insertRepresentativeSchema>;
 

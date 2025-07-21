@@ -1,15 +1,17 @@
 import { 
-  representatives, salesPartners, invoices, payments, activityLogs, settings,
+  representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
   type Payment, type InsertPayment,
   type ActivityLog, type InsertActivityLog,
-  type Setting, type InsertSetting
+  type Setting, type InsertSetting,
+  type AdminUser, type InsertAdminUser
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import bcrypt from "bcryptjs";
 
 // Database operation wrapper with retry logic and error handling
 async function withDatabaseRetry<T>(
@@ -74,6 +76,12 @@ export interface IStorage {
   // Settings
   getSetting(key: string): Promise<Setting | undefined>;
   updateSetting(key: string, value: string): Promise<Setting>;
+
+  // Admin Users (Authentication)
+  getAdminUser(username: string): Promise<AdminUser | undefined>;
+  createAdminUser(user: InsertAdminUser): Promise<AdminUser>;
+  updateAdminUserLogin(id: number): Promise<void>;
+  initializeDefaultAdminUser(username: string, password: string): Promise<void>;
 
   // Dashboard data
   getDashboardData(): Promise<{
@@ -428,6 +436,58 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date()
       })
       .where(eq(representatives.id, repId));
+  }
+
+  // Admin Users methods
+  async getAdminUser(username: string): Promise<AdminUser | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [user] = await db.select().from(adminUsers).where(eq(adminUsers.username, username));
+        return user || undefined;
+      },
+      'getAdminUser'
+    );
+  }
+
+  async createAdminUser(user: InsertAdminUser): Promise<AdminUser> {
+    return await withDatabaseRetry(
+      async () => {
+        const [newUser] = await db.insert(adminUsers).values(user).returning();
+        return newUser;
+      },
+      'createAdminUser'
+    );
+  }
+
+  async updateAdminUserLogin(id: number): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        await db
+          .update(adminUsers)
+          .set({ lastLoginAt: new Date() })
+          .where(eq(adminUsers.id, id));
+      },
+      'updateAdminUserLogin'
+    );
+  }
+
+  // Initialize default admin user if not exists
+  async initializeDefaultAdminUser(username: string, password: string): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const existingUser = await this.getAdminUser(username);
+        if (!existingUser) {
+          const passwordHash = await bcrypt.hash(password, 10);
+          await this.createAdminUser({
+            username,
+            passwordHash,
+            isActive: true
+          });
+          console.log(`Default admin user created: ${username}`);
+        }
+      },
+      'initializeDefaultAdminUser'
+    );
   }
 }
 

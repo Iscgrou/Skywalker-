@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Bot, Send, Menu } from "lucide-react";
+import { Bot, Send, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -10,6 +12,8 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { logout } = useAuth();
+  const { toast } = useToast();
 
   // Update time every second
   useEffect(() => {
@@ -24,6 +28,22 @@ export default function Header({ onMenuClick }: HeaderProps) {
   });
 
   const isTelegramConnected = (telegramBotToken as any)?.value && (telegramBotToken as any).value.length > 0;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "خروج موفق",
+        description: "از سیستم خارج شدید"
+      });
+    } catch (error) {
+      toast({
+        title: "خطا در خروج",
+        description: "مشکلی در فرآیند خروج رخ داد",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -79,6 +99,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
             >
               <Bot className="w-4 h-4 mr-2" />
               دستیار هوشمند
+            </Button>
+            
+            {/* Logout Button */}
+            <Button 
+              variant="outline"
+              size="sm"
+              className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-700 dark:hover:text-red-400"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              خروج
             </Button>
           </div>
         </div>

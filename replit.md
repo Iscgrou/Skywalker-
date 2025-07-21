@@ -7,6 +7,9 @@ This is a comprehensive financial management system for MarFaNet, designed to ma
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+- **Security Requirements**: Admin panel requires login authentication; public representative portal should remain accessible without login
+- **Authentication**: Username and password system with secure session management
+- **Default Admin Credentials**: mgr / 8679 (created automatically on first startup)
 
 ## System Architecture
 
@@ -174,3 +177,32 @@ The system is designed to be self-contained with minimal external dependencies w
 - **UI Consistency**: Ensured all settings sections have proper save buttons and feedback
 - **Template Integration**: Fixed database template retrieval for actual telegram messages
 - **SQL Error Resolution**: Resolved PostgreSQL array syntax error in invoice marking functionality
+
+## Authentication System Implementation (July 21, 2025)
+
+### Security Architecture ✅
+- **Admin Panel Authentication**: Implemented secure login system exclusively for admin panel access
+- **Public Portal Preservation**: Public representative portals remain accessible without authentication
+- **Route Protection**: All admin API endpoints protected with session-based authentication middleware
+- **Session Management**: PostgreSQL-backed session store with secure cookies and 24-hour expiration
+
+### Technical Implementation ✅
+- **Database Schema**: Added admin_users table with bcrypt password hashing
+- **Session Infrastructure**: Express-session with connect-pg-simple PostgreSQL store
+- **Authentication API**: Login, logout, and session check endpoints with proper error handling
+- **Frontend Integration**: Auth context provider with login/logout state management
+- **Default User Creation**: Automatic initialization of admin user on first startup
+
+### Security Features ✅
+- **Password Security**: bcrypt hashing with 10 salt rounds for admin passwords
+- **Session Security**: HTTP-only cookies with proper CORS and security headers
+- **Route Isolation**: Admin routes completely separated from public portal routes
+- **Error Handling**: Comprehensive authentication error responses and session cleanup
+- **Logout Functionality**: Secure session destruction and client-side state management
+
+### User Experience ✅
+- **Admin Login Page**: Clean Persian UI with form validation and error display
+- **Authentication State**: Real-time authentication status with loading states
+- **Header Integration**: Logout button with confirmation and user feedback
+- **Route Protection**: Automatic redirect to login for unauthenticated admin access
+- **Public Access**: Uninterrupted access to public portals via /portal/:publicId routes

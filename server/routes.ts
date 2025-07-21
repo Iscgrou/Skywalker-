@@ -28,6 +28,7 @@ import {
   generateFinancialReport, 
   answerFinancialQuestion 
 } from "./services/gemini";
+import bcrypt from "bcryptjs";
 
 // Configure multer for file uploads with broader JSON acceptance
 const upload = multer({
@@ -42,10 +43,96 @@ const upload = multer({
   }
 });
 
+// Authentication middleware
+function requireAuth(req: any, res: any, next: any) {
+  if ((req.session as any)?.authenticated) {
+    next();
+  } else {
+    res.status(401).json({ error: "احراز هویت نشده" });
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Dashboard API
-  app.get("/api/dashboard", async (req, res) => {
+  // Initialize default admin user
+  try {
+    await storage.initializeDefaultAdminUser("mgr", "8679");
+  } catch (error) {
+    console.error("Failed to initialize default admin user:", error);
+  }
+  
+  // Authentication API
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "نام کاربری و رمز عبور الزامی است" });
+      }
+
+      // Get admin user from database
+      const adminUser = await storage.getAdminUser(username);
+      
+      if (!adminUser || !adminUser.isActive) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Update last login time
+      await storage.updateAdminUserLogin(adminUser.id);
+
+      // Set session
+      (req.session as any).authenticated = true;
+      (req.session as any).userId = adminUser.id;
+      (req.session as any).username = adminUser.username;
+
+      res.json({ 
+        success: true, 
+        message: "ورود موفقیت‌آمیز",
+        user: {
+          id: adminUser.id,
+          username: adminUser.username
+        }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "خطا در فرآیند ورود" });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ error: "خطا در فرآیند خروج" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: "خروج موفقیت‌آمیز" });
+    });
+  });
+
+  app.get("/api/auth/check", (req, res) => {
+    if ((req.session as any)?.authenticated) {
+      res.json({ 
+        authenticated: true, 
+        user: { 
+          id: (req.session as any).userId, 
+          username: (req.session as any).username 
+        } 
+      });
+    } else {
+      res.status(401).json({ authenticated: false });
+    }
+  });
+
+  // Dashboard API - Protected
+  app.get("/api/dashboard", requireAuth, async (req, res) => {
     try {
       const dashboardData = await storage.getDashboardData();
       res.json(dashboardData);
@@ -54,8 +141,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Representatives API
-  app.get("/api/representatives", async (req, res) => {
+  // Representatives API - Protected
+  app.get("/api/representatives", requireAuth, async (req, res) => {
     try {
       const representatives = await storage.getRepresentatives();
       res.json(representatives);
@@ -64,7 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/representatives/:code", async (req, res) => {
+  app.get("/api/representatives/:code", requireAuth, async (req, res) => {
     try {
       const representative = await storage.getRepresentativeByCode(req.params.code);
       if (!representative) {
@@ -85,7 +172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/representatives", async (req, res) => {
+  app.post("/api/representatives", requireAuth, async (req, res) => {
     try {
       const validatedData = insertRepresentativeSchema.parse(req.body);
       const representative = await storage.createRepresentative(validatedData);
@@ -99,7 +186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/representatives/:id", async (req, res) => {
+  app.put("/api/representatives/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const representative = await storage.updateRepresentative(id, req.body);
@@ -109,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/representatives/:id", async (req, res) => {
+  app.delete("/api/representatives/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       await storage.deleteRepresentative(id);
@@ -159,8 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sales Partners API
-  app.get("/api/sales-partners", async (req, res) => {
+  // Sales Partners API - Protected
+  app.get("/api/sales-partners", requireAuth, async (req, res) => {
     try {
       const partners = await storage.getSalesPartners();
       res.json(partners);
@@ -169,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/sales-partners", async (req, res) => {
+  app.post("/api/sales-partners", requireAuth, async (req, res) => {
     try {
       const validatedData = insertSalesPartnerSchema.parse(req.body);
       const partner = await storage.createSalesPartner(validatedData);
@@ -183,8 +270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invoices API
-  app.get("/api/invoices", async (req, res) => {
+  // Invoices API - Protected
+  app.get("/api/invoices", requireAuth, async (req, res) => {
     try {
       const invoices = await storage.getInvoices();
       res.json(invoices);
@@ -193,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/invoices/telegram-pending", async (req, res) => {
+  app.get("/api/invoices/telegram-pending", requireAuth, async (req, res) => {
     try {
       const invoices = await storage.getInvoicesForTelegram();
       res.json(invoices);
@@ -203,7 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Invoice generation from JSON file
-  app.post("/api/invoices/generate", upload.single('usageFile'), async (req: MulterRequest, res) => {
+  app.post("/api/invoices/generate", requireAuth, upload.single('usageFile'), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "فایل JSON ارسال نشده است" });
@@ -289,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send invoices to Telegram
-  app.post("/api/invoices/send-telegram", async (req, res) => {
+  app.post("/api/invoices/send-telegram", requireAuth, async (req, res) => {
     try {
       const { invoiceIds, template } = req.body;
       
@@ -386,8 +473,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Payments API
-  app.get("/api/payments", async (req, res) => {
+  // Payments API - Protected
+  app.get("/api/payments", requireAuth, async (req, res) => {
     try {
       const payments = await storage.getPayments();
       res.json(payments);
@@ -396,7 +483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/payments", async (req, res) => {
+  app.post("/api/payments", requireAuth, async (req, res) => {
     try {
       const validatedData = insertPaymentSchema.parse(req.body);
       const payment = await storage.createPayment(validatedData);
@@ -410,7 +497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/payments/:id/allocate", async (req, res) => {
+  app.put("/api/payments/:id/allocate", requireAuth, async (req, res) => {
     try {
       const paymentId = parseInt(req.params.id);
       const { invoiceId } = req.body;
@@ -423,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Activity Logs API
-  app.get("/api/activity-logs", async (req, res) => {
+  app.get("/api/activity-logs", requireAuth, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
       const logs = await storage.getActivityLogs(limit);
@@ -433,8 +520,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Settings API
-  app.get("/api/settings/:key", async (req, res) => {
+  // Settings API - Protected
+  app.get("/api/settings/:key", requireAuth, async (req, res) => {
     try {
       const setting = await storage.getSetting(req.params.key);
       res.json(setting);
@@ -443,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/settings/:key", async (req, res) => {
+  app.put("/api/settings/:key", requireAuth, async (req, res) => {
     try {
       const { value } = req.body;
       const setting = await storage.updateSetting(req.params.key, value);
@@ -454,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Assistant API
-  app.post("/api/ai/analyze-financial", async (req, res) => {
+  app.post("/api/ai/analyze-financial", requireAuth, async (req, res) => {
     try {
       const dashboardData = await storage.getDashboardData();
       const analysis = await analyzeFinancialData(
@@ -469,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/analyze-representative", async (req, res) => {
+  app.post("/api/ai/analyze-representative", requireAuth, async (req, res) => {
     try {
       const { representativeCode } = req.body;
       const representative = await storage.getRepresentativeByCode(representativeCode);
@@ -493,7 +580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/question", async (req, res) => {
+  app.post("/api/ai/question", requireAuth, async (req, res) => {
     try {
       const { question } = req.body;
       const answer = await answerFinancialQuestion(question);
@@ -503,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/generate-report", async (req, res) => {
+  app.post("/api/ai/generate-report", requireAuth, async (req, res) => {
     try {
       const dashboardData = await storage.getDashboardData();
       const representatives = await storage.getRepresentatives();
@@ -523,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test Telegram connection
-  app.post("/api/test-telegram", async (req, res) => {
+  app.post("/api/test-telegram", requireAuth, async (req, res) => {
     try {
       console.log('Testing Telegram connection...');
       
