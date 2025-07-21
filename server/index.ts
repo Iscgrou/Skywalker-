@@ -4,6 +4,9 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
+// Fix for Replit GCE deployment - trust proxy for authentication
+app.set('trust proxy', true);
+
 // Enhanced CORS and security headers for production deployment
 app.use((req, res, next) => {
   // Set comprehensive CORS headers for all origins in production
@@ -91,9 +94,13 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
   
-  // Add health check endpoint for Cloud Run
+  // Add health check and root endpoint for deployment
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy', timestamp: Date.now() });
+  });
+  
+  app.get('/ready', (req, res) => {
+    res.status(200).json({ status: 'ready', timestamp: Date.now() });
   });
   
   server.listen({

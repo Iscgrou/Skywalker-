@@ -120,3 +120,4 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Dashboard Analytics**: Real-time financial overview and activity logs
 - **Telegram Integration**: API endpoints ready, bot tested and working
 - **Portal URL Structure**: Fixed to use standard deployed URL (https://agent-portal-shield-info9071.replit.app)
+- **GCE Authentication Fix**: Added trust proxy configuration for Replit deployment
