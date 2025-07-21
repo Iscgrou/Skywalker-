@@ -29,18 +29,16 @@ import {
   answerFinancialQuestion 
 } from "./services/gemini";
 
-// Configure multer for file uploads
+// Configure multer for file uploads with broader JSON acceptance
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit for large JSON files
   },
   fileFilter: (req: any, file: any, cb: any) => {
-    if (file.mimetype === 'application/json') {
-      cb(null, true);
-    } else {
-      cb(new Error('فقط فایل‌های JSON پذیرفته می‌شود'));
-    }
+    // Accept all files for maximum compatibility - validate content in handler
+    console.log(`File upload: ${file.originalname}, MIME: ${file.mimetype}`);
+    cb(null, true);
   }
 });
 
@@ -215,10 +213,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { valid, invalid } = validateUsageData(usageRecords);
       
+      console.log(`تعداد رکوردهای معتبر: ${valid.length}, غیرمعتبر: ${invalid.length}`);
+      if (invalid.length > 0) {
+        console.log("نمونه رکورد غیرمعتبر:", invalid[0]);
+      }
+      if (valid.length > 0) {
+        console.log("نمونه رکورد معتبر:", valid[0]);
+      }
+      
       if (valid.length === 0) {
         return res.status(400).json({ 
           error: "هیچ رکورد معتبری یافت نشد", 
-          invalid 
+          totalRecords: usageRecords.length,
+          invalidSample: invalid.slice(0, 3),
+          details: "بررسی کنید که فایل JSON شامل فیلدهای admin_username و amount باشد"
         });
       }
 
