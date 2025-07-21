@@ -9,9 +9,9 @@ export const representatives = pgTable("representatives", {
   code: text("code").notNull().unique(), // REP-001, mntzresf, etc.
   name: text("name").notNull(), // Shop name
   ownerName: text("owner_name"), // صاحب فروشگاه
-  panelUsername: text("panel_username").notNull(), // یوزرنیم ادمین پنل
+  panelUsername: text("panel_username").notNull(), // یوزرنیم ادمین پنل - admin_username from JSON
   phone: text("phone"),
-  publicId: text("public_id").notNull().unique(), // For public portal access
+  publicId: text("public_id").notNull().unique(), // For public portal access - based on panelUsername
   salesPartnerId: integer("sales_partner_id"), // همکار فروش معرف
   isActive: boolean("is_active").default(true),
   totalDebt: decimal("total_debt", { precision: 15, scale: 2 }).default("0"), // بدهی کل

@@ -15,6 +15,7 @@ export interface IStorage {
   // Representatives
   getRepresentatives(): Promise<Representative[]>;
   getRepresentativeByCode(code: string): Promise<Representative | undefined>;
+  getRepresentativeByPanelUsername(panelUsername: string): Promise<Representative | undefined>;
   getRepresentativeByPublicId(publicId: string): Promise<Representative | undefined>;
   createRepresentative(rep: InsertRepresentative): Promise<Representative>;
   updateRepresentative(id: number, rep: Partial<Representative>): Promise<Representative>;
@@ -70,6 +71,11 @@ export class DatabaseStorage implements IStorage {
 
   async getRepresentativeByCode(code: string): Promise<Representative | undefined> {
     const [rep] = await db.select().from(representatives).where(eq(representatives.code, code));
+    return rep || undefined;
+  }
+
+  async getRepresentativeByPanelUsername(panelUsername: string): Promise<Representative | undefined> {
+    const [rep] = await db.select().from(representatives).where(eq(representatives.panelUsername, panelUsername));
     return rep || undefined;
   }
 

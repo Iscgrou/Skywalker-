@@ -1,8 +1,9 @@
 import { toPersianDigits, getCurrentPersianDate } from "../../client/src/lib/persian-date";
 
 export interface UsageDataRecord {
-  representative_code: string;
-  panel_username: string;
+  representative_code?: string;
+  panel_username?: string;
+  admin_username: string; // Primary unique identifier
   usage_amount: number;
   period_start: string;
   period_end: string;
@@ -64,14 +65,67 @@ export function processUsageData(usageRecords: UsageDataRecord[]): ProcessedInvo
     const amount = calculateInvoiceAmount(record);
     
     return {
-      representativeCode: record.representative_code,
-      panelUsername: record.panel_username,
+      representativeCode: record.representative_code || record.admin_username,
+      panelUsername: record.admin_username, // Use admin_username as main identifier
       amount,
       usageData: record,
       issueDate: currentDate,
       dueDate: addDaysToPersianDate(currentDate, 30) // 30 days from issue
     };
   });
+}
+
+// Helper function to create public portal ID from admin_username
+export function generatePublicId(adminUsername: string): string {
+  // Create a consistent public ID based on admin_username
+  return `portal_${adminUsername.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+}
+
+// Helper function to auto-create representative from usage data
+export async function createRepresentativeFromUsageData(
+  adminUsername: string,
+  db: any,
+  defaultSalesPartnerId?: number
+): Promise<any> {
+  const publicId = generatePublicId(adminUsername);
+  
+  // Create basic representative profile with minimal required data
+  const newRepresentative = {
+    code: adminUsername, // Use admin_username as code
+    name: `فروشگاه ${adminUsername}`, // Default shop name
+    ownerName: null, // Will be set to null as default
+    panelUsername: adminUsername,
+    phone: null,
+    publicId: publicId,
+    salesPartnerId: defaultSalesPartnerId || null,
+    isActive: true
+  };
+
+  return newRepresentative;
+}
+
+// Helper to get or create default sales partner
+export async function getOrCreateDefaultSalesPartner(db: any): Promise<number> {
+  const { salesPartners } = await import("../../shared/schema");
+  const { eq } = await import("drizzle-orm");
+  
+  // Try to find existing default partner
+  const existing = await db.select().from(salesPartners).where(eq(salesPartners.name, "همکار پیش‌فرض")).limit(1);
+  
+  if (existing.length > 0) {
+    return existing[0].id;
+  }
+  
+  // Create default sales partner
+  const [newPartner] = await db.insert(salesPartners).values({
+    name: "همکار پیش‌فرض",
+    phone: null,
+    email: null,
+    commissionRate: "5.00", // 5% default commission
+    isActive: true
+  }).returning();
+  
+  return newPartner.id;
 }
 
 export function addDaysToPersianDate(persianDate: string, days: number): string {

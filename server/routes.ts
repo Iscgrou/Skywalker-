@@ -1,6 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import multer from "multer";
 
 // Extend Request interface to include multer file
@@ -14,7 +15,7 @@ import {
   insertInvoiceSchema, 
   insertPaymentSchema 
 } from "@shared/schema";
-import { parseUsageJsonData, processUsageData, validateUsageData } from "./services/invoice";
+import { parseUsageJsonData, processUsageData, validateUsageData, getOrCreateDefaultSalesPartner, createRepresentativeFromUsageData } from "./services/invoice";
 import { 
   sendInvoiceToTelegram, 
   sendBulkInvoicesToTelegram, 
@@ -223,10 +224,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const processedInvoices = processUsageData(valid);
       const createdInvoices = [];
+      const newRepresentatives = [];
       
-      // Create invoices for existing representatives
+      // Get or create default sales partner for new representatives  
+      const defaultSalesPartnerId = await getOrCreateDefaultSalesPartner(db);
+      
+      // Process each invoice and auto-create representatives if needed
       for (const processedInvoice of processedInvoices) {
-        const representative = await storage.getRepresentativeByCode(processedInvoice.representativeCode);
+        // Try to find representative by admin_username (panelUsername)
+        let representative = await storage.getRepresentativeByPanelUsername(processedInvoice.panelUsername) ||
+                           await storage.getRepresentativeByCode(processedInvoice.representativeCode);
+        
+        // If representative doesn't exist, create new one
+        if (!representative) {
+          const newRepData = await createRepresentativeFromUsageData(
+            processedInvoice.panelUsername, 
+            db,
+            defaultSalesPartnerId
+          );
+          
+          representative = await storage.createRepresentative(newRepData);
+          newRepresentatives.push(representative);
+        }
         
         if (representative) {
           const invoice = await storage.createInvoice({
@@ -248,8 +267,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         created: createdInvoices.length,
+        newRepresentatives: newRepresentatives.length,
         invalid: invalid.length,
         invoices: createdInvoices,
+        createdRepresentatives: newRepresentatives,
         invalidRecords: invalid
       });
     } catch (error) {

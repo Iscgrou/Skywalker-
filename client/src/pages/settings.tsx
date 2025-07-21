@@ -11,7 +11,9 @@ import {
   Calculator,
   Palette,
   Bell,
-  Shield
+  Shield,
+  FileText,
+  Globe
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,21 @@ const telegramSettingsSchema = z.object({
   template: z.string().min(1, "قالب پیام الزامی است"),
 });
 
+const portalSettingsSchema = z.object({
+  portalTitle: z.string().min(1, "عنوان پورتال الزامی است"),
+  portalDescription: z.string().optional(),
+  showOwnerName: z.boolean(),
+  showDetailedUsage: z.boolean(),
+  customCss: z.string().optional(),
+});
+
+const invoiceTemplateSchema = z.object({
+  invoiceHeader: z.string().min(1, "سربرگ فاکتور الزامی است"),
+  invoiceFooter: z.string().optional(),
+  showUsageDetails: z.boolean(),
+  usageFormat: z.string().optional(),
+});
+
 const calculationSettingsSchema = z.object({
   baseRate: z.string().min(1, "نرخ پایه الزامی است"),
   dueDays: z.string().min(1, "روزهای سررسید الزامی است"),
@@ -57,6 +74,8 @@ const aiSettingsSchema = z.object({
 type TelegramSettingsData = z.infer<typeof telegramSettingsSchema>;
 type CalculationSettingsData = z.infer<typeof calculationSettingsSchema>;
 type AiSettingsData = z.infer<typeof aiSettingsSchema>;
+type PortalSettingsData = z.infer<typeof portalSettingsSchema>;
+type InvoiceTemplateData = z.infer<typeof invoiceTemplateSchema>;
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("telegram");
@@ -222,9 +241,13 @@ export default function Settings() {
             <Bot className="w-4 h-4 mr-2" />
             هوش مصنوعی
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center">
+          <TabsTrigger value="portal" className="flex items-center">
             <Palette className="w-4 h-4 mr-2" />
-            ظاهر
+            پورتال عمومی
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="flex items-center">
+            <FileText className="w-4 h-4 mr-2" />
+            قالب‌ها
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center">
             <Shield className="w-4 h-4 mr-2" />
