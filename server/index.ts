@@ -4,19 +4,24 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-// Enhanced CORS and security headers for iOS compatibility
+// Enhanced CORS and security headers for production deployment
 app.use((req, res, next) => {
-  // Set comprehensive CORS headers
+  // Set comprehensive CORS headers for all origins in production
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
   res.header('Access-Control-Allow-Credentials', 'true');
   
-  // iOS Safari specific headers
+  // Security headers for production deployment
   res.header('X-Content-Type-Options', 'nosniff');
   res.header('X-Frame-Options', 'SAMEORIGIN');
   res.header('X-XSS-Protection', '1; mode=block');
   res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Cloud Run specific headers
+  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.header('Pragma', 'no-cache');
+  res.header('Expires', '0');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -85,11 +90,19 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  
+  // Add health check endpoint for Cloud Run
+  app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'healthy', timestamp: Date.now() });
+  });
+  
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    log(`Environment: ${app.get("env")}`);
+    log(`Health check available at /health`);
   });
 })();
