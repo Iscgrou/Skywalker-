@@ -24,6 +24,7 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     console.log('=== PARSING WEEKLY MARFANET JSON DATA ===');
     console.log('JSON data length:', jsonData.length);
     console.log('First 200 chars:', jsonData.substring(0, 200));
+    console.log('Last 200 chars:', jsonData.substring(jsonData.length - 200));
     
     const data = JSON.parse(jsonData);
     let usageRecords: any[] = [];
@@ -76,14 +77,30 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
         const potentialRecords = data.slice(16);
         console.log(`Skipped first 16 header lines, remaining items: ${potentialRecords.length}`);
         
-        usageRecords = potentialRecords.filter(item => 
-          item && 
-          typeof item === 'object' && 
-          item.admin_username &&
-          item.amount &&
-          item.event_timestamp
-        );
-        console.log(`✅ Filtered ${usageRecords.length} usage records after skipping headers`);
+        // Filter out invalid records and JSON closing syntax
+        usageRecords = potentialRecords.filter(item => {
+          // Skip null, undefined, or non-object items
+          if (!item || typeof item !== 'object') {
+            console.log('⚠️ Skipping non-object item:', typeof item, item);
+            return false;
+          }
+          
+          // Skip items without required fields - these are likely JSON closing syntax
+          if (!item.admin_username || !item.amount || !item.event_timestamp) {
+            console.log('⚠️ Skipping invalid record (missing fields):', Object.keys(item));
+            return false;
+          }
+          
+          // Skip empty amount values
+          const amount = parseFloat(item.amount || '0');
+          if (amount <= 0) {
+            console.log('⚠️ Skipping zero/invalid amount record:', item.admin_username, item.amount);
+            return false;
+          }
+          
+          return true;
+        });
+        console.log(`✅ Filtered ${usageRecords.length} valid usage records after skipping headers and invalid items`);
         
         if (usageRecords.length > 0) {
           console.log('✅ First filtered record:', JSON.stringify(usageRecords[0], null, 2));
@@ -387,67 +404,97 @@ export async function processUsageDataSequential(
   const sortedEntries = Object.entries(representativeGroups);
   
   for (const [adminUsername, records] of sortedEntries) {
-    console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد (${processedCount + 1}/${totalRepresentatives})`);
-    
-    // بررسی وجود نماینده
-    let representative = await storage.getRepresentativeByPanelUsername(adminUsername) ||
-                        await storage.getRepresentativeByCode(adminUsername);
-    
-    // ایجاد نماینده جدید در صورت عدم وجود
-    if (!representative) {
-      console.log(`➕ ایجاد نماینده جدید: ${adminUsername}`);
-      const newRepData = await createRepresentativeFromUsageData(
-        adminUsername,
-        dbInstance,
-        defaultSalesPartnerId
-      );
-      representative = await storage.createRepresentative(newRepData);
-      newRepresentatives.push(representative);
-    }
-    
-    // محاسبه مجموع مبلغ برای این نماینده
-    const totalAmount = records.reduce((sum, record) => {
-      const amount = parseFloat(record.amount.toString());
-      return sum + (isNaN(amount) ? 0 : amount);
-    }, 0);
-    
-    // ایجاد فاکتور با جزئیات کامل
-    const processedInvoice: ProcessedInvoice = {
-      representativeCode: adminUsername,
-      panelUsername: adminUsername,
-      amount: totalAmount,
-      issueDate: getCurrentPersianDate(),
-      dueDate: addDaysToPersianDate(getCurrentPersianDate(), 30),
-      usageData: {
-        admin_username: adminUsername,
-        records: records.map(record => ({
-          ...record,
-          representative_code: adminUsername,
-          panel_username: adminUsername,
-          usage_amount: parseFloat(record.amount.toString()),
-          period_start: record.event_timestamp,
-          period_end: record.event_timestamp
-        })),
-        totalRecords: records.length,
-        period_start: records[0]?.event_timestamp || '',
-        period_end: records[records.length - 1]?.event_timestamp || '',
-        usage_amount: totalAmount
+    try {
+      console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد (${processedCount + 1}/${totalRepresentatives})`);
+      
+      // Filter out any invalid records for this representative
+      const validRecords = records.filter(record => {
+        if (!record || typeof record !== 'object') {
+          console.log(`⚠️ Skipping invalid record type for ${adminUsername}:`, typeof record);
+          return false;
+        }
+        
+        const amount = parseFloat(record.amount?.toString() || '0');
+        if (isNaN(amount) || amount <= 0) {
+          console.log(`⚠️ Skipping invalid amount for ${adminUsername}:`, record.amount);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (validRecords.length === 0) {
+        console.log(`❌ No valid records found for ${adminUsername}, skipping...`);
+        processedCount++;
+        continue;
       }
-    };
-    
-    processedInvoices.push(processedInvoice);
-    processedCount++;
-    
-    console.log(`✅ فاکتور آماده شد برای ${adminUsername}: ${totalAmount} تومان (${processedCount}/${totalRepresentatives})`);
-    
-    // بهینه‌سازی حافظه و جلوگیری از overwhelming database
-    if (processedCount % 25 === 0) {
-      console.log(`🔄 پردازش ${processedCount}/${totalRepresentatives} نماینده تکمیل شد - آزادسازی حافظه...`);
-      // Force garbage collection if available and clear temporary data
-      if (global.gc) {
-        global.gc();
+      
+      console.log(`✅ Processing ${validRecords.length} valid records for ${adminUsername}`);
+      
+      // بررسی وجود نماینده
+      let representative = await storage.getRepresentativeByPanelUsername(adminUsername) ||
+                          await storage.getRepresentativeByCode(adminUsername);
+      
+      // ایجاد نماینده جدید در صورت عدم وجود
+      if (!representative) {
+        console.log(`➕ ایجاد نماینده جدید: ${adminUsername}`);
+        const newRepData = await createRepresentativeFromUsageData(
+          adminUsername,
+          dbInstance,
+          defaultSalesPartnerId
+        );
+        representative = await storage.createRepresentative(newRepData);
+        newRepresentatives.push(representative);
       }
-      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // محاسبه مجموع مبلغ برای این نماینده (فقط از رکوردهای معتبر)
+      const totalAmount = validRecords.reduce((sum, record) => {
+        const amount = parseFloat(record.amount.toString());
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+      
+      // ایجاد فاکتور با جزئیات کامل (use validRecords instead of records)
+      const processedInvoice: ProcessedInvoice = {
+        representativeCode: adminUsername,
+        panelUsername: adminUsername,
+        amount: totalAmount,
+        issueDate: getCurrentPersianDate(),
+        dueDate: addDaysToPersianDate(getCurrentPersianDate(), 30),
+        usageData: {
+          admin_username: adminUsername,
+          records: validRecords.map(record => ({
+            ...record,
+            representative_code: adminUsername,
+            panel_username: adminUsername,
+            usage_amount: parseFloat(record.amount.toString()),
+            period_start: record.event_timestamp,
+            period_end: record.event_timestamp
+          })),
+          totalRecords: validRecords.length,
+          period_start: validRecords[0]?.event_timestamp || '',
+          period_end: validRecords[validRecords.length - 1]?.event_timestamp || '',
+          usage_amount: totalAmount
+        }
+      };
+      
+      processedInvoices.push(processedInvoice);
+      processedCount++;
+      
+      console.log(`✅ فاکتور آماده شد برای ${adminUsername}: ${totalAmount} تومان (${processedCount}/${totalRepresentatives})`);
+      
+      // بهینه‌سازی حافظه و جلوگیری از overwhelming database
+      if (processedCount % 25 === 0) {
+        console.log(`🔄 پردازش ${processedCount}/${totalRepresentatives} نماینده تکمیل شد - آزادسازی حافظه...`);
+        // Force garbage collection if available and clear temporary data
+        if (global.gc) {
+          global.gc();
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    } catch (error) {
+      console.error(`❌ Error processing representative ${adminUsername}:`, error);
+      processedCount++;
+      continue; // Skip this representative and continue with the next one
     }
   }
   
