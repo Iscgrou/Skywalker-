@@ -50,7 +50,20 @@ export default function InvoiceUpload() {
       const formData = new FormData();
       formData.append('usageFile', file);
       
-      const response = await apiRequest('POST', '/api/invoices/generate', formData);
+      console.log('Uploading file:', file.name, 'Size:', file.size);
+      
+      // Use fetch directly for file upload with proper headers
+      const response = await fetch('/api/invoices/generate', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include' // Include cookies for authentication
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'خطا در آپلود فایل');
+      }
+      
       return response.json();
     },
     onSuccess: (data: UploadResult) => {
@@ -107,22 +120,30 @@ export default function InvoiceUpload() {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
-    if (file && file.type === 'application/json') {
-      setUploadProgress(10);
-      uploadMutation.mutate(file);
-    } else {
-      toast({
-        title: "نوع فایل نامعتبر",
-        description: "لطفاً فقط فایل‌های JSON آپلود کنید",
-        variant: "destructive",
-      });
+    if (file) {
+      // Accept JSON files more broadly (including text/plain for some exports)
+      const isJsonFile = file.name.toLowerCase().endsWith('.json') || 
+                        file.type === 'application/json' || 
+                        file.type === 'text/plain';
+      
+      if (isJsonFile) {
+        setUploadProgress(10);
+        uploadMutation.mutate(file);
+      } else {
+        toast({
+          title: "نوع فایل نامعتبر",
+          description: "لطفاً فقط فایل‌های JSON آپلود کنید",
+          variant: "destructive",
+        });
+      }
     }
   }, [uploadMutation, toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/json': ['.json']
+      'application/json': ['.json'],
+      'text/plain': ['.json']  // Accept JSON files that might be detected as text
     },
     maxFiles: 1,
     multiple: false
