@@ -116,13 +116,36 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
   
-  // Add health check and root endpoint for deployment
+  // Add comprehensive health check endpoints for deployment debugging
   app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'healthy', timestamp: Date.now() });
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: Date.now(),
+      environment: process.env.NODE_ENV,
+      port: port,
+      host: '0.0.0.0'
+    });
   });
   
   app.get('/ready', (req, res) => {
-    res.status(200).json({ status: 'ready', timestamp: Date.now() });
+    res.status(200).json({ 
+      status: 'ready', 
+      timestamp: Date.now(),
+      server: 'MarFaNet Financial System',
+      version: '1.0.0',
+      authentication: 'disabled for cross-environment deployment'
+    });
+  });
+
+  // Add root endpoint for quick testing
+  app.get('/', (req, res) => {
+    if (app.get("env") === "development") {
+      // In development, Vite will handle this
+      res.redirect('/dashboard');
+    } else {
+      // In production, serve the built app
+      res.sendFile(path.resolve(import.meta.dirname, '..', 'dist', 'public', 'index.html'));
+    }
   });
   
   server.listen({
@@ -133,6 +156,9 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
     log(`Environment: ${app.get("env")}`);
     log(`Health check available at /health`);
+    log(`Ready check available at /ready`);
+    log(`Server bound to 0.0.0.0:${port} for cross-environment compatibility`);
+    log(`Frontend accessible at http://localhost:${port} or http://0.0.0.0:${port}`);
   });
 
   // Graceful shutdown handling for production stability

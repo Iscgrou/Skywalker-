@@ -320,3 +320,18 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Environment Agnostic**: System works identically across all deployment environments
 - **Source Code Portability**: Complete source code can be deployed without access restrictions
 - **Development Flexibility**: All features accessible immediately without setup or configuration
+
+## Cross-Environment Deployment Troubleshooting (July 22, 2025)
+
+### Common Timeout and Preview Issues ✅
+- **Network Binding**: Server configured to bind on 0.0.0.0:5000 for maximum compatibility
+- **Health Check Endpoints**: Added /health and /ready endpoints for deployment debugging
+- **CORS Headers**: Comprehensive CORS configuration for all origins and methods
+- **Port Configuration**: Flexible port configuration via PORT environment variable
+- **Development Guide**: Complete deployment guide created for cross-environment troubleshooting
+
+### Deployment Solutions ✅
+- **Multiple Access Methods**: Support for localhost:5000, 0.0.0.0:5000, and custom ports
+- **Environment Detection**: Automatic detection and handling of different deployment environments
+- **Production Mode Support**: Complete build and production server configuration
+- **Debug Information**: Enhanced logging for troubleshooting network and connectivity issues
