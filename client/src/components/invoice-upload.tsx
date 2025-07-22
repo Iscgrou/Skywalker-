@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { 
   Upload, 
@@ -7,13 +7,19 @@ import {
   AlertCircle, 
   Send, 
   Download,
-  Clock
+  Clock,
+  Activity,
+  Eye,
+  X
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -38,12 +44,79 @@ interface UploadResult {
   invalidRecords: any[];
 }
 
+interface ProcessingStep {
+  stage: string;
+  message: string;
+  progress: number;
+  total: number;
+  timestamp: string;
+  status: 'processing' | 'completed' | 'error';
+  details?: string;
+}
+
 export default function InvoiceUpload() {
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [selectedInvoices, setSelectedInvoices] = useState<number[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
+  const [showProcessingModal, setShowProcessingModal] = useState(false);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // شبیه‌سازی مراحل پردازش بر اساس اندازه فایل
+  const simulateProcessingSteps = (fileSize: number) => {
+    const estimatedRecords = Math.floor(fileSize / 200); // تخمین تعداد رکوردها
+    const estimatedRepresentatives = Math.floor(estimatedRecords / 20); // تخمین نمایندگان
+    
+    let currentStep = 0;
+    const totalSteps = estimatedRepresentatives + 5; // مراحل اضافی برای parsing و setup
+    
+    const addStep = (stage: string, message: string, details?: string) => {
+      currentStep++;
+      const progress = Math.floor((currentStep / totalSteps) * 100);
+      
+      setProcessingSteps(prev => [...prev, {
+        stage,
+        message,
+        progress: currentStep,
+        total: totalSteps,
+        timestamp: new Date().toLocaleTimeString('fa-IR'),
+        status: 'processing',
+        details
+      }]);
+      
+      setUploadProgress(progress);
+    };
+
+    // مرحله اول: آپلود
+    setTimeout(() => addStep('آپلود', 'آپلود فایل JSON...', `حجم فایل: ${Math.round(fileSize/1024)} KB`), 500);
+    
+    // مرحله دوم: پارس کردن
+    setTimeout(() => addStep('تحلیل', 'تحلیل ساختار JSON...', `تشخیص فرمت PHPMyAdmin`), 1000);
+    
+    // مرحله سوم: استخراج داده
+    setTimeout(() => addStep('استخراج', `استخراج ${toPersianDigits(estimatedRecords.toString())} رکورد...`, 'گروه‌بندی بر اساس نمایندگان'), 1500);
+    
+    // شبیه‌سازی پردازش نمایندگان
+    let processedReps = 0;
+    const interval = setInterval(() => {
+      processedReps++;
+      const repName = `نماینده ${toPersianDigits(processedReps.toString())}`;
+      addStep('پردازش', `ایجاد فاکتور برای ${repName}`, `${toPersianDigits(processedReps.toString())}/${toPersianDigits(estimatedRepresentatives.toString())} نماینده`);
+      
+      if (processedReps >= estimatedRepresentatives - 2) {
+        clearInterval(interval);
+        // مراحل نهایی
+        setTimeout(() => addStep('نهایی‌سازی', 'به‌روزرسانی آمار مالی...'), 100);
+        setTimeout(() => addStep('تکمیل', 'پردازش با موفقیت تکمیل شد!'), 200);
+      }
+    }, Math.max(100, 1000 / estimatedRepresentatives)); // حداقل 100ms فاصله بین مراحل
+    
+    processingIntervalRef.current = interval;
+  };
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -51,6 +124,15 @@ export default function InvoiceUpload() {
       formData.append('usageFile', file);
       
       console.log('Uploading file:', file.name, 'Size:', file.size);
+      
+      // شروع نمایش modal و شبیه‌سازی مراحل
+      setIsProcessing(true);
+      setShowProcessingModal(true);
+      setProcessingSteps([]);
+      setCurrentFile(file);
+      
+      // شروع شبیه‌سازی مراحل
+      simulateProcessingSteps(file.size);
       
       // Use fetch directly for file upload with proper headers and extended timeout
       const controller = new AbortController();
@@ -73,8 +155,18 @@ export default function InvoiceUpload() {
       return response.json();
     },
     onSuccess: (data: UploadResult) => {
+      // پاک کردن interval
+      if (processingIntervalRef.current) {
+        clearInterval(processingIntervalRef.current);
+      }
+      
+      // به‌روزرسانی مرحله آخر به موفقیت
+      setProcessingSteps(prev => prev.map(step => ({ ...step, status: 'completed' })));
+      
       setUploadResult(data);
       setUploadProgress(100);
+      setIsProcessing(false);
+      
       console.log('فایل با موفقیت پردازش شد:', data);
       toast({
         title: "فایل با موفقیت پردازش شد",
@@ -84,7 +176,19 @@ export default function InvoiceUpload() {
       queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
     },
     onError: (error: any) => {
+      // پاک کردن interval
+      if (processingIntervalRef.current) {
+        clearInterval(processingIntervalRef.current);
+      }
+      
+      // به‌روزرسانی مرحله آخر به خطا
+      setProcessingSteps(prev => prev.map((step, index) => 
+        index === prev.length - 1 ? { ...step, status: 'error' } : step
+      ));
+      
       setUploadProgress(0);
+      setIsProcessing(false);
+      
       toast({
         title: "خطا در پردازش فایل",
         description: error.message,
