@@ -21,7 +21,7 @@ export interface ProcessedInvoice {
 
 export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
   try {
-    console.log('=== PARSING MARFANET JSON DATA ===');
+    console.log('=== PARSING WEEKLY MARFANET JSON DATA ===');
     console.log('JSON data length:', jsonData.length);
     console.log('First 200 chars:', jsonData.substring(0, 200));
     
@@ -35,18 +35,21 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     if (Array.isArray(data)) {
       console.log('Processing PHPMyAdmin export array, length:', data.length);
       
-      // Log structure for debugging
-      data.forEach((item, index) => {
+      // Log structure for debugging - first 3 items only to avoid spam
+      data.slice(0, 3).forEach((item, index) => {
         console.log(`Array item ${index}:`, {
-          type: item.type,
-          name: item.name,
-          hasData: !!item.data,
-          dataLength: Array.isArray(item.data) ? item.data.length : 'not array'
+          type: item?.type,
+          name: item?.name,
+          hasData: !!item?.data,
+          dataLength: Array.isArray(item?.data) ? item.data.length : 'not array',
+          keys: item && typeof item === 'object' ? Object.keys(item) : 'not object'
         });
       });
       
       // Find the table section with actual usage data
       const tableSection = data.find(item => 
+        item && 
+        typeof item === 'object' &&
         item.type === 'table' && 
         item.data && 
         Array.isArray(item.data) && 
@@ -54,24 +57,39 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
       );
       
       if (tableSection) {
-        console.log(`Found table section: ${tableSection.name}, records: ${tableSection.data.length}`);
+        console.log(`✅ Found table section: "${tableSection.name}", records: ${tableSection.data.length}`);
         usageRecords = tableSection.data;
         
-        // Log first record structure
+        // Log first record structure for debugging
         if (usageRecords.length > 0) {
-          console.log('First record structure:', Object.keys(usageRecords[0]));
-          console.log('First record sample:', JSON.stringify(usageRecords[0], null, 2));
+          console.log('✅ First record structure:', Object.keys(usageRecords[0]));
+          console.log('✅ First record sample:', JSON.stringify(usageRecords[0], null, 2));
+          
+          // Show different admin_usernames to confirm weekly variety
+          const uniqueAdmins = [...new Set(usageRecords.slice(0, 10).map(r => r.admin_username))];
+          console.log('✅ Sample admin_usernames (first 10):', uniqueAdmins);
         }
       } else {
-        console.log('No table section found, trying to filter direct records');
-        // If it's directly an array of records
-        usageRecords = data.filter(item => 
+        console.log('❌ No PHPMyAdmin table section found, trying direct record filtering...');
+        
+        // Skip first 16 lines as specified by user - these are PHPMyAdmin headers
+        const potentialRecords = data.slice(16);
+        console.log(`Skipped first 16 header lines, remaining items: ${potentialRecords.length}`);
+        
+        usageRecords = potentialRecords.filter(item => 
           item && 
           typeof item === 'object' && 
-          (item.admin_username || item.representative_code) &&
-          item.amount
+          item.admin_username &&
+          item.amount &&
+          item.event_timestamp
         );
-        console.log(`Filtered ${usageRecords.length} direct records`);
+        console.log(`✅ Filtered ${usageRecords.length} usage records after skipping headers`);
+        
+        if (usageRecords.length > 0) {
+          console.log('✅ First filtered record:', JSON.stringify(usageRecords[0], null, 2));
+          const uniqueAdmins = [...new Set(usageRecords.slice(0, 10).map(r => r.admin_username))];
+          console.log('✅ Sample admin_usernames:', uniqueAdmins);
+        }
       }
     } else if (data.usage_data && Array.isArray(data.usage_data)) {
       console.log('Found usage_data section');
@@ -79,27 +97,53 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     } else if (data.data && Array.isArray(data.data)) {
       console.log('Found data section');
       usageRecords = data.data;
-    } else if (typeof data === 'object' && (data.admin_username || data.representative_code)) {
+    } else if (typeof data === 'object' && data.admin_username) {
       console.log('Single record detected');
       return [data];
     }
     
-    console.log(`Final extracted records count: ${usageRecords.length}`);
+    console.log(`📊 Final extracted records count: ${usageRecords.length}`);
     
     if (usageRecords.length === 0) {
-      console.log('ERROR: No records found in JSON structure');
-      console.log('Full JSON structure preview:', JSON.stringify(data, null, 2).substring(0, 2000));
-      throw new Error('هیچ رکورد معتبری در فایل JSON یافت نشد - بررسی کنید که فایل شامل جدول با فیلدهای admin_username و amount باشد');
+      console.log('❌ ERROR: No usage records found in JSON structure');
+      console.log('📋 JSON structure preview (first 1000 chars):', JSON.stringify(data, null, 2).substring(0, 1000));
+      throw new Error('هیچ رکورد معتبری در فایل JSON یافت نشد. فایل باید شامل جدول با فیلدهای admin_username، amount و event_timestamp باشد');
     }
     
-    console.log(`پردازش موفق ${usageRecords.length} رکورد از فایل JSON`);
-    console.log("نمونه اول رکورد:", JSON.stringify(usageRecords[0], null, 2));
-    console.log("نمونه دوم رکورد:", usageRecords.length > 1 ? JSON.stringify(usageRecords[1], null, 2) : 'فقط یک رکورد موجود');
+    // Validate that we have the required fields
+    const firstRecord = usageRecords[0];
+    const requiredFields = ['admin_username', 'amount', 'event_timestamp'];
+    const missingFields = requiredFields.filter(field => !firstRecord[field]);
+    
+    if (missingFields.length > 0) {
+      console.log('❌ Missing required fields:', missingFields);
+      console.log('📋 Available fields:', Object.keys(firstRecord));
+      throw new Error(`فیلدهای ضروری یافت نشد: ${missingFields.join(', ')}. فایل JSON باید شامل admin_username، amount و event_timestamp باشد`);
+    }
+    
+    console.log(`🎉 پردازش موفق ${usageRecords.length} رکورد از فایل JSON هفتگی`);
+    console.log("📝 نمونه اول:", JSON.stringify(usageRecords[0], null, 2));
+    if (usageRecords.length > 1) {
+      console.log("📝 نمونه دوم:", JSON.stringify(usageRecords[1], null, 2));
+    }
+    
+    // Show representative distribution
+    const adminGroups = usageRecords.reduce((acc, record) => {
+      const admin = record.admin_username;
+      acc[admin] = (acc[admin] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const topRepresentatives = Object.entries(adminGroups)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
+    
+    console.log("🏆 پنج نماینده با بیشترین تراکنش:", topRepresentatives);
     
     return usageRecords;
   } catch (error) {
-    console.error('خطای critical در پردازش JSON:', error);
-    console.error('Error details:', error instanceof Error ? error.stack : 'Unknown error type');
+    console.error('💥 خطای critical در پردازش JSON:', error);
+    console.error('🔍 Error details:', error instanceof Error ? error.stack : 'Unknown error type');
     throw new Error('فایل JSON قابل پردازش نیست: ' + (error as Error).message);
   }
 }
