@@ -314,7 +314,7 @@ export async function processUsageDataSequential(
   usageData: UsageDataRecord[],
   storage: any
 ): Promise<{
-  processedInvoices: ProcessedInvoiceData[],
+  processedInvoices: ProcessedInvoice[],
   newRepresentatives: any[],
   statistics: {
     totalRecords: number,
@@ -350,11 +350,14 @@ export async function processUsageDataSequential(
   
   console.log(`📈 تعداد نمایندگان یافت شده: ${Object.keys(representativeGroups).length}`);
   
-  // مرحله 3: پردازش sequential هر نماینده
-  const processedInvoices: ProcessedInvoiceData[] = [];
+  // مرحله 3: پردازش sequential هر نماینده با بهینه‌سازی حافظه
+  const processedInvoices: ProcessedInvoice[] = [];
   const newRepresentatives: any[] = [];
   const { db: dbInstance } = await import("../db");
   const defaultSalesPartnerId = await getOrCreateDefaultSalesPartner(dbInstance);
+  
+  let processedCount = 0;
+  const totalRepresentatives = Object.keys(representativeGroups).length;
   
   for (const [adminUsername, records] of Object.entries(representativeGroups)) {
     console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد`);
@@ -382,7 +385,7 @@ export async function processUsageDataSequential(
     }, 0);
     
     // ایجاد فاکتور با جزئیات کامل
-    const processedInvoice: ProcessedInvoiceData = {
+    const processedInvoice: ProcessedInvoice = {
       representativeCode: adminUsername,
       panelUsername: adminUsername,
       amount: totalAmount,
@@ -406,8 +409,15 @@ export async function processUsageDataSequential(
     };
     
     processedInvoices.push(processedInvoice);
+    processedCount++;
     
-    console.log(`✅ فاکتور آماده شد برای ${adminUsername}: ${totalAmount} تومان`);
+    console.log(`✅ فاکتور آماده شد برای ${adminUsername}: ${totalAmount} تومان (${processedCount}/${totalRepresentatives})`);
+    
+    // اضافه کردن کمی تأخیر برای جلوگیری از overwhelming database
+    if (processedCount % 50 === 0) {
+      console.log(`🔄 پردازش ${processedCount} نماینده تکمیل شد - وقفه کوتاه...`);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
   
   return {

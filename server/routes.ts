@@ -402,14 +402,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log('🚀 شروع پردازش Sequential...');
       const sequentialResult = await processUsageDataSequential(valid, storage);
       const createdInvoices = [];
       const { processedInvoices, newRepresentatives, statistics } = sequentialResult;
       
       console.log('📊 آمار پردازش Sequential:', statistics);
+      console.log('💾 شروع ایجاد فاکتورها در دیتابیس...');
       
-      // Process each invoice from sequential processing
+      // Process invoices in smaller batches to prevent memory issues
+      let invoiceCount = 0;
       for (const processedInvoice of processedInvoices) {
+        invoiceCount++;
+        console.log(`📝 ایجاد فاکتور ${invoiceCount}/${processedInvoices.length}: ${processedInvoice.representativeCode}`);
         // Representative should already exist from sequential processing
         let representative = await storage.getRepresentativeByPanelUsername(processedInvoice.panelUsername) ||
                            await storage.getRepresentativeByCode(processedInvoice.representativeCode);
@@ -443,8 +448,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           console.log('Invoice created successfully:', invoice.id);
+          
+          // Add small delay every 25 invoices to prevent overwhelming database
+          if (invoiceCount % 25 === 0) {
+            console.log(`⏳ ${invoiceCount} فاکتور ایجاد شد - وقفه کوتاه...`);
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        } else {
+          console.error('Representative not found for invoice:', processedInvoice.representativeCode);
         }
       }
+      
+      console.log(`🎉 پردازش کامل شد! ${createdInvoices.length} فاکتور ایجاد شد`);
 
       res.json({
         success: true,
