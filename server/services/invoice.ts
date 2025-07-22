@@ -91,6 +91,9 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
           console.log('✅ Sample admin_usernames:', uniqueAdmins);
         }
       }
+    } else if (data.table && data.table.data && Array.isArray(data.table.data)) {
+      console.log('Found nested table.data section');
+      usageRecords = data.table.data;
     } else if (data.usage_data && Array.isArray(data.usage_data)) {
       console.log('Found usage_data section');
       usageRecords = data.usage_data;
@@ -100,6 +103,27 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     } else if (typeof data === 'object' && data.admin_username) {
       console.log('Single record detected');
       return [data];
+    } else {
+      // Handle simple JSON object structure like our test file
+      console.log('Attempting to parse as simple object structure...');
+      if (typeof data === 'object') {
+        const keys = Object.keys(data);
+        console.log('Object keys:', keys);
+        
+        // Check if it's a simple object with table structure
+        if (data.table && typeof data.table === 'object' && data.table.data) {
+          console.log('Simple table structure detected');
+          usageRecords = data.table.data;
+        }
+        // Check if object contains direct array fields
+        else {
+          const arrayField = keys.find(key => Array.isArray(data[key]));
+          if (arrayField) {
+            console.log(`Found array field: ${arrayField}`);
+            usageRecords = data[arrayField];
+          }
+        }
+      }
     }
     
     console.log(`📊 Final extracted records count: ${usageRecords.length}`);

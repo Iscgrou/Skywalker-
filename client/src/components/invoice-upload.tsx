@@ -42,6 +42,7 @@ interface UploadResult {
   invalid: number;
   invoices: ProcessedInvoice[];
   invalidRecords: any[];
+  newRepresentatives?: number;
 }
 
 interface ProcessingStep {
