@@ -1,5 +1,8 @@
 import { toPersianDigits, getCurrentPersianDate } from "../../client/src/lib/persian-date";
 
+// Re-export Persian date utilities for use in routes
+export { toPersianDigits, getCurrentPersianDate };
+
 export interface UsageDataRecord {
   representative_code?: string;
   panel_username?: string;
