@@ -53,43 +53,92 @@ const upload = multer({
   }
 });
 
-// Authentication disabled for cross-environment deployment
+// Authentication middleware
 function requireAuth(req: any, res: any, next: any) {
-  // No authentication required - open access for all environments
-  next();
+  if ((req.session as any)?.authenticated) {
+    next();
+  } else {
+    res.status(401).json({ error: "احراز هویت نشده" });
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Admin user initialization disabled for open access deployment
+  // Initialize default admin user
+  try {
+    await storage.initializeDefaultAdminUser("mgr", "8679");
+  } catch (error) {
+    console.error("Failed to initialize default admin user:", error);
+  }
   
-  // Authentication API - Disabled for open access deployment
+  // Authentication API
   app.post("/api/auth/login", async (req, res) => {
-    // Authentication disabled - always return success for cross-environment compatibility
-    res.json({ 
-      success: true, 
-      message: "ورود موفقیت‌آمیز - احراز هویت غیرفعال",
-      user: {
-        id: 1,
-        username: "admin"
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "نام کاربری و رمز عبور الزامی است" });
       }
-    });
+
+      // Get admin user from database
+      const adminUser = await storage.getAdminUser(username);
+      
+      if (!adminUser || !adminUser.isActive) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Update last login time
+      await storage.updateAdminUserLogin(adminUser.id);
+
+      // Set session
+      (req.session as any).authenticated = true;
+      (req.session as any).userId = adminUser.id;
+      (req.session as any).username = adminUser.username;
+
+      res.json({ 
+        success: true, 
+        message: "ورود موفقیت‌آمیز",
+        user: {
+          id: adminUser.id,
+          username: adminUser.username
+        }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "خطا در فرآیند ورود" });
+    }
   });
 
   app.post("/api/auth/logout", (req, res) => {
-    // No session management in open access mode
-    res.json({ success: true, message: "خروج موفقیت‌آمیز" });
+    req.session.destroy((err: any) => {
+      if (err) {
+        console.error("Logout error:", err);
+        return res.status(500).json({ error: "خطا در فرآیند خروج" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: "خروج موفقیت‌آمیز" });
+    });
   });
 
   app.get("/api/auth/check", (req, res) => {
-    // Always return authenticated for open access
-    res.json({ 
-      authenticated: true, 
-      user: { 
-        id: 1,
-        username: "admin"
-      } 
-    });
+    if ((req.session as any)?.authenticated) {
+      res.json({ 
+        authenticated: true, 
+        user: { 
+          id: (req.session as any).userId, 
+          username: (req.session as any).username 
+        } 
+      });
+    } else {
+      res.status(401).json({ authenticated: false });
+    }
   });
 
   // Dashboard API - Protected
