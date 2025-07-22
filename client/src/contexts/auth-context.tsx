@@ -12,32 +12,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Always authenticated
+  const [isLoading, setIsLoading] = useState(false); // No loading needed
 
   const checkAuth = async () => {
-    try {
-      const response = await fetch("/api/auth/check");
-      setIsAuthenticated(response.ok);
-    } catch (error) {
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
+    // Authentication disabled for cross-environment deployment
+    setIsAuthenticated(true);
+    setIsLoading(false);
   };
 
   const login = () => {
+    // Always authenticated in open access mode
     setIsAuthenticated(true);
   };
 
   const logout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch (error) {
-      // Ignore logout errors
-    } finally {
-      setIsAuthenticated(false);
-    }
+    // No logout needed in open access mode
+    setIsAuthenticated(true);
   };
 
   useEffect(() => {
