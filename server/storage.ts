@@ -226,12 +226,51 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getInvoices(): Promise<Invoice[]> {
-    return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
+  async getInvoices(): Promise<any[]> {
+    return await db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        representativeId: invoices.representativeId,
+        amount: invoices.amount,
+        issueDate: invoices.issueDate,
+        dueDate: invoices.dueDate,
+        status: invoices.status,
+        usageData: invoices.usageData,
+        sentToTelegram: invoices.sentToTelegram,
+        telegramSentAt: invoices.telegramSentAt,
+        createdAt: invoices.createdAt,
+        // Join representative information
+        representativeName: representatives.name,
+        representativeCode: representatives.code,
+        panelUsername: representatives.panelUsername
+      })
+      .from(invoices)
+      .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
+      .orderBy(desc(invoices.createdAt));
   }
 
-  async getInvoicesByRepresentative(repId: number): Promise<Invoice[]> {
-    return await db.select().from(invoices)
+  async getInvoicesByRepresentative(repId: number): Promise<any[]> {
+    return await db
+      .select({
+        id: invoices.id,
+        invoiceNumber: invoices.invoiceNumber,
+        representativeId: invoices.representativeId,
+        amount: invoices.amount,
+        issueDate: invoices.issueDate,
+        dueDate: invoices.dueDate,
+        status: invoices.status,
+        usageData: invoices.usageData,
+        sentToTelegram: invoices.sentToTelegram,
+        telegramSentAt: invoices.telegramSentAt,
+        createdAt: invoices.createdAt,
+        // Join representative information
+        representativeName: representatives.name,
+        representativeCode: representatives.code,
+        panelUsername: representatives.panelUsername
+      })
+      .from(invoices)
+      .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
       .where(eq(invoices.representativeId, repId))
       .orderBy(desc(invoices.createdAt));
   }

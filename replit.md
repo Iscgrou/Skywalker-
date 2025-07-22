@@ -349,6 +349,15 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Complete Transaction Logging**: All processing steps logged with Persian timestamps and detailed metadata
 - **Memory Management**: Strategic cleanup and garbage collection prevent memory overflow during large file processing
 
+## Invoice Display Fix (July 22, 2025)
+
+### Representative Name Resolution ✅
+- **Database Join Enhancement**: Fixed invoice API to include representative information through LEFT JOIN query
+- **Storage Layer Improvement**: Enhanced `getInvoices()` and `getInvoicesByRepresentative()` methods to fetch complete representative data
+- **Frontend Display Fix**: Resolved "نامشخص" (unknown) issue in invoices table by proper data joining
+- **API Response Structure**: Updated API to return `representativeName`, `representativeCode`, and `panelUsername` fields
+- **Data Integrity Preserved**: Maintained existing project structure while adding proper representative name display functionality
+
 ## Multi-Format JSON Architecture Excellence (July 22, 2025)
 
 ### Adaptive JSON Processing ✅
