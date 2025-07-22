@@ -66,7 +66,7 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
           console.log('✅ First record sample:', JSON.stringify(usageRecords[0], null, 2));
           
           // Show different admin_usernames to confirm weekly variety
-          const uniqueAdmins = [...new Set(usageRecords.slice(0, 10).map(r => r.admin_username))];
+          const uniqueAdmins = Array.from(new Set(usageRecords.slice(0, 10).map(r => r.admin_username)));
           console.log('✅ Sample admin_usernames (first 10):', uniqueAdmins);
         }
       } else {
@@ -87,7 +87,7 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
         
         if (usageRecords.length > 0) {
           console.log('✅ First filtered record:', JSON.stringify(usageRecords[0], null, 2));
-          const uniqueAdmins = [...new Set(usageRecords.slice(0, 10).map(r => r.admin_username))];
+          const uniqueAdmins = Array.from(new Set(usageRecords.slice(0, 10).map(r => r.admin_username)));
           console.log('✅ Sample admin_usernames:', uniqueAdmins);
         }
       }
@@ -135,7 +135,7 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     }, {} as Record<string, number>);
     
     const topRepresentatives = Object.entries(adminGroups)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([,a], [,b]) => (b as number) - (a as number))
       .slice(0, 5);
     
     console.log("🏆 پنج نماینده با بیشترین تراکنش:", topRepresentatives);
@@ -302,6 +302,117 @@ export function validateUsageData(records: UsageDataRecord[]): {
   });
   
   return { valid, invalid };
+}
+
+// اینجا معماری جدید Sequential Processing را اضافه می‌کنیم
+export async function processUsageDataSequential(
+  usageData: UsageDataRecord[],
+  storage: any
+): Promise<{
+  processedInvoices: ProcessedInvoiceData[],
+  newRepresentatives: any[],
+  statistics: {
+    totalRecords: number,
+    uniqueRepresentatives: number,
+    processedInvoices: number
+  }
+}> {
+  console.log('🔄 شروع پردازش Sequential فایل JSON هفتگی');
+  console.log(`📊 تعداد کل رکوردها: ${usageData.length}`);
+  
+  // مرحله 1: مرتب‌سازی بر اساس admin_username (الفبایی)
+  const sortedRecords = usageData.sort((a, b) => 
+    a.admin_username.localeCompare(b.admin_username)
+  );
+  
+  console.log('✅ رکوردها بر اساس admin_username مرتب شدند');
+  
+  // مرحله 2: گروه‌بندی sequential بر اساس admin_username
+  const representativeGroups: Record<string, UsageDataRecord[]> = {};
+  let currentAdmin = '';
+  
+  for (const record of sortedRecords) {
+    if (record.admin_username !== currentAdmin) {
+      currentAdmin = record.admin_username;
+      console.log(`🔍 پردازش نماینده جدید: ${currentAdmin}`);
+    }
+    
+    if (!representativeGroups[currentAdmin]) {
+      representativeGroups[currentAdmin] = [];
+    }
+    representativeGroups[currentAdmin].push(record);
+  }
+  
+  console.log(`📈 تعداد نمایندگان یافت شده: ${Object.keys(representativeGroups).length}`);
+  
+  // مرحله 3: پردازش sequential هر نماینده
+  const processedInvoices: ProcessedInvoiceData[] = [];
+  const newRepresentatives: any[] = [];
+  const defaultSalesPartnerId = await getOrCreateDefaultSalesPartner(storage.db);
+  
+  for (const [adminUsername, records] of Object.entries(representativeGroups)) {
+    console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد`);
+    
+    // بررسی وجود نماینده
+    let representative = await storage.getRepresentativeByPanelUsername(adminUsername) ||
+                        await storage.getRepresentativeByCode(adminUsername);
+    
+    // ایجاد نماینده جدید در صورت عدم وجود
+    if (!representative) {
+      console.log(`➕ ایجاد نماینده جدید: ${adminUsername}`);
+      const newRepData = await createRepresentativeFromUsageData(
+        adminUsername,
+        storage.db,
+        defaultSalesPartnerId
+      );
+      representative = await storage.createRepresentative(newRepData);
+      newRepresentatives.push(representative);
+    }
+    
+    // محاسبه مجموع مبلغ برای این نماینده
+    const totalAmount = records.reduce((sum, record) => {
+      const amount = parseFloat(record.amount.toString());
+      return sum + (isNaN(amount) ? 0 : amount);
+    }, 0);
+    
+    // ایجاد فاکتور با جزئیات کامل
+    const processedInvoice: ProcessedInvoiceData = {
+      representativeCode: adminUsername,
+      panelUsername: adminUsername,
+      amount: totalAmount,
+      issueDate: getCurrentPersianDate(),
+      dueDate: addDaysToPersianDate(getCurrentPersianDate(), 30),
+      usageData: {
+        admin_username: adminUsername,
+        records: records.map(record => ({
+          ...record,
+          representative_code: adminUsername,
+          panel_username: adminUsername,
+          usage_amount: parseFloat(record.amount.toString()),
+          period_start: record.event_timestamp,
+          period_end: record.event_timestamp
+        })),
+        totalRecords: records.length,
+        period_start: records[0]?.event_timestamp || '',
+        period_end: records[records.length - 1]?.event_timestamp || '',
+        usage_amount: totalAmount
+      }
+    };
+    
+    processedInvoices.push(processedInvoice);
+    
+    console.log(`✅ فاکتور آماده شد برای ${adminUsername}: ${totalAmount} تومان`);
+  }
+  
+  return {
+    processedInvoices,
+    newRepresentatives,
+    statistics: {
+      totalRecords: usageData.length,
+      uniqueRepresentatives: Object.keys(representativeGroups).length,
+      processedInvoices: processedInvoices.length
+    }
+  };
 }
 
 export function formatCurrency(amount: number | string): string {

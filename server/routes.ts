@@ -15,7 +15,17 @@ import {
   insertInvoiceSchema, 
   insertPaymentSchema 
 } from "@shared/schema";
-import { parseUsageJsonData, processUsageData, validateUsageData, getOrCreateDefaultSalesPartner, createRepresentativeFromUsageData } from "./services/invoice";
+import { 
+  parseUsageJsonData, 
+  processUsageData, 
+  processUsageDataSequential,
+  validateUsageData, 
+  getOrCreateDefaultSalesPartner, 
+  createRepresentativeFromUsageData,
+  getCurrentPersianDate,
+  addDaysToPersianDate,
+  toPersianDigits 
+} from "./services/invoice";
 import { 
   sendInvoiceToTelegram, 
   sendBulkInvoicesToTelegram, 
@@ -392,30 +402,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const processedInvoices = processUsageData(valid);
+      const sequentialResult = await processUsageDataSequential(valid, storage);
       const createdInvoices = [];
-      const newRepresentatives = [];
+      const { processedInvoices, newRepresentatives, statistics } = sequentialResult;
       
-      // Get or create default sales partner for new representatives  
-      const defaultSalesPartnerId = await getOrCreateDefaultSalesPartner(db);
+      console.log('📊 آمار پردازش Sequential:', statistics);
       
-      // Process each invoice and auto-create representatives if needed
+      // Process each invoice from sequential processing
       for (const processedInvoice of processedInvoices) {
-        // Try to find representative by admin_username (panelUsername)
+        // Representative should already exist from sequential processing
         let representative = await storage.getRepresentativeByPanelUsername(processedInvoice.panelUsername) ||
                            await storage.getRepresentativeByCode(processedInvoice.representativeCode);
-        
-        // If representative doesn't exist, create new one
-        if (!representative) {
-          const newRepData = await createRepresentativeFromUsageData(
-            processedInvoice.panelUsername, 
-            db,
-            defaultSalesPartnerId
-          );
-          
-          representative = await storage.createRepresentative(newRepData);
-          newRepresentatives.push(representative);
-        }
         
         if (representative) {
           console.log('Creating invoice for representative:', representative.name);

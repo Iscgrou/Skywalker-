@@ -252,3 +252,23 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Performance Optimization**: Efficient processing of large JSON files without system degradation
 - **Database Consistency**: Proper transaction handling and referential integrity maintenance
 - **Audit Trail**: Complete activity logging for all JSON upload operations and generated invoices
+
+## Sequential Processing Architecture Implementation (July 22, 2025)
+
+### Dynamic Weekly File Processing ✅
+- **Variable Content Support**: System handles varying weekly JSON files with different representatives and amounts
+- **Header Skipping Logic**: Automatic exclusion of first 16 PHPMyAdmin header lines from calculations
+- **Alphabetical Ordering**: Sequential processing respects Latin alphabetical ordering of admin_usernames
+- **Position-Variable Architecture**: Each field position treated as variable, not static, enabling dynamic processing
+
+### Sequential Processing Flow ✅  
+- **Admin Username Recognition**: Each record's admin_username serves as representative identifier
+- **Automatic Profile Creation**: New representative profiles and public portals created for unknown admin_usernames
+- **Usage Detail Aggregation**: Four additional fields (event_timestamp, event_type, description, amount) aggregated per representative
+- **Invoice Generation Per Representative**: Individual invoices created with complete usage details and correct totals
+
+### Dynamic File Structure Handling ✅
+- **Flexible Record Processing**: System adapts to varying record counts per representative in each weekly file
+- **Consistent Field Mapping**: Five-field structure (admin_username + 4 variable fields) consistently processed
+- **End-of-File Syntax Handling**: Proper JSON closure syntax recognition for standard-compliant files
+- **Weekly Variation Support**: Each upload can contain completely different representatives with different usage patterns
