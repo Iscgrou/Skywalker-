@@ -206,6 +206,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Data Management API - Protected
+  app.get("/api/admin/data-counts", requireAuth, async (req, res) => {
+    try {
+      const counts = await storage.getDataCounts();
+      res.json(counts);
+    } catch (error) {
+      console.error('Error fetching data counts:', error);
+      res.status(500).json({ error: "خطا در دریافت آمار داده‌ها" });
+    }
+  });
+
+  app.post("/api/admin/reset-data", requireAuth, async (req, res) => {
+    try {
+      const resetOptions = req.body;
+      
+      // Validate request
+      if (!resetOptions || typeof resetOptions !== 'object') {
+        return res.status(400).json({ error: "گزینه‌های بازنشانی نامعتبر است" });
+      }
+
+      // Check if at least one option is selected
+      const hasSelection = Object.values(resetOptions).some(value => value === true);
+      if (!hasSelection) {
+        return res.status(400).json({ error: "حداقل یک مورد برای بازنشانی انتخاب کنید" });
+      }
+
+      console.log('Data reset requested:', resetOptions);
+      
+      // Log the reset operation
+      await storage.createActivityLog({
+        type: 'system',
+        description: `درخواست بازنشانی اطلاعات: ${Object.keys(resetOptions).filter(key => resetOptions[key]).join(', ')}`,
+        relatedId: null,
+        metadata: { resetOptions }
+      });
+
+      const result = await storage.resetData(resetOptions);
+      
+      console.log('Data reset completed:', result.deletedCounts);
+      
+      res.json({
+        success: true,
+        message: "بازنشانی اطلاعات با موفقیت انجام شد",
+        deletedCounts: result.deletedCounts
+      });
+    } catch (error) {
+      console.error('Error resetting data:', error);
+      res.status(500).json({ error: "خطا در بازنشانی اطلاعات" });
+    }
+  });
+
   // Public Portal API
   app.get("/api/portal/:publicId", async (req, res) => {
     try {

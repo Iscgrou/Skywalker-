@@ -83,6 +83,34 @@ export interface IStorage {
   updateAdminUserLogin(id: number): Promise<void>;
   initializeDefaultAdminUser(username: string, password: string): Promise<void>;
 
+  // Data Reset Functions (Admin Only)
+  getDataCounts(): Promise<{
+    representatives: number;
+    invoices: number;
+    payments: number;
+    salesPartners: number;
+    settings: number;
+    activityLogs: number;
+  }>;
+  resetData(options: {
+    representatives: boolean;
+    invoices: boolean;
+    payments: boolean;
+    salesPartners: boolean;
+    settings: boolean;
+    activityLogs: boolean;
+  }): Promise<{
+    deletedCounts: {
+      representatives: number;
+      invoices: number;
+      payments: number;
+      salesPartners: number;
+      settings: number;
+      activityLogs: number;
+      total: number;
+    };
+  }>;
+
   // Dashboard data
   getDashboardData(): Promise<{
     totalRevenue: string;
@@ -487,6 +515,148 @@ export class DatabaseStorage implements IStorage {
         }
       },
       'initializeDefaultAdminUser'
+    );
+  }
+
+  // Data Reset Functions
+  async getDataCounts(): Promise<{
+    representatives: number;
+    invoices: number;
+    payments: number;
+    salesPartners: number;
+    settings: number;
+    activityLogs: number;
+  }> {
+    return await withDatabaseRetry(
+      async () => {
+        const [repCount] = await db.select({ count: sql<number>`count(*)` }).from(representatives);
+        const [invCount] = await db.select({ count: sql<number>`count(*)` }).from(invoices);
+        const [payCount] = await db.select({ count: sql<number>`count(*)` }).from(payments);
+        const [partCount] = await db.select({ count: sql<number>`count(*)` }).from(salesPartners);
+        const [setCount] = await db.select({ count: sql<number>`count(*)` }).from(settings);
+        const [logCount] = await db.select({ count: sql<number>`count(*)` }).from(activityLogs);
+
+        return {
+          representatives: Number(repCount.count),
+          invoices: Number(invCount.count),
+          payments: Number(payCount.count),
+          salesPartners: Number(partCount.count),
+          settings: Number(setCount.count),
+          activityLogs: Number(logCount.count),
+        };
+      },
+      'getDataCounts'
+    );
+  }
+
+  async resetData(options: {
+    representatives: boolean;
+    invoices: boolean;
+    payments: boolean;
+    salesPartners: boolean;
+    settings: boolean;
+    activityLogs: boolean;
+  }): Promise<{
+    deletedCounts: {
+      representatives: number;
+      invoices: number;
+      payments: number;
+      salesPartners: number;
+      settings: number;
+      activityLogs: number;
+      total: number;
+    };
+  }> {
+    return await withDatabaseRetry(
+      async () => {
+        const deletedCounts = {
+          representatives: 0,
+          invoices: 0,
+          payments: 0,
+          salesPartners: 0,
+          settings: 0,
+          activityLogs: 0,
+          total: 0,
+        };
+
+        // Order matters for referential integrity
+        // Delete in correct order to avoid foreign key constraint violations
+
+        if (options.payments) {
+          const result = await db.delete(payments);
+          deletedCounts.payments = result.rowCount || 0;
+          await this.createActivityLog({
+            type: 'system',
+            description: `بازنشانی پرداخت‌ها: ${deletedCounts.payments} رکورد حذف شد`,
+            relatedId: null,
+            metadata: { resetType: 'payments', count: deletedCounts.payments }
+          });
+        }
+
+        if (options.invoices) {
+          const result = await db.delete(invoices);
+          deletedCounts.invoices = result.rowCount || 0;
+          await this.createActivityLog({
+            type: 'system',
+            description: `بازنشانی فاکتورها: ${deletedCounts.invoices} رکورد حذف شد`,
+            relatedId: null,
+            metadata: { resetType: 'invoices', count: deletedCounts.invoices }
+          });
+        }
+
+        if (options.representatives) {
+          const result = await db.delete(representatives);
+          deletedCounts.representatives = result.rowCount || 0;
+          await this.createActivityLog({
+            type: 'system',
+            description: `بازنشانی نمایندگان: ${deletedCounts.representatives} رکورد حذف شد`,
+            relatedId: null,
+            metadata: { resetType: 'representatives', count: deletedCounts.representatives }
+          });
+        }
+
+        if (options.salesPartners) {
+          const result = await db.delete(salesPartners);
+          deletedCounts.salesPartners = result.rowCount || 0;
+          await this.createActivityLog({
+            type: 'system',
+            description: `بازنشانی همکاران فروش: ${deletedCounts.salesPartners} رکورد حذف شد`,
+            relatedId: null,
+            metadata: { resetType: 'salesPartners', count: deletedCounts.salesPartners }
+          });
+        }
+
+        if (options.settings) {
+          // Keep admin user settings but reset other settings
+          const result = await db.delete(settings).where(
+            and(
+              sql`key NOT LIKE 'admin_%'`,
+              sql`key != 'initialized'`
+            )
+          );
+          deletedCounts.settings = result.rowCount || 0;
+          await this.createActivityLog({
+            type: 'system',
+            description: `بازنشانی تنظیمات: ${deletedCounts.settings} تنظیم به حالت پیش‌فرض بازگردانده شد`,
+            relatedId: null,
+            metadata: { resetType: 'settings', count: deletedCounts.settings }
+          });
+        }
+
+        // Activity logs should be deleted last (after logging other deletions)
+        if (options.activityLogs) {
+          const result = await db.delete(activityLogs);
+          deletedCounts.activityLogs = result.rowCount || 0;
+          // Don't log this deletion as logs are being cleared
+        }
+
+        // Calculate total (excluding the total field itself)
+        const values = Object.entries(deletedCounts).filter(([key]) => key !== 'total').map(([, value]) => value);
+        deletedCounts.total = values.reduce((sum, count) => sum + count, 0);
+
+        return { deletedCounts };
+      },
+      'resetData'
     );
   }
 }

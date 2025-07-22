@@ -12,7 +12,11 @@ import {
   Bell,
   Shield,
   FileText,
-  Globe
+  Globe,
+  Trash2,
+  AlertTriangle,
+  RotateCcw,
+  Database
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +26,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -72,13 +78,32 @@ const aiSettingsSchema = z.object({
   analysisFrequency: z.string(),
 });
 
+const dataResetSchema = z.object({
+  representatives: z.boolean().default(false),
+  invoices: z.boolean().default(false),
+  payments: z.boolean().default(false),
+  salesPartners: z.boolean().default(false),
+  settings: z.boolean().default(false),
+  activityLogs: z.boolean().default(false),
+});
+
 type TelegramSettingsData = z.infer<typeof telegramSettingsSchema>;
+type DataResetData = z.infer<typeof dataResetSchema>;
 type AiSettingsData = z.infer<typeof aiSettingsSchema>;
 type PortalSettingsData = z.infer<typeof portalSettingsSchema>;
 type InvoiceTemplateData = z.infer<typeof invoiceTemplateSchema>;
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("telegram");
+  const [showDataCounts, setShowDataCounts] = useState(false);
+  const [dataCounts, setDataCounts] = useState({
+    representatives: 0,
+    invoices: 0,
+    payments: 0,
+    salesPartners: 0,
+    settings: 0,
+    activityLogs: 0,
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -167,6 +192,18 @@ export default function Settings() {
     }
   });
 
+  const dataResetForm = useForm<DataResetData>({
+    resolver: zodResolver(dataResetSchema),
+    defaultValues: {
+      representatives: false,
+      invoices: false,
+      payments: false,
+      salesPartners: false,
+      settings: false,
+      activityLogs: false,
+    }
+  });
+
   // Update forms when data is loaded
   useEffect(() => {
     if ((telegramBotToken as any)?.value) telegramForm.setValue('botToken', (telegramBotToken as any).value);
@@ -247,6 +284,67 @@ export default function Settings() {
     await updateSettingMutation.mutateAsync({ key: 'ai_analysis_frequency', value: data.analysisFrequency });
   };
 
+  // Data Reset Functions
+  const fetchDataCountsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/data-counts');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setDataCounts(data);
+      setShowDataCounts(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خطا در دریافت آمار داده‌ها",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const resetDataMutation = useMutation({
+    mutationFn: async (resetOptions: DataResetData) => {
+      const response = await apiRequest('POST', '/api/admin/reset-data', resetOptions);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "بازنشانی اطلاعات موفق",
+        description: `${data.deletedCounts?.total || 0} رکورد با موفقیت حذف شد`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-partners"] });
+      dataResetForm.reset();
+      setShowDataCounts(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خطا در بازنشانی اطلاعات",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const onDataResetSubmit = async (data: DataResetData) => {
+    const selectedItems = Object.entries(data).filter(([key, value]) => value).map(([key]) => key);
+    
+    if (selectedItems.length === 0) {
+      toast({
+        title: "هیچ موردی انتخاب نشده",
+        description: "لطفاً حداقل یک مورد برای بازنشانی انتخاب کنید",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await resetDataMutation.mutateAsync(data);
+  };
+
   const onInvoiceTemplateSubmit = async (data: InvoiceTemplateData) => {
     await updateSettingMutation.mutateAsync({ key: 'invoice_header', value: data.invoiceHeader });
     await updateSettingMutation.mutateAsync({ key: 'invoice_footer', value: data.invoiceFooter || '' });
@@ -276,7 +374,7 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="telegram" className="flex items-center">
             <Send className="w-4 h-4 mr-2" />
             تلگرام
@@ -292,6 +390,10 @@ export default function Settings() {
           <TabsTrigger value="security" className="flex items-center">
             <Shield className="w-4 h-4 mr-2" />
             امنیت
+          </TabsTrigger>
+          <TabsTrigger value="data-reset" className="flex items-center">
+            <Database className="w-4 h-4 mr-2" />
+            بازنشانی داده‌ها
           </TabsTrigger>
         </TabsList>
 
@@ -805,6 +907,277 @@ export default function Settings() {
                   <Key className="w-4 h-4 mr-2" />
                   تغییر رمز عبور اصلی
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Data Reset Settings */}
+        <TabsContent value="data-reset">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center text-red-600 dark:text-red-400">
+                <Database className="w-5 h-5 ml-2" />
+                بازنشانی اطلاعات سیستم
+              </CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                حذف انتخابی اطلاعات سیستم با حفظ یکپارچگی داده‌ها
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <div className="flex items-center">
+                    <AlertTriangle className="w-5 h-5 ml-2 text-yellow-600 dark:text-yellow-400" />
+                    <div>
+                      <p className="font-medium text-yellow-800 dark:text-yellow-200">
+                        هشدار: عملیات غیرقابل برگشت
+                      </p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                        اطلاعات حذف شده قابل بازیابی نخواهد بود
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {!showDataCounts ? (
+                  <div className="text-center">
+                    <Button 
+                      onClick={() => fetchDataCountsMutation.mutate()}
+                      disabled={fetchDataCountsMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <RotateCcw className="w-4 h-4 ml-2" />
+                      {fetchDataCountsMutation.isPending ? "در حال بارگذاری..." : "نمایش آمار اطلاعات موجود"}
+                    </Button>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                      ابتدا آمار اطلاعات موجود را مشاهده کنید
+                    </p>
+                  </div>
+                ) : (
+                  <Form {...dataResetForm}>
+                    <form onSubmit={dataResetForm.handleSubmit(onDataResetSubmit)} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Representatives */}
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <FormField
+                            control={dataResetForm.control}
+                            name="representatives"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-base font-medium">
+                                    نمایندگان ({toPersianDigits(dataCounts.representatives.toString())})
+                                  </FormLabel>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    حذف تمام اطلاعات نمایندگان و کدهای دسترسی آن‌ها
+                                  </p>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Invoices */}
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <FormField
+                            control={dataResetForm.control}
+                            name="invoices"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-base font-medium">
+                                    فاکتورها ({toPersianDigits(dataCounts.invoices.toString())})
+                                  </FormLabel>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    حذف تمام فاکتورها و جزئیات مصرف مرتبط
+                                  </p>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Payments */}
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <FormField
+                            control={dataResetForm.control}
+                            name="payments"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-base font-medium">
+                                    پرداخت‌ها ({toPersianDigits(dataCounts.payments.toString())})
+                                  </FormLabel>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    حذف تمام رکوردهای پرداخت و تخصیص‌ها
+                                  </p>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Sales Partners */}
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <FormField
+                            control={dataResetForm.control}
+                            name="salesPartners"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-base font-medium">
+                                    همکاران فروش ({toPersianDigits(dataCounts.salesPartners.toString())})
+                                  </FormLabel>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    حذف اطلاعات همکاران فروش و کمیسیون‌ها
+                                  </p>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Activity Logs */}
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <FormField
+                            control={dataResetForm.control}
+                            name="activityLogs"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-base font-medium">
+                                    گزارش فعالیت‌ها ({toPersianDigits(dataCounts.activityLogs.toString())})
+                                  </FormLabel>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    حذف تاریخچه فعالیت‌های سیستم
+                                  </p>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Settings */}
+                        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <FormField
+                            control={dataResetForm.control}
+                            name="settings"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel className="text-base font-medium">
+                                    تنظیمات ({toPersianDigits(dataCounts.settings.toString())})
+                                  </FormLabel>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    بازگشت تنظیمات به حالت پیش‌فرض
+                                  </p>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <Button 
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowDataCounts(false);
+                            dataResetForm.reset();
+                          }}
+                        >
+                          <RotateCcw className="w-4 h-4 ml-2" />
+                          بازگشت
+                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              type="button"
+                              variant="destructive"
+                              disabled={resetDataMutation.isPending}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              <Trash2 className="w-4 h-4 ml-2" />
+                              {resetDataMutation.isPending ? "در حال حذف..." : "بازنشانی انتخاب‌شده"}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-red-600">
+                                تأیید بازنشانی اطلاعات
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                آیا از حذف اطلاعات انتخاب‌شده اطمینان دارید؟ این عملیات غیرقابل برگشت است و تمام داده‌های مرتبط حذف خواهد شد.
+                                
+                                <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                  <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                                    موارد انتخاب‌شده:
+                                  </p>
+                                  <ul className="text-sm text-red-700 dark:text-red-300 mt-1 space-y-1">
+                                    {dataResetForm.watch('representatives') && <li>• نمایندگان</li>}
+                                    {dataResetForm.watch('invoices') && <li>• فاکتورها</li>}
+                                    {dataResetForm.watch('payments') && <li>• پرداخت‌ها</li>}
+                                    {dataResetForm.watch('salesPartners') && <li>• همکاران فروش</li>}
+                                    {dataResetForm.watch('activityLogs') && <li>• گزارش فعالیت‌ها</li>}
+                                    {dataResetForm.watch('settings') && <li>• تنظیمات</li>}
+                                  </ul>
+                                </div>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>انصراف</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={dataResetForm.handleSubmit(onDataResetSubmit)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                تأیید حذف
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </form>
+                  </Form>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -206,3 +206,29 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Header Integration**: Logout button with confirmation and user feedback
 - **Route Protection**: Automatic redirect to login for unauthenticated admin access
 - **Public Access**: Uninterrupted access to public portals via /portal/:publicId routes
+
+## Advanced Data Reset System Implementation (July 22, 2025)
+
+### Comprehensive Data Management ✅
+- **Selective Data Reset**: Granular control over data deletion with checkbox selection for each data type
+- **Data Integrity Preservation**: Careful ordering of deletions to maintain referential integrity constraints
+- **Admin Authentication**: Complete protection of data reset functionality with secure admin authentication
+- **Real-time Data Counts**: Dynamic display of current record counts before reset operations
+
+### Smart Data Reset Features ✅
+- **Multi-category Selection**: Representatives, invoices, payments, sales partners, settings, and activity logs
+- **Cascade-aware Deletion**: Intelligent deletion ordering (payments → invoices → representatives → partners → settings → logs)
+- **Settings Preservation**: Admin user settings and core initialization settings preserved during reset
+- **Activity Logging**: Complete audit trail of all reset operations with detailed metadata
+
+### User Experience Excellence ✅
+- **Two-step Confirmation**: Data count display followed by selection interface with final confirmation dialog
+- **Progress Feedback**: Real-time loading states and detailed success/error messaging
+- **Persian UI Integration**: Complete Persian language support with proper RTL text flow
+- **Cache Invalidation**: Automatic refresh of all affected UI components after reset operations
+
+### System Integration & Coupling ✅
+- **Complete System Synchronization**: Reset operations immediately reflect across admin panel and public portals
+- **Database Transaction Safety**: All operations wrapped in retry mechanisms with proper error handling
+- **Memory Cache Updates**: Automatic invalidation of React Query caches for affected data endpoints
+- **Public Portal Compatibility**: Seamless integration ensuring public portals remain functional after resets
