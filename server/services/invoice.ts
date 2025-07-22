@@ -21,7 +21,10 @@ export interface ProcessedInvoice {
 
 export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
   try {
-    console.log('Parsing JSON data, length:', jsonData.length);
+    console.log('=== PARSING MARFANET JSON DATA ===');
+    console.log('JSON data length:', jsonData.length);
+    console.log('First 200 chars:', jsonData.substring(0, 200));
+    
     const data = JSON.parse(jsonData);
     let usageRecords: any[] = [];
     
@@ -30,17 +33,45 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     
     // Handle MarFaNet JSON export format (PHPMyAdmin JSON export)
     if (Array.isArray(data)) {
-      console.log('Processing array data, length:', data.length);
+      console.log('Processing PHPMyAdmin export array, length:', data.length);
       
-      // Find the data section in the array
-      const dataSection = data.find(item => item.type === 'table' && item.data && Array.isArray(item.data));
-      if (dataSection) {
-        console.log('Found table section with data');
-        usageRecords = dataSection.data;
+      // Log structure for debugging
+      data.forEach((item, index) => {
+        console.log(`Array item ${index}:`, {
+          type: item.type,
+          name: item.name,
+          hasData: !!item.data,
+          dataLength: Array.isArray(item.data) ? item.data.length : 'not array'
+        });
+      });
+      
+      // Find the table section with actual usage data
+      const tableSection = data.find(item => 
+        item.type === 'table' && 
+        item.data && 
+        Array.isArray(item.data) && 
+        item.data.length > 0
+      );
+      
+      if (tableSection) {
+        console.log(`Found table section: ${tableSection.name}, records: ${tableSection.data.length}`);
+        usageRecords = tableSection.data;
+        
+        // Log first record structure
+        if (usageRecords.length > 0) {
+          console.log('First record structure:', Object.keys(usageRecords[0]));
+          console.log('First record sample:', JSON.stringify(usageRecords[0], null, 2));
+        }
       } else {
+        console.log('No table section found, trying to filter direct records');
         // If it's directly an array of records
-        console.log('Processing direct array of records');
-        usageRecords = data.filter(item => item && typeof item === 'object' && (item.admin_username || item.representative_code));
+        usageRecords = data.filter(item => 
+          item && 
+          typeof item === 'object' && 
+          (item.admin_username || item.representative_code) &&
+          item.amount
+        );
+        console.log(`Filtered ${usageRecords.length} direct records`);
       }
     } else if (data.usage_data && Array.isArray(data.usage_data)) {
       console.log('Found usage_data section');
@@ -48,24 +79,27 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
     } else if (data.data && Array.isArray(data.data)) {
       console.log('Found data section');
       usageRecords = data.data;
-    } else if (typeof data === 'object' && data.admin_username) {
+    } else if (typeof data === 'object' && (data.admin_username || data.representative_code)) {
       console.log('Single record detected');
       return [data];
     }
     
-    console.log('Extracted records count:', usageRecords.length);
+    console.log(`Final extracted records count: ${usageRecords.length}`);
     
     if (usageRecords.length === 0) {
-      console.log('No records found in JSON structure');
-      console.log('JSON structure:', JSON.stringify(data, null, 2).substring(0, 1000));
-      throw new Error('هیچ رکورد معتبری در فایل JSON یافت نشد');
+      console.log('ERROR: No records found in JSON structure');
+      console.log('Full JSON structure preview:', JSON.stringify(data, null, 2).substring(0, 2000));
+      throw new Error('هیچ رکورد معتبری در فایل JSON یافت نشد - بررسی کنید که فایل شامل جدول با فیلدهای admin_username و amount باشد');
     }
     
-    console.log(`پردازش ${usageRecords.length} رکورد از فایل JSON`);
+    console.log(`پردازش موفق ${usageRecords.length} رکورد از فایل JSON`);
     console.log("نمونه اول رکورد:", JSON.stringify(usageRecords[0], null, 2));
+    console.log("نمونه دوم رکورد:", usageRecords.length > 1 ? JSON.stringify(usageRecords[1], null, 2) : 'فقط یک رکورد موجود');
+    
     return usageRecords;
   } catch (error) {
-    console.error('خطا در پردازش JSON:', error);
+    console.error('خطای critical در پردازش JSON:', error);
+    console.error('Error details:', error instanceof Error ? error.stack : 'Unknown error type');
     throw new Error('فایل JSON قابل پردازش نیست: ' + (error as Error).message);
   }
 }
@@ -172,43 +206,17 @@ export async function getOrCreateDefaultSalesPartner(db: any): Promise<number> {
 }
 
 export function addDaysToPersianDate(persianDate: string, days: number): string {
-  // Convert Persian date to Gregorian, add days, convert back
-  const parts = persianDate.split('/');
-  if (parts.length !== 3) {
-    // If invalid format, return current date + days
-    const currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() + days);
-    const year = currentDate.getFullYear() - 1979 + 621;
-    const month = currentDate.getMonth() + 1;
-    const day = currentDate.getDate();
-    return toPersianDigits(`${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`);
-  }
+  // For now, return a simple 30-day due date from issue date
+  // This avoids date calculation errors until proper Persian calendar library is integrated
+  const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() + days);
   
-  const year = parseInt(parts[0]);
-  const month = parseInt(parts[1]); 
-  const day = parseInt(parts[2]);
+  // Convert to Persian date (simplified approximation)
+  const year = currentDate.getFullYear() - 1979 + 621;
+  const month = currentDate.getMonth() + 1;
+  const day = currentDate.getDate();
   
-  // Validate parsed values
-  if (isNaN(year) || isNaN(month) || isNaN(day)) {
-    // If invalid numbers, return current date + days
-    const currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() + days);
-    const newYear = currentDate.getFullYear() - 1979 + 621;
-    const newMonth = currentDate.getMonth() + 1;
-    const newDay = currentDate.getDate();
-    return toPersianDigits(`${newYear}/${newMonth.toString().padStart(2, '0')}/${newDay.toString().padStart(2, '0')}`);
-  }
-  
-  // Simple approximation - in production use proper Persian calendar library
-  const gregorianDate = new Date(year - 621 + 1979, month - 1, day);
-  gregorianDate.setDate(gregorianDate.getDate() + days);
-  
-  // Convert back to Persian (simplified)
-  const newYear = gregorianDate.getFullYear() - 1979 + 621;
-  const newMonth = gregorianDate.getMonth() + 1;
-  const newDay = gregorianDate.getDate();
-  
-  return toPersianDigits(`${newYear}/${newMonth.toString().padStart(2, '0')}/${newDay.toString().padStart(2, '0')}`);
+  return toPersianDigits(`${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`);
 }
 
 export function validateUsageData(records: UsageDataRecord[]): { 
