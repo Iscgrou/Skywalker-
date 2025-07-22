@@ -343,29 +343,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Invoice generation from JSON file
   app.post("/api/invoices/generate", requireAuth, upload.single('usageFile'), async (req: MulterRequest, res) => {
     try {
+      console.log('JSON upload request received');
+      console.log('File exists:', !!req.file);
+      
       if (!req.file) {
+        console.log('ERROR: No file uploaded');
         return res.status(400).json({ error: "فایل JSON ارسال نشده است" });
       }
 
+      console.log('File details:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+
       const jsonData = req.file.buffer.toString('utf-8');
+      console.log('JSON data length:', jsonData.length);
+      console.log('JSON data preview (first 500 chars):', jsonData.substring(0, 500));
+      
       const usageRecords = parseUsageJsonData(jsonData);
+      
+      console.log('About to validate usage data, total records:', usageRecords.length);
       
       const { valid, invalid } = validateUsageData(usageRecords);
       
       console.log(`تعداد رکوردهای معتبر: ${valid.length}, غیرمعتبر: ${invalid.length}`);
       if (invalid.length > 0) {
-        console.log("نمونه رکورد غیرمعتبر:", invalid[0]);
+        console.log("نمونه رکورد غیرمعتبر:", JSON.stringify(invalid[0], null, 2));
       }
       if (valid.length > 0) {
-        console.log("نمونه رکورد معتبر:", valid[0]);
+        console.log("نمونه رکورد معتبر:", JSON.stringify(valid[0], null, 2));
       }
       
       if (valid.length === 0) {
+        console.log('VALIDATION ERROR: No valid records found');
+        console.log('Total records processed:', usageRecords.length);
+        console.log('Invalid records details:', invalid.slice(0, 3));
+        
         return res.status(400).json({ 
           error: "هیچ رکورد معتبری یافت نشد", 
           totalRecords: usageRecords.length,
           invalidSample: invalid.slice(0, 3),
-          details: "بررسی کنید که فایل JSON شامل فیلدهای admin_username و amount باشد"
+          details: "بررسی کنید که فایل JSON شامل فیلدهای admin_username و amount باشد",
+          debugInfo: {
+            sampleRecord: usageRecords[0] || null,
+            requiredFields: ['admin_username', 'amount']
+          }
         });
       }
 
@@ -395,6 +418,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         if (representative) {
+          console.log('Creating invoice for representative:', representative.name);
+          console.log('Invoice data:', {
+            representativeId: representative.id,
+            amount: processedInvoice.amount.toString(),
+            issueDate: processedInvoice.issueDate,
+            dueDate: processedInvoice.dueDate,
+            usageDataLength: processedInvoice.usageData?.records?.length || 0
+          });
+          
           const invoice = await storage.createInvoice({
             representativeId: representative.id,
             amount: processedInvoice.amount.toString(),
@@ -403,11 +435,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: "unpaid",
             usageData: processedInvoice.usageData
           });
+          
+          // Update representative financial data
+          await storage.updateRepresentativeFinancials(representative.id);
+          
           createdInvoices.push({
             ...invoice,
             representativeName: representative.name,
             representativeCode: representative.code
           });
+          
+          console.log('Invoice created successfully:', invoice.id);
         }
       }
 
@@ -422,7 +460,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('خطا در تولید فاکتور:', error);
-      res.status(500).json({ error: "خطا در پردازش فایل JSON" });
+      console.error('Error stack:', error instanceof Error ? error.stack : 'Unknown error');
+      
+      // Return more detailed error information
+      const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
+      res.status(500).json({ 
+        error: "خطا در پردازش فایل JSON",
+        details: errorMessage,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 

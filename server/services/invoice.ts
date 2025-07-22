@@ -21,29 +21,43 @@ export interface ProcessedInvoice {
 
 export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
   try {
+    console.log('Parsing JSON data, length:', jsonData.length);
     const data = JSON.parse(jsonData);
     let usageRecords: any[] = [];
     
+    console.log('Parsed JSON type:', typeof data);
+    console.log('Is array:', Array.isArray(data));
+    
     // Handle MarFaNet JSON export format (PHPMyAdmin JSON export)
     if (Array.isArray(data)) {
+      console.log('Processing array data, length:', data.length);
+      
       // Find the data section in the array
       const dataSection = data.find(item => item.type === 'table' && item.data && Array.isArray(item.data));
       if (dataSection) {
+        console.log('Found table section with data');
         usageRecords = dataSection.data;
       } else {
         // If it's directly an array of records
-        usageRecords = data.filter(item => item.admin_username);
+        console.log('Processing direct array of records');
+        usageRecords = data.filter(item => item && typeof item === 'object' && (item.admin_username || item.representative_code));
       }
     } else if (data.usage_data && Array.isArray(data.usage_data)) {
+      console.log('Found usage_data section');
       usageRecords = data.usage_data;
     } else if (data.data && Array.isArray(data.data)) {
+      console.log('Found data section');
       usageRecords = data.data;
     } else if (typeof data === 'object' && data.admin_username) {
-      // Single record
+      console.log('Single record detected');
       return [data];
     }
     
+    console.log('Extracted records count:', usageRecords.length);
+    
     if (usageRecords.length === 0) {
+      console.log('No records found in JSON structure');
+      console.log('JSON structure:', JSON.stringify(data, null, 2).substring(0, 1000));
       throw new Error('هیچ رکورد معتبری در فایل JSON یافت نشد');
     }
     
@@ -160,9 +174,30 @@ export async function getOrCreateDefaultSalesPartner(db: any): Promise<number> {
 export function addDaysToPersianDate(persianDate: string, days: number): string {
   // Convert Persian date to Gregorian, add days, convert back
   const parts = persianDate.split('/');
+  if (parts.length !== 3) {
+    // If invalid format, return current date + days
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() + days);
+    const year = currentDate.getFullYear() - 1979 + 621;
+    const month = currentDate.getMonth() + 1;
+    const day = currentDate.getDate();
+    return toPersianDigits(`${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`);
+  }
+  
   const year = parseInt(parts[0]);
   const month = parseInt(parts[1]); 
   const day = parseInt(parts[2]);
+  
+  // Validate parsed values
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    // If invalid numbers, return current date + days
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() + days);
+    const newYear = currentDate.getFullYear() - 1979 + 621;
+    const newMonth = currentDate.getMonth() + 1;
+    const newDay = currentDate.getDate();
+    return toPersianDigits(`${newYear}/${newMonth.toString().padStart(2, '0')}/${newDay.toString().padStart(2, '0')}`);
+  }
   
   // Simple approximation - in production use proper Persian calendar library
   const gregorianDate = new Date(year - 621 + 1979, month - 1, day);
@@ -187,8 +222,10 @@ export function validateUsageData(records: UsageDataRecord[]): {
     const errors: string[] = [];
     
     // For MarFaNet JSON format validation - check actual data format
-    if (!record.admin_username || typeof record.admin_username !== 'string' || record.admin_username.trim() === '') {
-      errors.push('admin_username وجود ندارد یا خالی است');
+    // Allow both admin_username and representative_code as valid identifiers
+    const username = record.admin_username || record.representative_code;
+    if (!username || typeof username !== 'string' || username.trim() === '') {
+      errors.push('admin_username یا representative_code وجود ندارد یا خالی است');
     }
     
     const amountValue = parseFloat(record.amount || '0');
@@ -198,8 +235,10 @@ export function validateUsageData(records: UsageDataRecord[]): {
     
     if (errors.length === 0) {
       // Add derived fields for processing compatibility
-      record.representative_code = record.admin_username;
-      record.panel_username = record.admin_username;  
+      const username = record.admin_username || record.representative_code || '';
+      record.admin_username = username; // Ensure consistency
+      record.representative_code = username;
+      record.panel_username = username;  
       record.usage_amount = amountValue;
       record.period_start = record.event_timestamp || new Date().toISOString();
       record.period_end = record.event_timestamp || new Date().toISOString();
