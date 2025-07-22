@@ -449,10 +449,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log('Invoice created successfully:', invoice.id);
           
-          // Add small delay every 25 invoices to prevent overwhelming database
-          if (invoiceCount % 25 === 0) {
-            console.log(`⏳ ${invoiceCount} فاکتور ایجاد شد - وقفه کوتاه...`);
-            await new Promise(resolve => setTimeout(resolve, 50));
+          // بهینه‌سازی حافظه و database
+          if (invoiceCount % 20 === 0) {
+            console.log(`⏳ ${invoiceCount}/${processedInvoices.length} فاکتور ایجاد شد - بهینه‌سازی حافظه...`);
+            // Force garbage collection and add small delay
+            if (global.gc) {
+              global.gc();
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
         } else {
           console.error('Representative not found for invoice:', processedInvoice.representativeCode);
@@ -471,14 +475,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invalidRecords: invalid
       });
     } catch (error) {
-      console.error('خطا در تولید فاکتور:', error);
+      console.error('❌ خطا در تولید فاکتور:', error);
       console.error('Error stack:', error instanceof Error ? error.stack : 'Unknown error');
+      
+      // Force cleanup on error
+      if (global.gc) {
+        global.gc();
+      }
       
       // Return more detailed error information
       const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
+      const isTimeoutError = errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT');
+      
       res.status(500).json({ 
-        error: "خطا در پردازش فایل JSON",
+        error: isTimeoutError ? "پردازش فایل بزرگ زمان بیشتری نیاز دارد" : "خطا در پردازش فایل JSON",
         details: errorMessage,
+        isTimeout: isTimeoutError,
+        suggestion: isTimeoutError ? "لطفاً مجدداً تلاش کنید یا فایل را به بخش‌های کوچک‌تر تقسیم کنید" : "بررسی فرمت فایل JSON",
         timestamp: new Date().toISOString()
       });
     }

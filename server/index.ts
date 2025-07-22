@@ -59,6 +59,16 @@ app.use(session({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
+// Increase timeout for large file processing
+app.use((req, res, next) => {
+  // Set timeout to 10 minutes for file upload endpoints
+  if (req.path === '/api/invoices/generate') {
+    req.setTimeout(10 * 60 * 1000); // 10 minutes
+    res.setTimeout(10 * 60 * 1000); // 10 minutes
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

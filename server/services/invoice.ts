@@ -359,8 +359,11 @@ export async function processUsageDataSequential(
   let processedCount = 0;
   const totalRepresentatives = Object.keys(representativeGroups).length;
   
-  for (const [adminUsername, records] of Object.entries(representativeGroups)) {
-    console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد`);
+  // پردازش sequential با بهینه‌سازی حافظه
+  const sortedEntries = Object.entries(representativeGroups);
+  
+  for (const [adminUsername, records] of sortedEntries) {
+    console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد (${processedCount + 1}/${totalRepresentatives})`);
     
     // بررسی وجود نماینده
     let representative = await storage.getRepresentativeByPanelUsername(adminUsername) ||
@@ -413,11 +416,22 @@ export async function processUsageDataSequential(
     
     console.log(`✅ فاکتور آماده شد برای ${adminUsername}: ${totalAmount} تومان (${processedCount}/${totalRepresentatives})`);
     
-    // اضافه کردن کمی تأخیر برای جلوگیری از overwhelming database
-    if (processedCount % 50 === 0) {
-      console.log(`🔄 پردازش ${processedCount} نماینده تکمیل شد - وقفه کوتاه...`);
-      await new Promise(resolve => setTimeout(resolve, 100));
+    // بهینه‌سازی حافظه و جلوگیری از overwhelming database
+    if (processedCount % 25 === 0) {
+      console.log(`🔄 پردازش ${processedCount}/${totalRepresentatives} نماینده تکمیل شد - آزادسازی حافظه...`);
+      // Force garbage collection if available and clear temporary data
+      if (global.gc) {
+        global.gc();
+      }
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
+  }
+  
+  console.log(`🎯 پردازش Sequential کامل شد: ${processedInvoices.length} فاکتور آماده`);
+  
+  // آزادسازی حافظه قبل از بازگشت
+  if (global.gc) {
+    global.gc();
   }
   
   return {
