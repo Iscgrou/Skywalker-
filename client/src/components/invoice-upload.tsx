@@ -65,6 +65,15 @@ export default function InvoiceUpload() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (processingIntervalRef.current) {
+        clearInterval(processingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // شبیه‌سازی مراحل پردازش بر اساس اندازه فایل
   const simulateProcessingSteps = (fileSize: number) => {
@@ -331,12 +340,31 @@ export default function InvoiceUpload() {
 
         {/* Upload Progress */}
         {uploadMutation.isPending && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span>در حال پردازش فایل...</span>
-              <span>{toPersianDigits(uploadProgress.toString())}%</span>
+              <div className="flex items-center space-x-2 space-x-reverse">
+                <span>{toPersianDigits(uploadProgress.toString())}%</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowProcessingModal(true)}
+                  className="text-xs"
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  نمایش جزئیات
+                </Button>
+              </div>
             </div>
             <Progress value={uploadProgress} className="w-full" />
+            
+            {/* Latest processing step preview */}
+            {processingSteps.length > 0 && (
+              <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                <Activity className="w-3 h-3 ml-1 animate-spin" />
+                <span>{processingSteps[processingSteps.length - 1]?.message}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -447,6 +475,142 @@ export default function InvoiceUpload() {
             </div>
           </div>
         )}
+        
+        {/* Processing Details Modal */}
+        <Dialog open={showProcessingModal} onOpenChange={setShowProcessingModal}>
+          <DialogContent className="max-w-2xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Activity className="w-5 h-5 ml-2 text-primary" />
+                  جزئیات پردازش فایل JSON
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowProcessingModal(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* File Info */}
+              {currentFile && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                  <h4 className="font-medium mb-2">اطلاعات فایل</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">نام فایل:</span>
+                      <span className="mr-2 font-mono">{currentFile.name}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">حجم:</span>
+                      <span className="mr-2">{toPersianDigits(Math.round(currentFile.size / 1024).toString())} KB</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Progress Overview */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">پیشرفت کلی</h4>
+                  <span className="text-lg font-bold text-primary">
+                    {toPersianDigits(uploadProgress.toString())}%
+                  </span>
+                </div>
+                <Progress value={uploadProgress} className="w-full h-3" />
+                {processingSteps.length > 0 && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {toPersianDigits(processingSteps.filter(s => s.status === 'completed').length.toString())} از {' '}
+                    {toPersianDigits(processingSteps.length.toString())} مرحله تکمیل شده
+                  </div>
+                )}
+              </div>
+              
+              <Separator />
+              
+              {/* Processing Steps */}
+              <div>
+                <h4 className="font-medium mb-3">مراحل پردازش</h4>
+                <ScrollArea className="h-64">
+                  <div className="space-y-3">
+                    {processingSteps.map((step, index) => (
+                      <div 
+                        key={index}
+                        className={`flex items-start space-x-3 space-x-reverse p-3 rounded-lg border ${
+                          step.status === 'completed' 
+                            ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                            : step.status === 'error'
+                            ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                            : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {step.status === 'completed' ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : step.status === 'error' ? (
+                            <AlertCircle className="w-4 h-4 text-red-600" />
+                          ) : (
+                            <Activity className="w-4 h-4 text-blue-600 animate-spin" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">
+                              {step.stage}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {step.timestamp}
+                            </span>
+                          </div>
+                          
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                            {step.message}
+                          </p>
+                          
+                          {step.details && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {step.details}
+                            </p>
+                          )}
+                          
+                          {step.total > 0 && (
+                            <div className="mt-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span>پیشرفت این مرحله</span>
+                                <span>
+                                  {toPersianDigits(step.progress.toString())}/
+                                  {toPersianDigits(step.total.toString())}
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-1">
+                                <div 
+                                  className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                                  style={{ width: `${(step.progress / step.total) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {processingSteps.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Activity className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                        <p>در انتظار شروع پردازش...</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
