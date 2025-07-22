@@ -226,19 +226,24 @@ export async function createRepresentativeFromUsageData(
 }
 
 // Helper to get or create default sales partner
-export async function getOrCreateDefaultSalesPartner(db: any): Promise<number> {
+export async function getOrCreateDefaultSalesPartner(dbInstance: any): Promise<number> {
   const { salesPartners } = await import("../../shared/schema");
   const { eq } = await import("drizzle-orm");
   
+  if (!dbInstance || !dbInstance.select) {
+    const { db } = await import("../db");
+    dbInstance = db;
+  }
+  
   // Try to find existing default partner
-  const existing = await db.select().from(salesPartners).where(eq(salesPartners.name, "همکار پیش‌فرض")).limit(1);
+  const existing = await dbInstance.select().from(salesPartners).where(eq(salesPartners.name, "همکار پیش‌فرض")).limit(1);
   
   if (existing.length > 0) {
     return existing[0].id;
   }
   
   // Create default sales partner
-  const [newPartner] = await db.insert(salesPartners).values({
+  const [newPartner] = await dbInstance.insert(salesPartners).values({
     name: "همکار پیش‌فرض",
     phone: null,
     email: null,
@@ -348,7 +353,8 @@ export async function processUsageDataSequential(
   // مرحله 3: پردازش sequential هر نماینده
   const processedInvoices: ProcessedInvoiceData[] = [];
   const newRepresentatives: any[] = [];
-  const defaultSalesPartnerId = await getOrCreateDefaultSalesPartner(storage.db);
+  const { db: dbInstance } = await import("../db");
+  const defaultSalesPartnerId = await getOrCreateDefaultSalesPartner(dbInstance);
   
   for (const [adminUsername, records] of Object.entries(representativeGroups)) {
     console.log(`⚙️ پردازش نماینده: ${adminUsername} با ${records.length} رکورد`);
@@ -362,7 +368,7 @@ export async function processUsageDataSequential(
       console.log(`➕ ایجاد نماینده جدید: ${adminUsername}`);
       const newRepData = await createRepresentativeFromUsageData(
         adminUsername,
-        storage.db,
+        dbInstance,
         defaultSalesPartnerId
       );
       representative = await storage.createRepresentative(newRepData);
