@@ -76,7 +76,17 @@ export default function PublicPortal() {
   const { data: portalData, isLoading, error } = useQuery<PublicPortalData>({
     queryKey: [`/api/portal/${publicId}`],
     enabled: !!publicId,
-    retry: false
+    retry: (failureCount, error: any) => {
+      // Retry up to 3 times for network errors, but not for 404/403
+      const status = error?.response?.status;
+      if (status === 404 || status === 403) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (TanStack Query v5)
   });
 
   const toggleInvoiceExpansion = (invoiceNumber: string) => {

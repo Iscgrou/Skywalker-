@@ -52,7 +52,22 @@ function AuthenticatedRouter() {
   if (isPublicPortal) {
     return (
       <div className="dark">
-        <Route path="/portal/:publicId" component={PublicPortal} />
+        <Switch>
+          <Route path="/portal/:publicId" component={PublicPortal} />
+          <Route path="/portal/*">
+            {() => (
+              <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-red-400 text-6xl mb-4">⚠</div>
+                  <h1 className="text-2xl font-bold mb-2">پورتال یافت نشد</h1>
+                  <p className="text-gray-400">
+                    لینک پورتال نامعتبر است. لطفاً لینک صحیح را از مدیر سیستم دریافت کنید.
+                  </p>
+                </div>
+              </div>
+            )}
+          </Route>
+        </Switch>
       </div>
     );
   }

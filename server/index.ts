@@ -10,7 +10,7 @@ const app = express();
 // Fix for Replit GCE deployment - trust proxy for authentication
 app.set('trust proxy', true);
 
-// Enhanced CORS and security headers for production deployment
+// Enhanced CORS and security headers with special handling for portal routes
 app.use((req, res, next) => {
   // Set comprehensive CORS headers for all origins in production
   res.header('Access-Control-Allow-Origin', '*');
@@ -18,16 +18,31 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
   res.header('Access-Control-Allow-Credentials', 'true');
   
-  // Security headers for production deployment
-  res.header('X-Content-Type-Options', 'nosniff');
-  res.header('X-Frame-Options', 'SAMEORIGIN');
-  res.header('X-XSS-Protection', '1; mode=block');
-  res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Check if this is a portal route (public access)
+  const isPortalRoute = req.path.startsWith('/portal') || req.path.startsWith('/api/portal');
   
-  // Cloud Run specific headers
-  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.header('Pragma', 'no-cache');
-  res.header('Expires', '0');
+  if (isPortalRoute) {
+    // Relaxed security headers for portal routes to improve Android browser compatibility
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'ALLOWALL'); // Allow iframe embedding for portal
+    res.header('Referrer-Policy', 'no-referrer-when-downgrade');
+    res.header('Cache-Control', 'public, max-age=300'); // Allow caching for portal content
+    res.header('Pragma', 'public');
+    
+    // Additional headers for Android browser compatibility
+    res.header('X-UA-Compatible', 'IE=edge,chrome=1');
+    res.header('X-DNS-Prefetch-Control', 'on');
+    res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  } else {
+    // Strict security headers for admin routes
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'SAMEORIGIN');
+    res.header('X-XSS-Protection', '1; mode=block');
+    res.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+  }
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -38,9 +53,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Session configuration
+// Session configuration - Skip session for public portal routes
 const PgSession = connectPgSimple(session);
-app.use(session({
+const sessionMiddleware = session({
   store: new PgSession({
     pool: pool,
     tableName: 'session',
@@ -54,10 +69,44 @@ app.use(session({
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+});
+
+// Apply session middleware conditionally - skip for public portal routes
+app.use((req, res, next) => {
+  const isPortalRoute = req.path.startsWith('/portal') || req.path.startsWith('/api/portal');
+  
+  if (isPortalRoute) {
+    // Skip session middleware for portal routes to avoid authentication issues
+    next();
+  } else {
+    // Apply session middleware for admin routes
+    sessionMiddleware(req, res, next);
+  }
+});
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+
+// Special middleware for Android browser compatibility
+app.use((req, res, next) => {
+  const userAgent = req.headers['user-agent'] || '';
+  const isAndroid = /Android/.test(userAgent);
+  const isPortalRoute = req.path.startsWith('/portal') || req.path.startsWith('/api/portal');
+  
+  if (isAndroid && isPortalRoute) {
+    // Additional Android-specific headers for better compatibility
+    res.header('Accept-Ranges', 'bytes');
+    res.header('Content-Security-Policy', 'default-src \'self\' \'unsafe-inline\' \'unsafe-eval\' data: blob:; connect-src \'self\' *');
+    res.header('X-Permitted-Cross-Domain-Policies', 'none');
+    res.header('X-Download-Options', 'noopen');
+    
+    // Remove problematic headers that cause issues on some Android browsers
+    res.removeHeader('X-XSS-Protection');
+    res.removeHeader('Strict-Transport-Security');
+  }
+  
+  next();
+});
 
 // Increase timeout for large file processing
 app.use((req, res, next) => {
@@ -124,6 +173,24 @@ app.use((req, res, next) => {
       error: message,
       timestamp: new Date().toISOString()
     });
+  });
+
+  // Enhanced SPA routing middleware for portal compatibility
+  app.use((req, res, next) => {
+    // Skip this middleware for API routes
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    
+    // Special handling for portal routes
+    if (req.path.startsWith('/portal/')) {
+      // Set portal-specific headers for better Android compatibility
+      res.header('Content-Type', 'text/html; charset=utf-8');
+      res.header('X-UA-Compatible', 'IE=edge');
+      res.header('Viewport', 'width=device-width, initial-scale=1.0');
+    }
+    
+    next();
   });
 
   // importantly only setup vite in development and after

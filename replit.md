@@ -106,6 +106,47 @@ The system manages four primary entities:
 
 The system is designed to be self-contained with minimal external dependencies while providing comprehensive financial management capabilities with modern web technologies and AI-enhanced insights.
 
+## Recent Architectural Changes
+
+### Portal Android Compatibility Fix (January 22, 2025) ✅
+
+**Problem Identified**: 
+- "Error: Forbidden - Your client does not have permission to get URL /portal/....." occurring on Android browsers
+- Previously fixed for iOS browsers, but Android browsers still experiencing access issues
+
+**Root Cause Analysis**: 
+- Overly restrictive security headers affecting Android browser compatibility
+- Session middleware unnecessarily applied to public portal routes
+- Missing Android-specific compatibility headers
+
+**Comprehensive Solution Implemented**:
+
+#### Backend Infrastructure Changes
+- **Conditional Security Headers**: Implemented separate header policies for admin vs portal routes
+  - Portal routes: Relaxed headers allowing iframe embedding (`X-Frame-Options: ALLOWALL`)
+  - Admin routes: Maintained strict security headers for protection
+- **Session Middleware Optimization**: Created conditional session application
+  - Skip session processing for `/portal/*` and `/api/portal/*` routes
+  - Maintain session security for admin panel routes
+- **Android Browser Compatibility**: Added specialized middleware detecting Android browsers
+  - Enhanced Content Security Policy for portal compatibility
+  - Added Android-specific headers (`X-UA-Compatible`, `Accept-Ranges`)
+  - Removed problematic headers that cause Android browser issues
+
+#### Frontend Enhancements
+- **Enhanced Client-Side Routing**: Improved portal route handling with proper fallback
+- **Retry Logic Optimization**: Implemented intelligent query retry with exponential backoff
+- **Error Boundary Improvements**: Better error handling for network issues and authentication failures
+
+#### Production Stability
+- **SPA Routing Enhancement**: Added specialized middleware for single-page application routing
+- **Caching Strategy**: Optimized caching headers for portal performance while maintaining security
+
+**Expected Impact**: 
+- Complete resolution of Android browser access issues to portal routes
+- Maintained security integrity for admin panel access
+- Improved performance and reliability across all mobile platforms
+
 ## Recent Testing Results (July 21, 2025)
 
 ### JSON Processing Success ✅
