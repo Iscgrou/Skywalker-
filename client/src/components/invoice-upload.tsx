@@ -52,12 +52,18 @@ export default function InvoiceUpload() {
       
       console.log('Uploading file:', file.name, 'Size:', file.size);
       
-      // Use fetch directly for file upload with proper headers
+      // Use fetch directly for file upload with proper headers and extended timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes timeout
+      
       const response = await fetch('/api/invoices/generate', {
         method: 'POST',
         body: formData,
-        credentials: 'include' // Include cookies for authentication
+        credentials: 'include', // Include cookies for authentication
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -69,9 +75,10 @@ export default function InvoiceUpload() {
     onSuccess: (data: UploadResult) => {
       setUploadResult(data);
       setUploadProgress(100);
+      console.log('فایل با موفقیت پردازش شد:', data);
       toast({
         title: "فایل با موفقیت پردازش شد",
-        description: `${toPersianDigits(data.created.toString())} فاکتور ایجاد شد`,
+        description: `${toPersianDigits(data.created.toString())} فاکتور ایجاد شد، ${toPersianDigits(data.newRepresentatives?.toString() || '0')} نماینده جدید`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
