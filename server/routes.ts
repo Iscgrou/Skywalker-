@@ -815,6 +815,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initialize default settings on first run
+  // Invoice Edit Routes
+  app.post("/api/invoices/edit", requireAuth, async (req, res) => {
+    try {
+      const { 
+        invoiceId, 
+        originalUsageData, 
+        editedUsageData, 
+        editType, 
+        editReason,
+        originalAmount,
+        editedAmount,
+        editedBy 
+      } = req.body;
+
+      // Validate input
+      if (!invoiceId || !editedUsageData || !editedBy) {
+        return res.status(400).json({ error: "اطلاعات ضروری برای ویرایش فاکتور کامل نیست" });
+      }
+
+      // Validate amounts
+      if (editedAmount < 0) {
+        return res.status(400).json({ error: "مبلغ فاکتور نمی‌تواند منفی باشد" });
+      }
+
+      // Start transaction
+      const editData = {
+        invoiceId,
+        originalUsageData,
+        editedUsageData,
+        editType: editType || 'MANUAL_EDIT',
+        editReason: editReason || 'ویرایش دستی توسط ادمین',
+        originalAmount: originalAmount.toString(),
+        editedAmount: editedAmount.toString(),
+        editedBy,
+        isActive: true
+      };
+
+      // Create edit record
+      const editRecord = await storage.createInvoiceEdit(editData);
+
+      // Update invoice with new data
+      await storage.updateInvoice(invoiceId, {
+        usageData: editedUsageData,
+        amount: editedAmount.toString()
+      });
+
+      // Update representative debt
+      await storage.updateRepresentativeDebt(
+        invoiceId,
+        parseFloat(originalAmount.toString()),
+        parseFloat(editedAmount.toString())
+      );
+
+      res.json({ 
+        success: true, 
+        editId: editRecord.id,
+        message: "فاکتور با موفقیت ویرایش شد" 
+      });
+
+    } catch (error: any) {
+      console.error('خطا در ویرایش فاکتور:', error);
+      res.status(500).json({ 
+        error: 'خطا در ویرایش فاکتور',
+        details: error.message 
+      });
+    }
+  });
+
+  app.get("/api/invoices/:id/edit-history", requireAuth, async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      
+      if (!invoiceId) {
+        return res.status(400).json({ error: "شناسه فاکتور نامعتبر است" });
+      }
+
+      const editHistory = await storage.getInvoiceEditHistory(invoiceId);
+      res.json(editHistory);
+
+    } catch (error: any) {
+      console.error('خطا در دریافت تاریخچه ویرایش:', error);
+      res.status(500).json({ 
+        error: 'خطا در دریافت تاریخچه ویرایش',
+        details: error.message 
+      });
+    }
+  });
+
+  app.get("/api/invoices/:id/usage-details", requireAuth, async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      
+      if (!invoiceId) {
+        return res.status(400).json({ error: "شناسه فاکتور نامعتبر است" });
+      }
+
+      const invoices = await storage.getInvoices();
+      const invoice = invoices.find(inv => inv.id === invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "فاکتور یافت نشد" });
+      }
+
+      // Return detailed usage data for editing
+      res.json({
+        invoice: {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          issueDate: invoice.issueDate,
+          status: invoice.status
+        },
+        usageData: invoice.usageData || {},
+        records: invoice.usageData?.records || []
+      });
+
+    } catch (error: any) {
+      console.error('خطا در دریافت جزئیات مصرف:', error);
+      res.status(500).json({ 
+        error: 'خطا در دریافت جزئیات مصرف',
+        details: error.message 
+      });
+    }
+  });
+
   app.post("/api/init", async (req, res) => {
     try {
       // Set default Telegram template

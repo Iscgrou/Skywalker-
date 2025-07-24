@@ -80,6 +80,21 @@ export const adminUsers = pgTable("admin_users", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// Invoice Edits (ویرایش‌های فاکتور)
+export const invoiceEdits = pgTable("invoice_edits", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").notNull(),
+  originalUsageData: json("original_usage_data"),
+  editedUsageData: json("edited_usage_data"),
+  editType: text("edit_type").notNull(), // "MANUAL_EDIT", "RECORD_ADD", "RECORD_DELETE"
+  editReason: text("edit_reason"),
+  originalAmount: decimal("original_amount", { precision: 15, scale: 2 }),
+  editedAmount: decimal("edited_amount", { precision: 15, scale: 2 }),
+  editedBy: text("edited_by").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Settings (تنظیمات)
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
@@ -117,6 +132,13 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
   invoice: one(invoices, {
     fields: [payments.invoiceId],
+    references: [invoices.id]
+  })
+}));
+
+export const invoiceEditsRelations = relations(invoiceEdits, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceEdits.invoiceId],
     references: [invoices.id]
   })
 }));
@@ -163,6 +185,11 @@ export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
   createdAt: true
 });
 
+export const insertInvoiceEditSchema = createInsertSchema(invoiceEdits).omit({
+  id: true,
+  createdAt: true
+});
+
 export const insertSettingSchema = createInsertSchema(settings).omit({
   id: true,
   updatedAt: true
@@ -186,6 +213,9 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+export type InvoiceEdit = typeof invoiceEdits.$inferSelect;
+export type InsertInvoiceEdit = z.infer<typeof insertInvoiceEditSchema>;
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;

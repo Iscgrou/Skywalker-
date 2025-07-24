@@ -1,12 +1,13 @@
 import { 
-  representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers,
+  representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers, invoiceEdits,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
   type Payment, type InsertPayment,
   type ActivityLog, type InsertActivityLog,
   type Setting, type InsertSetting,
-  type AdminUser, type InsertAdminUser
+  type AdminUser, type InsertAdminUser,
+  type InvoiceEdit, type InsertInvoiceEdit
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
@@ -124,6 +125,12 @@ export interface IStorage {
 
   // Financial calculations
   updateRepresentativeFinancials(repId: number): Promise<void>;
+
+  // Invoice Edits
+  getInvoiceEdits(invoiceId: number): Promise<InvoiceEdit[]>;
+  createInvoiceEdit(edit: InsertInvoiceEdit): Promise<InvoiceEdit>;
+  getInvoiceEditHistory(invoiceId: number): Promise<InvoiceEdit[]>;
+  updateRepresentativeDebt(invoiceId: number, originalAmount: number, editedAmount: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -696,6 +703,91 @@ export class DatabaseStorage implements IStorage {
         return { deletedCounts };
       },
       'resetData'
+    );
+  }
+
+  // Invoice Edits Methods
+  async getInvoiceEdits(invoiceId: number): Promise<InvoiceEdit[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(invoiceEdits)
+        .where(eq(invoiceEdits.invoiceId, invoiceId))
+        .orderBy(desc(invoiceEdits.createdAt)),
+      'getInvoiceEdits'
+    );
+  }
+
+  async createInvoiceEdit(edit: InsertInvoiceEdit): Promise<InvoiceEdit> {
+    return await withDatabaseRetry(
+      async () => {
+        const [newEdit] = await db
+          .insert(invoiceEdits)
+          .values(edit)
+          .returning();
+        
+        await this.createActivityLog({
+          type: "invoice_edited",
+          description: `فاکتور ${edit.invoiceId} توسط ${edit.editedBy} ویرایش شد`,
+          relatedId: edit.invoiceId,
+          metadata: {
+            editType: edit.editType,
+            originalAmount: edit.originalAmount,
+            editedAmount: edit.editedAmount,
+            editedBy: edit.editedBy
+          }
+        });
+
+        return newEdit;
+      },
+      'createInvoiceEdit'
+    );
+  }
+
+  async getInvoiceEditHistory(invoiceId: number): Promise<InvoiceEdit[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(invoiceEdits)
+        .where(and(
+          eq(invoiceEdits.invoiceId, invoiceId),
+          eq(invoiceEdits.isActive, true)
+        ))
+        .orderBy(desc(invoiceEdits.createdAt)),
+      'getInvoiceEditHistory'
+    );
+  }
+
+  async updateRepresentativeDebt(invoiceId: number, originalAmount: number, editedAmount: number): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        // Get invoice to find representative
+        const [invoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
+        if (!invoice) {
+          throw new Error(`Invoice ${invoiceId} not found`);
+        }
+
+        // Calculate debt difference
+        const debtDifference = editedAmount - originalAmount;
+        
+        // Update representative's total debt
+        await db
+          .update(representatives)
+          .set({
+            totalDebt: sql`${representatives.totalDebt} + ${debtDifference}`,
+            updatedAt: new Date()
+          })
+          .where(eq(representatives.id, invoice.representativeId));
+
+        await this.createActivityLog({
+          type: "debt_updated",
+          description: `بدهی نماینده به دلیل ویرایش فاکتور ${invoiceId} بروزرسانی شد`,
+          relatedId: invoice.representativeId,
+          metadata: {
+            invoiceId: invoiceId,
+            originalAmount: originalAmount,
+            editedAmount: editedAmount,
+            debtDifference: debtDifference
+          }
+        });
+      },
+      'updateRepresentativeDebt'
     );
   }
 }

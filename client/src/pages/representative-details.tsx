@@ -51,6 +51,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, toPersianDigits, getCurrentPersianDate } from "@/lib/persian-date";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import InvoiceEditDialog from "@/components/invoice-edit-dialog";
 
 interface Representative {
   id: number;
@@ -547,6 +548,7 @@ export default function RepresentativeDetails() {
                     <TableHead>سررسید</TableHead>
                     <TableHead>وضعیت</TableHead>
                     <TableHead>تلگرام</TableHead>
+                    <TableHead>عملیات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -571,6 +573,15 @@ export default function RepresentativeDetails() {
                         <Badge variant={invoice.sentToTelegram ? "default" : "secondary"}>
                           {invoice.sentToTelegram ? "ارسال شده" : "ارسال نشده"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <InvoiceEditDialog 
+                          invoice={invoice}
+                          representativeCode={representative.code}
+                          onEditComplete={() => {
+                            queryClient.invalidateQueries({ queryKey: [`/api/representatives/${code}`] });
+                          }}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
