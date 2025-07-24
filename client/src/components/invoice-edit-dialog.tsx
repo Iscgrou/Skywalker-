@@ -85,6 +85,7 @@ export default function InvoiceEditDialog({
   const [editReason, setEditReason] = useState("");
   const [calculatedAmount, setCalculatedAmount] = useState(0);
   const [activeTab, setActiveTab] = useState("edit");
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -112,10 +113,28 @@ export default function InvoiceEditDialog({
         title: "فاکتور ویرایش شد",
         description: "تغییرات با موفقیت ذخیره شد و بدهی نماینده بروزرسانی شد",
       });
+      
+      // Mark all records as saved (remove modified/new flags)
+      setEditableRecords(prevRecords => 
+        prevRecords
+          .filter(record => !record.isDeleted) // Remove deleted records
+          .map(record => ({
+            ...record,
+            isNew: false,
+            isModified: false
+          }))
+      );
+      
+      setEditMode(false);
+      setEditReason("");
+      
+      // Don't invalidate usage details query to preserve our state
+      // Only invalidate related queries
       queryClient.invalidateQueries({ queryKey: [`/api/representatives/${representativeCode}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
-      setEditMode(false);
+      queryClient.invalidateQueries({ queryKey: [`/api/invoices/${invoice.id}/edit-history`] });
+      
       onEditComplete?.();
     },
     onError: (error: any) => {
@@ -129,8 +148,8 @@ export default function InvoiceEditDialog({
 
   // Initialize editable records when usage details are loaded
   useEffect(() => {
-    if (usageDetails?.records && !editMode && Array.isArray(usageDetails.records)) {
-      const records = usageDetails.records.map((record: any) => ({
+    if (usageDetails?.records && Array.isArray(usageDetails.records) && !isInitialized && !editMode) {
+      const records = (usageDetails.records as any[]).map((record: any) => ({
         id: generateId(),
         admin_username: record.admin_username || '',
         event_timestamp: record.event_timestamp || '',
@@ -143,8 +162,19 @@ export default function InvoiceEditDialog({
       }));
       setEditableRecords(records);
       setCalculatedAmount(calculateTotalAmount(records));
+      setIsInitialized(true);
     }
-  }, [usageDetails, editMode]);
+  }, [usageDetails, isInitialized, editMode]);
+
+  // Reset initialization when dialog is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setIsInitialized(false);
+      setEditMode(false);
+      setEditReason("");
+      setActiveTab("edit");
+    }
+  }, [isOpen]);
 
   // Calculate total amount
   const calculateTotalAmount = (records: EditableUsageRecord[]) => {
@@ -168,9 +198,10 @@ export default function InvoiceEditDialog({
 
   const cancelEdit = () => {
     setEditMode(false);
-    // Reset records to original state
+    setEditReason("");
+    // Reset records to original state from fresh data
     if (usageDetails?.records && Array.isArray(usageDetails.records)) {
-      const originalRecords = usageDetails.records.map((record: any) => ({
+      const originalRecords = (usageDetails.records as any[]).map((record: any) => ({
         id: generateId(),
         admin_username: record.admin_username || '',
         event_timestamp: record.event_timestamp || '',
@@ -275,9 +306,9 @@ export default function InvoiceEditDialog({
     // Prepare edit data
     const editData = {
       invoiceId: invoice.id,
-      originalUsageData: usageDetails?.usageData || {},
+      originalUsageData: (usageDetails as any)?.usageData || {},
       editedUsageData: {
-        ...(usageDetails?.usageData || {}),
+        ...((usageDetails as any)?.usageData || {}),
         records: activeRecords.map(r => ({
           admin_username: r.admin_username,
           event_timestamp: r.event_timestamp,
