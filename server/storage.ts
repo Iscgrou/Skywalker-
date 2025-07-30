@@ -841,7 +841,8 @@ export class DatabaseStorage implements IStorage {
       async () => {
         const updateData: any = { status };
         if (actualState) {
-          updateData.actualState = actualState;
+          // Convert any problematic objects to plain JSON
+          updateData.actualState = JSON.parse(JSON.stringify(actualState));
         }
         if (status === 'COMPLETED') {
           updateData.completedAt = new Date();
