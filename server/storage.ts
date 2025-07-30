@@ -1078,7 +1078,9 @@ export class DatabaseStorage implements IStorage {
     editedAmount: number;
   }): Promise<{transactionId: string, editId: number, success: boolean}> {
     
-    const transactionId = `EDIT-${editData.invoiceId}-${Date.now()}-${nanoid(8)}`;
+    // Generate unique transaction ID with high precision timestamp
+    const uniqueTimestamp = Date.now() + Math.random() * 1000;
+    const transactionId = `EDIT-${editData.invoiceId}-${Math.floor(uniqueTimestamp)}-${nanoid(12)}`;
     
     return await withDatabaseRetry(
       async () => {
