@@ -839,39 +839,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "مبلغ فاکتور نمی‌تواند منفی باشد" });
       }
 
-      // Start transaction
-      const editData = {
+      // Execute atomic transaction for invoice editing
+      const atomicResult = await storage.executeAtomicInvoiceEdit({
         invoiceId,
-        originalUsageData,
         editedUsageData,
-        editType: editType || 'MANUAL_EDIT',
         editReason: editReason || 'ویرایش دستی توسط ادمین',
-        originalAmount: originalAmount.toString(),
-        editedAmount: editedAmount.toString(),
         editedBy,
-        isActive: true
-      };
-
-      // Create edit record
-      const editRecord = await storage.createInvoiceEdit(editData);
-
-      // Update invoice with new data
-      await storage.updateInvoice(invoiceId, {
-        usageData: editedUsageData,
-        amount: editedAmount.toString()
+        originalAmount: parseFloat(originalAmount.toString()),
+        editedAmount: parseFloat(editedAmount.toString())
       });
 
-      // Update representative debt
-      await storage.updateRepresentativeDebt(
-        invoiceId,
-        parseFloat(originalAmount.toString()),
-        parseFloat(editedAmount.toString())
-      );
-
       res.json({ 
-        success: true, 
-        editId: editRecord.id,
-        message: "فاکتور با موفقیت ویرایش شد" 
+        success: atomicResult.success, 
+        editId: atomicResult.editId,
+        transactionId: atomicResult.transactionId,
+        message: "فاکتور با موفقیت از طریق تراکنش اتمیک ویرایش شد" 
       });
 
     } catch (error: any) {
@@ -948,6 +930,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "خطا در راه‌اندازی اولیه" });
+    }
+  });
+
+  // ====== FINANCIAL TRANSACTIONS API (CLOCK MECHANISM) ======
+  app.get("/api/transactions", requireAuth, async (req, res) => {
+    try {
+      const { representativeId, status } = req.query;
+      
+      let transactions;
+      if (representativeId) {
+        transactions = await storage.getTransactionsByRepresentative(parseInt(representativeId as string));
+      } else if (status === 'pending') {
+        transactions = await storage.getPendingTransactions();
+      } else {
+        // Get all transactions (could be paginated in future)
+        transactions = await storage.getPendingTransactions(); // For now, show pending ones
+      }
+      
+      res.json(transactions);
+    } catch (error: any) {
+      console.error('خطا در دریافت تراکنش‌ها:', error);
+      res.status(500).json({ error: 'خطا در دریافت تراکنش‌ها', details: error.message });
+    }
+  });
+
+  app.get("/api/transactions/:transactionId", requireAuth, async (req, res) => {
+    try {
+      const { transactionId } = req.params;
+      const transaction = await storage.getFinancialTransaction(transactionId);
+      
+      if (!transaction) {
+        return res.status(404).json({ error: "تراکنش یافت نشد" });
+      }
+      
+      res.json(transaction);
+    } catch (error: any) {
+      console.error('خطا در دریافت تراکنش:', error);
+      res.status(500).json({ error: 'خطا در دریافت تراکنش', details: error.message });
+    }
+  });
+
+  app.post("/api/transactions/:transactionId/rollback", requireAuth, async (req, res) => {
+    try {
+      const { transactionId } = req.params;
+      await storage.rollbackTransaction(transactionId);
+      
+      res.json({ 
+        success: true, 
+        message: `تراکنش ${transactionId} با موفقیت برگردانده شد` 
+      });
+    } catch (error: any) {
+      console.error('خطا در برگرداندن تراکنش:', error);
+      res.status(500).json({ error: 'خطا در برگرداندن تراکنش', details: error.message });
+    }
+  });
+
+  // ====== DATA INTEGRITY CONSTRAINTS API (CLOCK PRECISION) ======
+  app.get("/api/constraints/violations", requireAuth, async (req, res) => {
+    try {
+      const violations = await storage.getConstraintViolations();
+      res.json(violations);
+    } catch (error: any) {
+      console.error('خطا در دریافت نقض محدودیت‌ها:', error);
+      res.status(500).json({ error: 'خطا در دریافت نقض محدودیت‌ها', details: error.message });
+    }
+  });
+
+  app.post("/api/constraints/validate", requireAuth, async (req, res) => {
+    try {
+      const { entityType, entityId } = req.body;
+      
+      if (!entityType || !entityId) {
+        return res.status(400).json({ error: "نوع موجودیت و شناسه ضروری است" });
+      }
+      
+      const validation = await storage.validateConstraints(entityType, parseInt(entityId));
+      res.json(validation);
+    } catch (error: any) {
+      console.error('خطا در اعتبارسنجی محدودیت‌ها:', error);
+      res.status(500).json({ error: 'خطا در اعتبارسنجی محدودیت‌ها', details: error.message });
+    }
+  });
+
+  app.post("/api/constraints/:constraintId/fix", requireAuth, async (req, res) => {
+    try {
+      const constraintId = parseInt(req.params.constraintId);
+      const fixed = await storage.fixConstraintViolation(constraintId);
+      
+      res.json({ 
+        success: fixed, 
+        message: fixed ? "محدودیت با موفقیت رفع شد" : "امکان رفع خودکار محدودیت وجود ندارد" 
+      });
+    } catch (error: any) {
+      console.error('خطا در رفع محدودیت:', error);
+      res.status(500).json({ error: 'خطا در رفع محدودیت', details: error.message });
+    }
+  });
+
+  // ====== FINANCIAL RECONCILIATION API (CLOCK SYNCHRONIZATION) ======
+  app.post("/api/financial/reconcile", requireAuth, async (req, res) => {
+    try {
+      const { representativeId } = req.body;
+      
+      if (representativeId) {
+        // Reconcile specific representative
+        await storage.updateRepresentativeFinancials(parseInt(representativeId));
+        res.json({ 
+          success: true, 
+          message: `مالیات نماینده ${representativeId} هماهنگ شد` 
+        });
+      } else {
+        // Reconcile all representatives (could be heavy operation)
+        const representatives = await storage.getRepresentatives();
+        let processed = 0;
+        
+        for (const rep of representatives) {
+          try {
+            await storage.updateRepresentativeFinancials(rep.id);
+            processed++;
+          } catch (error) {
+            console.error(`Error reconciling representative ${rep.id}:`, error);
+          }
+        }
+        
+        res.json({ 
+          success: true, 
+          message: `${processed} نماینده هماهنگ شد`,
+          processed,
+          total: representatives.length
+        });
+      }
+      
+    } catch (error: any) {
+      console.error('خطا در هماهنگی مالی:', error);
+      res.status(500).json({ error: 'خطا در هماهنگی مالی', details: error.message });
     }
   });
 

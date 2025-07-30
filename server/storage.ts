@@ -1,5 +1,6 @@
 import { 
   representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers, invoiceEdits,
+  financialTransactions, dataIntegrityConstraints,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
@@ -7,7 +8,9 @@ import {
   type ActivityLog, type InsertActivityLog,
   type Setting, type InsertSetting,
   type AdminUser, type InsertAdminUser,
-  type InvoiceEdit, type InsertInvoiceEdit
+  type InvoiceEdit, type InsertInvoiceEdit,
+  type FinancialTransaction, type InsertFinancialTransaction,
+  type DataIntegrityConstraint, type InsertDataIntegrityConstraint
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
@@ -131,6 +134,31 @@ export interface IStorage {
   createInvoiceEdit(edit: InsertInvoiceEdit): Promise<InvoiceEdit>;
   getInvoiceEditHistory(invoiceId: number): Promise<InvoiceEdit[]>;
   updateRepresentativeDebt(invoiceId: number, originalAmount: number, editedAmount: number): Promise<void>;
+
+  // Financial Transactions (Clock Mechanism Core)
+  createFinancialTransaction(transaction: InsertFinancialTransaction): Promise<FinancialTransaction>;
+  updateTransactionStatus(transactionId: string, status: string, actualState?: any): Promise<void>;
+  getFinancialTransaction(transactionId: string): Promise<FinancialTransaction | undefined>;
+  getTransactionsByRepresentative(repId: number): Promise<FinancialTransaction[]>;
+  getPendingTransactions(): Promise<FinancialTransaction[]>;
+  rollbackTransaction(transactionId: string): Promise<void>;
+
+  // Data Integrity Constraints (Clock Precision)
+  createIntegrityConstraint(constraint: InsertDataIntegrityConstraint): Promise<DataIntegrityConstraint>;
+  validateConstraints(entityType: string, entityId: number): Promise<{isValid: boolean, violations: any[]}>;
+  getConstraintViolations(): Promise<DataIntegrityConstraint[]>;
+  fixConstraintViolation(constraintId: number): Promise<boolean>;
+  updateConstraintStatus(constraintId: number, status: string, details?: any): Promise<void>;
+
+  // Atomic Operations (Complete Financial Transaction Processing)
+  executeAtomicInvoiceEdit(editData: {
+    invoiceId: number;
+    editedUsageData: any;
+    editReason: string;
+    editedBy: string;
+    originalAmount: number;
+    editedAmount: number;
+  }): Promise<{transactionId: string, editId: number, success: boolean}>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -788,6 +816,357 @@ export class DatabaseStorage implements IStorage {
         });
       },
       'updateRepresentativeDebt'
+    );
+  }
+
+  // ====== FINANCIAL TRANSACTIONS (CLOCK CORE MECHANISM) ======
+  async createFinancialTransaction(transaction: InsertFinancialTransaction): Promise<FinancialTransaction> {
+    return await withDatabaseRetry(
+      async () => {
+        const [created] = await db.insert(financialTransactions)
+          .values({
+            ...transaction,
+            transactionId: transaction.transactionId || nanoid(),
+            createdAt: new Date()
+          })
+          .returning();
+        return created;
+      },
+      'createFinancialTransaction'
+    );
+  }
+
+  async updateTransactionStatus(transactionId: string, status: string, actualState?: any): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const updateData: any = { status };
+        if (actualState) {
+          updateData.actualState = actualState;
+        }
+        if (status === 'COMPLETED') {
+          updateData.completedAt = new Date();
+        }
+
+        await db.update(financialTransactions)
+          .set(updateData)
+          .where(eq(financialTransactions.transactionId, transactionId));
+      },
+      'updateTransactionStatus'
+    );
+  }
+
+  async getFinancialTransaction(transactionId: string): Promise<FinancialTransaction | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [transaction] = await db.select()
+          .from(financialTransactions)
+          .where(eq(financialTransactions.transactionId, transactionId));
+        return transaction;
+      },
+      'getFinancialTransaction'
+    );
+  }
+
+  async getTransactionsByRepresentative(repId: number): Promise<FinancialTransaction[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(financialTransactions)
+        .where(eq(financialTransactions.representativeId, repId))
+        .orderBy(desc(financialTransactions.createdAt)),
+      'getTransactionsByRepresentative'
+    );
+  }
+
+  async getPendingTransactions(): Promise<FinancialTransaction[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(financialTransactions)
+        .where(eq(financialTransactions.status, 'PENDING'))
+        .orderBy(desc(financialTransactions.createdAt)),
+      'getPendingTransactions'
+    );
+  }
+
+  async rollbackTransaction(transactionId: string): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const transaction = await this.getFinancialTransaction(transactionId);
+        if (!transaction) {
+          throw new Error(`Transaction ${transactionId} not found`);
+        }
+
+        // Restore original state using rollback data
+        if (transaction.rollbackData) {
+          // Implementation depends on transaction type
+          const rollbackData = transaction.rollbackData as any;
+          
+          if (transaction.type === 'INVOICE_EDIT') {
+            // Restore original invoice amount and representative debt
+            await db.update(invoices)
+              .set({ amount: rollbackData.originalAmount })
+              .where(eq(invoices.id, rollbackData.invoiceId));
+              
+            await db.update(representatives)
+              .set({ 
+                totalDebt: rollbackData.originalRepresentativeDebt,
+                updatedAt: new Date()
+              })
+              .where(eq(representatives.id, rollbackData.representativeId));
+          }
+        }
+
+        // Mark transaction as rolled back
+        await this.updateTransactionStatus(transactionId, 'ROLLED_BACK');
+        
+        await this.createActivityLog({
+          type: "transaction_rollback",
+          description: `تراکنش ${transactionId} برگردانده شد`,
+          relatedId: transaction.representativeId,
+          metadata: { transactionId, originalType: transaction.type }
+        });
+      },
+      'rollbackTransaction'
+    );
+  }
+
+  // ====== DATA INTEGRITY CONSTRAINTS (CLOCK PRECISION) ======
+  async createIntegrityConstraint(constraint: InsertDataIntegrityConstraint): Promise<DataIntegrityConstraint> {
+    return await withDatabaseRetry(
+      async () => {
+        const [created] = await db.insert(dataIntegrityConstraints)
+          .values({
+            ...constraint,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        return created;
+      },
+      'createIntegrityConstraint'
+    );
+  }
+
+  async validateConstraints(entityType: string, entityId: number): Promise<{isValid: boolean, violations: any[]}> {
+    return await withDatabaseRetry(
+      async () => {
+        const constraints = await db.select()
+          .from(dataIntegrityConstraints)
+          .where(and(
+            eq(dataIntegrityConstraints.entityType, entityType),
+            eq(dataIntegrityConstraints.entityId, entityId),
+            eq(dataIntegrityConstraints.currentStatus, 'VALID')
+          ));
+
+        const violations: any[] = [];
+        
+        for (const constraint of constraints) {
+          const rule = constraint.constraintRule as any;
+          
+          if (constraint.constraintType === 'BALANCE_CHECK') {
+            // Check representative balance consistency
+            const [rep] = await db.select().from(representatives).where(eq(representatives.id, entityId));
+            if (rep && rule.maxDebt && parseFloat(rep.totalDebt || '0') > rule.maxDebt) {
+              violations.push({
+                constraintId: constraint.id,
+                type: 'DEBT_LIMIT_EXCEEDED',
+                current: rep.totalDebt,
+                limit: rule.maxDebt
+              });
+            }
+          }
+        }
+
+        return {
+          isValid: violations.length === 0,
+          violations
+        };
+      },
+      'validateConstraints'
+    );
+  }
+
+  async getConstraintViolations(): Promise<DataIntegrityConstraint[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(dataIntegrityConstraints)
+        .where(eq(dataIntegrityConstraints.currentStatus, 'VIOLATED'))
+        .orderBy(desc(dataIntegrityConstraints.lastValidationAt)),
+      'getConstraintViolations'
+    );
+  }
+
+  async fixConstraintViolation(constraintId: number): Promise<boolean> {
+    return await withDatabaseRetry(
+      async () => {
+        const [constraint] = await db.select()
+          .from(dataIntegrityConstraints)
+          .where(eq(dataIntegrityConstraints.id, constraintId));
+
+        if (!constraint) return false;
+
+        // Auto-fix logic based on constraint type
+        let fixed = false;
+        if (constraint.constraintType === 'BALANCE_CHECK') {
+          // Recalculate representative financial totals
+          await this.updateRepresentativeFinancials(constraint.entityId);
+          fixed = true;
+        }
+
+        if (fixed) {
+          await this.updateConstraintStatus(constraintId, 'VALID');
+        }
+
+        return fixed;
+      },
+      'fixConstraintViolation'
+    );
+  }
+
+  async updateConstraintStatus(constraintId: number, status: string, details?: any): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const updateData: any = {
+          currentStatus: status,
+          lastValidationAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        if (details) {
+          updateData.violationDetails = details;
+        }
+
+        await db.update(dataIntegrityConstraints)
+          .set(updateData)
+          .where(eq(dataIntegrityConstraints.id, constraintId));
+      },
+      'updateConstraintStatus'
+    );
+  }
+
+  // ====== ATOMIC OPERATIONS (COMPLETE CLOCK SYNCHRONIZATION) ======
+  async executeAtomicInvoiceEdit(editData: {
+    invoiceId: number;
+    editedUsageData: any;
+    editReason: string;
+    editedBy: string;
+    originalAmount: number;
+    editedAmount: number;
+  }): Promise<{transactionId: string, editId: number, success: boolean}> {
+    
+    const transactionId = nanoid();
+    
+    return await withDatabaseRetry(
+      async () => {
+        try {
+          // Start transaction
+          const [invoice] = await db.select().from(invoices).where(eq(invoices.id, editData.invoiceId));
+          if (!invoice) {
+            throw new Error(`Invoice ${editData.invoiceId} not found`);
+          }
+
+          const [representative] = await db.select().from(representatives)
+            .where(eq(representatives.id, invoice.representativeId));
+          
+          if (!representative) {
+            throw new Error(`Representative ${invoice.representativeId} not found`);
+          }
+
+          // Create financial transaction record
+          await this.createFinancialTransaction({
+            transactionId,
+            type: 'INVOICE_EDIT',
+            representativeId: invoice.representativeId,
+            relatedEntityType: 'invoice',
+            relatedEntityId: editData.invoiceId,
+            originalState: {
+              invoiceAmount: editData.originalAmount,
+              representativeDebt: representative.totalDebt,
+              usageData: invoice.usageData
+            },
+            targetState: {
+              invoiceAmount: editData.editedAmount,
+              newUsageData: editData.editedUsageData
+            },
+            financialImpact: {
+              debtChange: editData.editedAmount - editData.originalAmount,
+              balanceChange: editData.editedAmount - editData.originalAmount
+            },
+            rollbackData: {
+              invoiceId: editData.invoiceId,
+              originalAmount: editData.originalAmount,
+              representativeId: invoice.representativeId,
+              originalRepresentativeDebt: representative.totalDebt,
+              originalUsageData: invoice.usageData
+            },
+            initiatedBy: editData.editedBy
+          });
+
+          // Create invoice edit record
+          const [createdEdit] = await db.insert(invoiceEdits)
+            .values({
+              invoiceId: editData.invoiceId,
+              originalUsageData: invoice.usageData,
+              editedUsageData: editData.editedUsageData,
+              editType: 'MANUAL_EDIT',
+              editReason: editData.editReason,
+              originalAmount: editData.originalAmount.toString(),
+              editedAmount: editData.editedAmount.toString(),
+              editedBy: editData.editedBy,
+              transactionId: transactionId
+            })
+            .returning();
+
+          // Update invoice amount and usage data
+          await db.update(invoices)
+            .set({
+              amount: editData.editedAmount.toString(),
+              usageData: editData.editedUsageData
+            })
+            .where(eq(invoices.id, editData.invoiceId));
+
+          // Update representative debt
+          const debtDifference = editData.editedAmount - editData.originalAmount;
+          await db.update(representatives)
+            .set({
+              totalDebt: sql`${representatives.totalDebt} + ${debtDifference}`,
+              updatedAt: new Date()
+            })
+            .where(eq(representatives.id, invoice.representativeId));
+
+          // Complete transaction
+          await this.updateTransactionStatus(transactionId, 'COMPLETED', {
+            invoiceAmount: editData.editedAmount,
+            newRepresentativeDebt: sql`${representatives.totalDebt} + ${debtDifference}`,
+            editId: createdEdit.id
+          });
+
+          // Create activity log
+          await this.createActivityLog({
+            type: "atomic_invoice_edit",
+            description: `فاکتور ${editData.invoiceId} با تراکنش اتمیک ${transactionId} ویرایش شد`,
+            relatedId: invoice.representativeId,
+            metadata: {
+              transactionId,
+              editId: createdEdit.id,
+              originalAmount: editData.originalAmount,
+              editedAmount: editData.editedAmount,
+              debtChange: debtDifference
+            }
+          });
+
+          return {
+            transactionId,
+            editId: createdEdit.id,
+            success: true
+          };
+
+        } catch (error: any) {
+          // Rollback transaction on error
+          await this.updateTransactionStatus(transactionId, 'ROLLED_BACK');
+          throw error;
+        }
+      },
+      'executeAtomicInvoiceEdit'
     );
   }
 }

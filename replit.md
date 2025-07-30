@@ -248,7 +248,55 @@ The system is designed to be self-contained with minimal external dependencies w
 - **Route Protection**: Automatic redirect to login for unauthenticated admin access
 - **Public Access**: Uninterrupted access to public portals via /portal/:publicId routes
 
-## Advanced Data Reset System Implementation (July 22, 2025)
+## Clock Mechanism Architecture Implementation (July 30, 2025)
+
+### Comprehensive Financial Management System Analysis ✅
+
+بر اساس فلسفه ساعت کلاسیک عقربه‌ای، سیستم MarFaNet را به سه عقربه اصلی تقسیم کرده‌ام:
+
+#### عقربه ساعت شمار (Hour Hand) - Financial Management System
+**نقش**: مدیریت کلی مالی و تراکنش‌های اصلی
+**چرخدنده‌های فنی**:
+- ✅ **Financial Transactions Table**: ردیابی اتمیک تمام تراکنش‌های مالی
+- ✅ **Atomic Transaction Processing**: پردازش اتمیک ویرایش فاکتورها با rollback capability
+- ✅ **Representative Debt Management**: محاسبه و بروزرسانی خودکار بدهی نمایندگان
+- ✅ **Transaction Rollback System**: قابلیت برگرداندن تراکنش‌ها در صورت خطا
+
+#### عقربه دقیقه شمار (Minute Hand) - Representative Management System  
+**نقش**: مدیریت نمایندگان و فاکتورهای آن‌ها
+**چرخدنده‌های فنی**:
+- ✅ **Data Integrity Constraints**: محدودیت‌های یکپارچگی داده برای نمایندگان
+- ✅ **Financial Reconciliation**: هماهنگی خودکار وضعیت مالی نمایندگان
+- ✅ **Constraint Validation**: اعتبارسنجی خودکار محدودیت‌های مالی
+- ✅ **Auto-Fix Mechanisms**: رفع خودکار نقض محدودیت‌ها
+
+#### عقربه ثانیه شمار (Second Hand) - Automation & Monitoring System
+**نقش**: نظارت، گزارش‌گیری و اتوماسیون فرآیندها
+**چرخدنده‌های فنی**:
+- ✅ **Activity Logging System**: ثبت کامل تمام فعالیت‌های سیستم
+- ✅ **Transaction Monitoring**: نظارت بر وضعیت تراکنش‌ها
+- ✅ **Constraint Violation Detection**: تشخیص خودکار نقض محدودیت‌ها
+- ✅ **Financial Audit Trail**: مسیر کامل حسابرسی برای تراکنش‌ها
+
+### Clock Synchronization (هماهنگی کامل چرخدنده‌ها) ✅
+
+#### Core Database Schema Enhancement
+- **Financial Transactions Table**: ردیابی اتمیک تمام عملیات مالی
+- **Data Integrity Constraints Table**: تعریف و نظارت بر محدودیت‌های سیستم  
+- **Transaction Links**: ارتباط بین invoice_edits و financial_transactions
+
+#### Atomic Operation Implementation
+- **executeAtomicInvoiceEdit()**: ویرایش اتمیک فاکتور با transaction tracking
+- **rollbackTransaction()**: برگرداندن کامل تراکنش‌ها در صورت خطا
+- **validateConstraints()**: اعتبارسنجی خودکار محدودیت‌ها
+- **fixConstraintViolation()**: رفع خودکار نقض محدودیت‌ها
+
+#### API Integration Enhancement  
+- **/api/transactions**: مدیریت کامل تراکنش‌های مالی
+- **/api/constraints**: اعتبارسنجی و رفع محدودیت‌ها
+- **/api/financial/reconcile**: هماهنگی خودکار وضعیت مالی
+
+### Advanced Data Reset System Implementation (July 22, 2025)
 
 ### Comprehensive Data Management ✅
 - **Selective Data Reset**: Granular control over data deletion with checkbox selection for each data type

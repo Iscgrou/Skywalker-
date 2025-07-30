@@ -92,7 +92,43 @@ export const invoiceEdits = pgTable("invoice_edits", {
   editedAmount: decimal("edited_amount", { precision: 15, scale: 2 }),
   editedBy: text("edited_by").notNull(),
   isActive: boolean("is_active").default(true),
+  transactionId: text("transaction_id"), // UUID for atomic transaction tracking
   createdAt: timestamp("created_at").defaultNow()
+});
+
+// Financial Transactions (تراکنش‌های مالی) - Clock's Core Gear System
+export const financialTransactions = pgTable("financial_transactions", {
+  id: serial("id").primaryKey(),
+  transactionId: text("transaction_id").notNull().unique(), // UUID for atomic operations
+  type: text("type").notNull(), // "INVOICE_CREATE", "INVOICE_EDIT", "PAYMENT_ALLOCATE", "DEBT_RECONCILE"
+  status: text("status").notNull().default("PENDING"), // "PENDING", "COMPLETED", "ROLLED_BACK"
+  representativeId: integer("representative_id").notNull(),
+  relatedEntityType: text("related_entity_type"), // "invoice", "payment", "edit"
+  relatedEntityId: integer("related_entity_id"),
+  originalState: json("original_state"), // Snapshot before transaction
+  targetState: json("target_state"), // Intended state after transaction
+  actualState: json("actual_state"), // Final state after completion
+  financialImpact: json("financial_impact"), // { debtChange, creditChange, balanceChange }
+  processingSteps: json("processing_steps").default([]), // Array of atomic steps
+  rollbackData: json("rollback_data"), // Data needed for rollback
+  initiatedBy: text("initiated_by").notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Data Integrity Constraints (محدودیت‌های یکپارچگی داده) - Clock's Precision Mechanism
+export const dataIntegrityConstraints = pgTable("data_integrity_constraints", {
+  id: serial("id").primaryKey(),
+  constraintType: text("constraint_type").notNull(), // "BALANCE_CHECK", "DEBT_LIMIT", "FINANCIAL_RECONCILIATION"
+  entityType: text("entity_type").notNull(), // "representative", "invoice", "payment"
+  entityId: integer("entity_id").notNull(),
+  constraintRule: json("constraint_rule"), // Validation rules and limits
+  currentStatus: text("current_status").notNull().default("VALID"), // "VALID", "VIOLATED", "WARNING"
+  lastValidationAt: timestamp("last_validation_at").defaultNow(),
+  violationDetails: json("violation_details"), // Details if constraint is violated
+  autoFixAttempts: integer("auto_fix_attempts").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
 });
 
 // Settings (تنظیمات)
@@ -140,6 +176,25 @@ export const invoiceEditsRelations = relations(invoiceEdits, ({ one }) => ({
   invoice: one(invoices, {
     fields: [invoiceEdits.invoiceId],
     references: [invoices.id]
+  }),
+  transaction: one(financialTransactions, {
+    fields: [invoiceEdits.transactionId],
+    references: [financialTransactions.transactionId]
+  })
+}));
+
+export const financialTransactionsRelations = relations(financialTransactions, ({ one, many }) => ({
+  representative: one(representatives, {
+    fields: [financialTransactions.representativeId],
+    references: [representatives.id]
+  }),
+  invoiceEdits: many(invoiceEdits)
+}));
+
+export const dataIntegrityConstraintsRelations = relations(dataIntegrityConstraints, ({ one }) => ({
+  representative: one(representatives, {
+    fields: [dataIntegrityConstraints.entityId],
+    references: [representatives.id]
   })
 }));
 
@@ -190,6 +245,22 @@ export const insertInvoiceEditSchema = createInsertSchema(invoiceEdits).omit({
   createdAt: true
 });
 
+export const insertFinancialTransactionSchema = createInsertSchema(financialTransactions).omit({
+  id: true,
+  status: true,
+  completedAt: true,
+  createdAt: true
+});
+
+export const insertDataIntegrityConstraintSchema = createInsertSchema(dataIntegrityConstraints).omit({
+  id: true,
+  currentStatus: true,
+  lastValidationAt: true,
+  autoFixAttempts: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 export const insertSettingSchema = createInsertSchema(settings).omit({
   id: true,
   updatedAt: true
@@ -216,6 +287,12 @@ export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 
 export type InvoiceEdit = typeof invoiceEdits.$inferSelect;
 export type InsertInvoiceEdit = z.infer<typeof insertInvoiceEditSchema>;
+
+export type FinancialTransaction = typeof financialTransactions.$inferSelect;
+export type InsertFinancialTransaction = z.infer<typeof insertFinancialTransactionSchema>;
+
+export type DataIntegrityConstraint = typeof dataIntegrityConstraints.$inferSelect;
+export type InsertDataIntegrityConstraint = z.infer<typeof insertDataIntegrityConstraintSchema>;
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
