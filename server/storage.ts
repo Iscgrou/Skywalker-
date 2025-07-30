@@ -1096,35 +1096,41 @@ export class DatabaseStorage implements IStorage {
             throw new Error(`Representative ${invoice.representativeId} not found`);
           }
 
-          // Create financial transaction record
-          await this.createFinancialTransaction({
-            transactionId,
-            type: 'INVOICE_EDIT',
-            representativeId: invoice.representativeId,
-            relatedEntityType: 'invoice',
-            relatedEntityId: editData.invoiceId,
-            originalState: {
-              invoiceAmount: editData.originalAmount,
-              representativeDebt: representative.totalDebt,
-              usageData: invoice.usageData
-            },
-            targetState: {
-              invoiceAmount: editData.editedAmount,
-              newUsageData: editData.editedUsageData
-            },
-            financialImpact: {
-              debtChange: editData.editedAmount - editData.originalAmount,
-              balanceChange: editData.editedAmount - editData.originalAmount
-            },
-            rollbackData: {
-              invoiceId: editData.invoiceId,
-              originalAmount: editData.originalAmount,
+          // Create financial transaction record with unique check
+          const existingTransaction = await db.select()
+            .from(financialTransactions)
+            .where(eq(financialTransactions.transactionId, transactionId));
+          
+          if (existingTransaction.length === 0) {
+            await this.createFinancialTransaction({
+              transactionId,
+              type: 'INVOICE_EDIT',
               representativeId: invoice.representativeId,
-              originalRepresentativeDebt: representative.totalDebt,
-              originalUsageData: invoice.usageData
-            },
-            initiatedBy: editData.editedBy
-          });
+              relatedEntityType: 'invoice',
+              relatedEntityId: editData.invoiceId,
+              originalState: {
+                invoiceAmount: editData.originalAmount,
+                representativeDebt: representative.totalDebt,
+                usageData: invoice.usageData
+              },
+              targetState: {
+                invoiceAmount: editData.editedAmount,
+                newUsageData: editData.editedUsageData
+              },
+              financialImpact: {
+                debtChange: editData.editedAmount - editData.originalAmount,
+                balanceChange: editData.editedAmount - editData.originalAmount
+              },
+              rollbackData: {
+                invoiceId: editData.invoiceId,
+                originalAmount: editData.originalAmount,
+                representativeId: invoice.representativeId,
+                originalRepresentativeDebt: representative.totalDebt,
+                originalUsageData: invoice.usageData
+              },
+              initiatedBy: editData.editedBy
+            });
+          }
 
           // Create invoice edit record
           const [createdEdit] = await db.insert(invoiceEdits)
