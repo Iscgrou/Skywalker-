@@ -1053,7 +1053,7 @@ export class DatabaseStorage implements IStorage {
     editedAmount: number;
   }): Promise<{transactionId: string, editId: number, success: boolean}> {
     
-    const transactionId = nanoid();
+    const transactionId = `EDIT-${editData.invoiceId}-${Date.now()}-${nanoid(8)}`;
     
     return await withDatabaseRetry(
       async () => {
