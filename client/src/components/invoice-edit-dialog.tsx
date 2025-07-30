@@ -102,16 +102,25 @@ export default function InvoiceEditDialog({
     enabled: isOpen && activeTab === "history"
   });
 
+  // Fetch financial transactions
+  const { data: financialTransactions } = useQuery({
+    queryKey: [`/api/financial/transactions`],
+    enabled: isOpen && activeTab === "transactions"
+  });
+
   // Edit mutation
   const editMutation = useMutation({
     mutationFn: async (editData: any) => {
       const response = await apiRequest('POST', '/api/invoices/edit', editData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const transactionId = data.transactionId;
+      const editId = data.editId;
+      
       toast({
         title: "فاکتور ویرایش شد",
-        description: "تغییرات با موفقیت ذخیره شد و بدهی نماینده بروزرسانی شد",
+        description: `تغییرات با موفقیت ذخیره شد | تراکنش: ${transactionId?.slice(-8) || 'نامشخص'}`,
       });
       
       // Mark all records as saved (remove modified/new flags)
@@ -379,9 +388,10 @@ export default function InvoiceEditDialog({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="edit">ویرایش جزئیات</TabsTrigger>
             <TabsTrigger value="history">تاریخچه تغییرات</TabsTrigger>
+            <TabsTrigger value="transactions">تراکنش‌های مالی</TabsTrigger>
           </TabsList>
 
           <TabsContent value="edit" className="space-y-4">
@@ -630,6 +640,55 @@ export default function InvoiceEditDialog({
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     هیچ ویرایشی برای این فاکتور ثبت نشده است
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="transactions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 space-x-reverse">
+                  <Calculator className="w-5 h-5" />
+                  <span>تراکنش‌های مالی اتمیک</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {financialTransactions && Array.isArray(financialTransactions) && financialTransactions.length > 0 ? (
+                  <div className="space-y-4">
+                    {financialTransactions
+                      .filter((tx: any) => tx.relatedEntityId === invoice.id && tx.relatedEntityType === 'invoice')
+                      .map((transaction: any) => (
+                      <div key={transaction.id} className="border-r-4 border-green-500 pr-4 py-3 bg-green-50 dark:bg-green-900/20 rounded">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <div className="font-medium">
+                              شناسه تراکنش: <code className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-sm">{transaction.transactionId}</code>
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              نوع: <Badge variant="outline">{transaction.type}</Badge>
+                              وضعیت: <Badge variant={transaction.status === 'COMPLETED' ? 'default' : 'secondary'}>{transaction.status}</Badge>
+                            </div>
+                            {transaction.financialImpact && (
+                              <div className="text-sm">
+                                تأثیر مالی: {transaction.financialImpact.debtChange > 0 ? '+' : ''}{formatCurrency(transaction.financialImpact.debtChange?.toString() || '0')} تومان
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-2">
+                              ایجاد شده توسط: {transaction.initiatedBy}
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {transaction.completedAt ? new Date(transaction.completedAt).toLocaleString('fa-IR') : 'در حال پردازش'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    هیچ تراکنش مالی برای این فاکتور ثبت نشده است
                   </div>
                 )}
               </CardContent>

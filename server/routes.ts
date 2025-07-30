@@ -922,10 +922,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Financial transaction management API routes
+  app.get("/api/financial/transactions", requireAuth, async (req, res) => {
+    try {
+      const transactions = await storage.getFinancialTransactions();
+      res.json(transactions);
+    } catch (error: any) {
+      console.error('خطا در دریافت تراکنش‌های مالی:', error);
+      res.status(500).json({ 
+        error: 'خطا در دریافت تراکنش‌های مالی',
+        details: error.message 
+      });
+    }
+  });
+
+  app.get("/api/financial/constraints", requireAuth, async (req, res) => {
+    try {
+      const constraints = await storage.getIntegrityConstraints();
+      res.json(constraints);
+    } catch (error: any) {
+      console.error('خطا در دریافت محدودیت‌های یکپارچگی:', error);
+      res.status(500).json({ 
+        error: 'خطا در دریافت محدودیت‌های یکپارچگی',
+        details: error.message 
+      });
+    }
+  });
+
+  app.post("/api/financial/reconcile", requireAuth, async (req, res) => {
+    try {
+      const reconcileResult = await storage.reconcileFinancialData();
+      res.json(reconcileResult);
+    } catch (error: any) {
+      console.error('خطا در هماهنگی داده‌های مالی:', error);
+      res.status(500).json({ 
+        error: 'خطا در هماهنگی داده‌های مالی',
+        details: error.message 
+      });
+    }
+  });
+
   app.post("/api/init", async (req, res) => {
     try {
       // Set default Telegram template
       await storage.updateSetting('telegram_template', getDefaultTelegramTemplate());
+      
+      // Initialize basic integrity constraints for active representatives
+      const representatives = await storage.getRepresentatives();
+      for (const rep of representatives.slice(0, 5)) { // Initialize first 5 representatives
+        try {
+          await storage.createIntegrityConstraint({
+            constraintType: 'BALANCE_CHECK',
+            entityType: 'representative',
+            entityId: rep.id,
+            constraintRule: {
+              maxDebt: 50000000, // 50 million Toman limit
+              warningThreshold: 40000000,
+              autoReconcile: true
+            }
+          });
+        } catch (error) {
+          console.log(`Constraint for representative ${rep.id} already exists or failed to create`);
+        }
+      }
       
       res.json({ success: true });
     } catch (error) {
