@@ -857,6 +857,38 @@ export class DatabaseStorage implements IStorage {
 
 
 
+  async getFinancialTransaction(transactionId: string): Promise<FinancialTransaction | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [transaction] = await db.select()
+          .from(financialTransactions)
+          .where(eq(financialTransactions.transactionId, transactionId));
+        return transaction;
+      },
+      'getFinancialTransaction'
+    );
+  }
+
+  async getTransactionsByRepresentative(repId: number): Promise<FinancialTransaction[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(financialTransactions)
+        .where(eq(financialTransactions.representativeId, repId))
+        .orderBy(desc(financialTransactions.createdAt)),
+      'getTransactionsByRepresentative'
+    );
+  }
+
+  async getPendingTransactions(): Promise<FinancialTransaction[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(financialTransactions)
+        .where(eq(financialTransactions.status, 'PENDING'))
+        .orderBy(desc(financialTransactions.createdAt)),
+      'getPendingTransactions'
+    );
+  }
+
   async rollbackTransaction(transactionId: string): Promise<void> {
     return await withDatabaseRetry(
       async () => {
