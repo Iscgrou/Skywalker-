@@ -1169,7 +1169,7 @@ export class DatabaseStorage implements IStorage {
           // Complete transaction
           await this.updateTransactionStatus(transactionId, 'COMPLETED', {
             invoiceAmount: editData.editedAmount,
-            newRepresentativeDebt: sql`${representatives.totalDebt} + ${debtDifference}`,
+            newRepresentativeDebt: (parseFloat(representative.totalDebt.toString()) + debtDifference).toString(),
             editId: createdEdit.id
           });
 
