@@ -1167,9 +1167,10 @@ export class DatabaseStorage implements IStorage {
             .where(eq(representatives.id, invoice.representativeId));
 
           // Complete transaction
+          const currentDebt = representative.totalDebt ? parseFloat(representative.totalDebt.toString()) : 0;
           await this.updateTransactionStatus(transactionId, 'COMPLETED', {
             invoiceAmount: editData.editedAmount,
-            newRepresentativeDebt: (parseFloat(representative.totalDebt.toString()) + debtDifference).toString(),
+            newRepresentativeDebt: (currentDebt + debtDifference).toString(),
             editId: createdEdit.id
           });
 
