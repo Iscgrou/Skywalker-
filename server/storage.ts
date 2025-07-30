@@ -1043,6 +1043,66 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  // ====== FINANCIAL TRANSACTIONS MANAGEMENT ======
+  async getFinancialTransactions(): Promise<any[]> {
+    return await withDatabaseRetry(
+      async () => {
+        return await db.select().from(financialTransactions).orderBy(desc(financialTransactions.createdAt));
+      },
+      'getFinancialTransactions'
+    );
+  }
+
+  async getFinancialTransaction(transactionId: string): Promise<any | null> {
+    return await withDatabaseRetry(
+      async () => {
+        const [transaction] = await db.select()
+          .from(financialTransactions)
+          .where(eq(financialTransactions.transactionId, transactionId));
+        return transaction || null;
+      },
+      'getFinancialTransaction'
+    );
+  }
+
+  async getPendingTransactions(): Promise<any[]> {
+    return await withDatabaseRetry(
+      async () => {
+        return await db.select()
+          .from(financialTransactions)
+          .where(eq(financialTransactions.status, 'PENDING'))
+          .orderBy(desc(financialTransactions.createdAt));
+      },
+      'getPendingTransactions'
+    );
+  }
+
+  async getTransactionsByRepresentative(representativeId: number): Promise<any[]> {
+    return await withDatabaseRetry(
+      async () => {
+        return await db.select()
+          .from(financialTransactions)
+          .where(eq(financialTransactions.representativeId, representativeId))
+          .orderBy(desc(financialTransactions.createdAt));
+      },
+      'getTransactionsByRepresentative'
+    );
+  }
+
+  async reconcileFinancialData(): Promise<{success: boolean, message: string}> {
+    return await withDatabaseRetry(
+      async () => {
+        // Simple reconciliation - check for any pending transactions
+        const pendingTransactions = await this.getPendingTransactions();
+        return {
+          success: true,
+          message: `هماهنگی کامل شد. ${pendingTransactions.length} تراکنش در انتظار پردازش`
+        };
+      },
+      'reconcileFinancialData'
+    );
+  }
+
   // ====== ATOMIC OPERATIONS (COMPLETE CLOCK SYNCHRONIZATION) ======
   async executeAtomicInvoiceEdit(editData: {
     invoiceId: number;
