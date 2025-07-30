@@ -1060,6 +1060,14 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  // ====== FINANCIAL TRANSACTIONS MANAGEMENT ======
+  async getFinancialTransactions(): Promise<FinancialTransaction[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(financialTransactions).orderBy(desc(financialTransactions.createdAt)),
+      'getFinancialTransactions'
+    );
+  }
+
   // ====== ATOMIC OPERATIONS (COMPLETE CLOCK SYNCHRONIZATION) ======
   async executeAtomicInvoiceEdit(editData: {
     invoiceId: number;
