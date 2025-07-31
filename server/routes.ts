@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { crmRoutes } from "./routes/crm-routes";
+import crmRoutes from "./routes/crm-routes";
 import { crmDataSyncService } from "./services/crm-data-sync";
 import multer from "multer";
 

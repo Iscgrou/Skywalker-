@@ -1,17 +1,9 @@
-// 🔐 CRM DUAL AUTHENTICATION & ACCESS CONTROL SERVICE
-import bcrypt from 'bcryptjs';
-import { storage } from '../storage';
-import type { AdminUser } from '@shared/schema';
-
-export interface CrmSession {
-  userId: number;
+// 🔐 CRM Authentication Service - Dual Panel Support
+export interface CrmUser {
   username: string;
   role: 'ADMIN' | 'CRM';
   panelType: 'ADMIN_PANEL' | 'CRM_PANEL';
   permissions: Permission[];
-  sessionId: string;
-  createdAt: Date;
-  expiresAt: Date;
 }
 
 export interface Permission {
@@ -26,379 +18,250 @@ export interface DataRestriction {
   condition?: string;
 }
 
-// CRM Access Control Rules
-const CRM_ACCESS_RULES = {
-  'representatives': {
-    fields: {
-      'id': 'FULL',
-      'code': 'FULL', 
-      'name': 'FULL',
-      'ownerName': 'FULL',
-      'phone': 'FULL',
-      'totalDebt': 'FULL', // CRM can see debt amounts
-      'totalSales': 'NONE', // CRM CANNOT see sales figures
-      'credit': 'LIMITED', // Only basic credit info
-      'panelUsername': 'NONE', // Security sensitive
-      'publicId': 'NONE' // Security sensitive
-    },
-    actions: ['READ', 'UPDATE_PROFILE'] // Cannot create/delete
-  },
-  'invoices': {
-    fields: {
-      'amount': 'NONE', // CRM cannot see invoice amounts
-      'issueDate': 'FULL',
-      'dueDate': 'FULL',
-      'status': 'FULL'
-    },
-    actions: ['READ'] // Read-only for context
-  },
-  'payments': {
-    fields: {
-      'amount': 'NONE', // CRM cannot see payment amounts
-      'paymentDate': 'FULL',
-      'description': 'FULL'
-    },
-    actions: ['READ'] // Read-only for context
-  },
-  'salesPartners': {
-    access: 'NONE' // CRM has no access to sales partner data
-  },
-  'activityLogs': {
-    access: 'LIMITED', // Only CRM-related activities
-    filter: "type LIKE 'CRM_%'"
-  }
-};
-
-const ADMIN_ACCESS_RULES = {
-  // Admin has full access to everything
-  '*': {
-    fields: '*',
-    actions: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT']
-  }
-};
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
 
 export class CrmAuthService {
-  private activeSessions: Map<string, CrmSession> = new Map();
-
-  async authenticateUser(username: string, password: string): Promise<CrmSession | null> {
-    try {
-      // Handle dual authentication system
-      if (username === 'mgr' && password === '8679') {
-        return await this.createAdminSession();
-      } else if (username === 'crm' && password === '8679') {
-        return await this.createCrmSession();
-      } else {
-        // Check database for other admin users
-        const user = await storage.getUserByUsername(username);
-        if (user && await bcrypt.compare(password, user.passwordHash)) {
-          return await this.createAdminSession(user);
+  // Predefined users with their credentials and permissions
+  private static readonly PREDEFINED_USERS = {
+    'mgr': {
+      password: '8679',
+      role: 'ADMIN' as const,
+      panelType: 'ADMIN_PANEL' as const,
+      permissions: [
+        {
+          resource: '*',
+          actions: ['CREATE', 'READ', 'UPDATE', 'DELETE'],
+          restrictions: []
         }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Authentication error:', error);
-      return null;
+      ]
+    },
+    'crm': {
+      password: '8679',
+      role: 'CRM' as const,
+      panelType: 'CRM_PANEL' as const,
+      permissions: [
+        {
+          resource: 'representatives',
+          actions: ['READ'],
+          restrictions: [
+            { field: 'debt_amount', accessLevel: 'FULL' as const },
+            { field: 'profile_data', accessLevel: 'FULL' as const },
+            { field: 'sales_amount', accessLevel: 'NONE' as const },
+            { field: 'financial_details', accessLevel: 'LIMITED' as const, condition: 'debt_only' }
+          ]
+        },
+        {
+          resource: 'crm_tasks',
+          actions: ['CREATE', 'READ', 'UPDATE'],
+          restrictions: []
+        },
+        {
+          resource: 'representative_levels',
+          actions: ['READ', 'UPDATE'],
+          restrictions: []
+        },
+        {
+          resource: 'ai_insights',
+          actions: ['READ'],
+          restrictions: []
+        }
+      ]
     }
-  }
+  };
 
-  private async createAdminSession(user?: AdminUser): Promise<CrmSession> {
-    const sessionId = this.generateSessionId();
-    const session: CrmSession = {
-      userId: user?.id || 1,
-      username: user?.username || 'mgr',
-      role: 'ADMIN',
-      panelType: 'ADMIN_PANEL',
-      permissions: this.getAdminPermissions(),
-      sessionId,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000) // 8 hours
+  // Session storage for authenticated users
+  private static activeSessions = new Map<string, CrmUser>();
+
+  /**
+   * Authenticate user with credentials
+   */
+  static async authenticate(credentials: LoginCredentials): Promise<{ success: boolean; user?: CrmUser; error?: string }> {
+    const { username, password } = credentials;
+
+    // Check predefined users
+    const userConfig = this.PREDEFINED_USERS[username as keyof typeof this.PREDEFINED_USERS];
+    
+    if (!userConfig) {
+      return {
+        success: false,
+        error: 'نام کاربری یا رمز عبور اشتباه است'
+      };
+    }
+
+    if (userConfig.password !== password) {
+      return {
+        success: false,
+        error: 'نام کاربری یا رمز عبور اشتباه است'
+      };
+    }
+
+    // Create user session
+    const user: CrmUser = {
+      username,
+      role: userConfig.role,
+      panelType: userConfig.panelType,
+      permissions: userConfig.permissions
     };
 
-    this.activeSessions.set(sessionId, session);
-    await this.logSecurityEvent('ADMIN_LOGIN', session);
-    
-    return session;
-  }
-
-  private async createCrmSession(): Promise<CrmSession> {
+    // Generate session ID and store user
     const sessionId = this.generateSessionId();
-    const session: CrmSession = {
-      userId: 2, // Special CRM user ID
-      username: 'crm',
-      role: 'CRM',
-      panelType: 'CRM_PANEL',
-      permissions: this.getCrmPermissions(),
-      sessionId,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000) // 4 hours (shorter for security)
+    this.activeSessions.set(sessionId, user);
+
+    return {
+      success: true,
+      user: { ...user, sessionId } as any
     };
-
-    this.activeSessions.set(sessionId, session);
-    await this.logSecurityEvent('CRM_LOGIN', session);
-    
-    return session;
   }
 
-  private getAdminPermissions(): Permission[] {
-    return [{
-      resource: '*',
-      actions: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'ADMIN'],
-      restrictions: []
-    }];
+  /**
+   * Get user by session ID
+   */
+  static getUser(sessionId: string): CrmUser | null {
+    return this.activeSessions.get(sessionId) || null;
   }
 
-  private getCrmPermissions(): Permission[] {
-    return [
-      {
-        resource: 'representatives',
-        actions: ['READ', 'UPDATE_PROFILE'],
-        restrictions: [
-          { field: 'totalSales', accessLevel: 'NONE' },
-          { field: 'panelUsername', accessLevel: 'NONE' },
-          { field: 'publicId', accessLevel: 'NONE' },
-          { field: 'credit', accessLevel: 'LIMITED' }
-        ]
-      },
-      {
-        resource: 'representative_levels',
-        actions: ['READ', 'UPDATE'],
-        restrictions: []
-      },
-      {
-        resource: 'crm_tasks',
-        actions: ['READ', 'CREATE', 'UPDATE'],
-        restrictions: []
-      },
-      {
-        resource: 'crm_task_results',
-        actions: ['READ', 'CREATE'],
-        restrictions: []
-      },
-      {
-        resource: 'crm_performance_analytics',
-        actions: ['READ'],
-        restrictions: []
-      },
-      {
-        resource: 'ai_knowledge_base',
-        actions: ['READ'],
-        restrictions: []
-      },
-      {
-        resource: 'invoices',
-        actions: ['READ'],
-        restrictions: [
-          { field: 'amount', accessLevel: 'NONE' },
-          { field: 'usageData', accessLevel: 'NONE' }
-        ]
-      },
-      {
-        resource: 'payments',
-        actions: ['READ'],
-        restrictions: [
-          { field: 'amount', accessLevel: 'NONE' }
-        ]
-      }
-    ];
-  }
+  /**
+   * Check if user has specific permission
+   */
+  static hasPermission(user: CrmUser, resource: string, action: string): boolean {
+    // Admin has all permissions
+    if (user.role === 'ADMIN') return true;
 
-  // Access Control Enforcement
-  async validateAccess(sessionId: string, resource: string, action: string): Promise<boolean> {
-    const session = this.activeSessions.get(sessionId);
-    if (!session || this.isSessionExpired(session)) {
-      return false;
-    }
-
-    // Admin has full access
-    if (session.role === 'ADMIN') {
-      return true;
-    }
-
-    // Check CRM permissions
-    return this.checkCrmPermission(session, resource, action);
-  }
-
-  private checkCrmPermission(session: CrmSession, resource: string, action: string): boolean {
-    const permission = session.permissions.find(p => 
+    const permission = user.permissions.find(p => 
       p.resource === resource || p.resource === '*'
     );
-    
+
     return permission ? permission.actions.includes(action) : false;
   }
 
-  // Data Filtering for CRM Panel
-  async filterSensitiveData(sessionId: string, resource: string, data: any): Promise<any> {
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error('Invalid session');
-    }
-
-    // Admin sees everything
-    if (session.role === 'ADMIN') {
-      return data;
-    }
-
-    // Apply CRM restrictions
-    return this.applyCrmDataFilters(resource, data);
+  /**
+   * Get data restrictions for user and resource
+   */
+  static getDataRestrictions(user: CrmUser, resource: string): DataRestriction[] {
+    const permission = user.permissions.find(p => p.resource === resource);
+    return permission?.restrictions || [];
   }
 
-  private applyCrmDataFilters(resource: string, data: any): any {
-    const rules = CRM_ACCESS_RULES[resource];
-    if (!rules) {
-      return null; // No access rule = no access
-    }
+  /**
+   * Filter data based on user restrictions
+   */
+  static filterData(user: CrmUser, resource: string, data: any): any {
+    if (user.role === 'ADMIN') return data; // Admin sees everything
 
-    if (rules.access === 'NONE') {
-      return null;
-    }
+    const restrictions = this.getDataRestrictions(user, resource);
+    if (restrictions.length === 0) return data;
 
-    if (Array.isArray(data)) {
-      return data.map(item => this.filterSingleItem(rules, item));
-    } else {
-      return this.filterSingleItem(rules, data);
-    }
+    const filteredData = { ...data };
+
+    restrictions.forEach(restriction => {
+      if (restriction.accessLevel === 'NONE') {
+        delete filteredData[restriction.field];
+      } else if (restriction.accessLevel === 'LIMITED') {
+        // Apply specific limitations based on condition
+        if (restriction.condition === 'debt_only' && restriction.field === 'financial_details') {
+          filteredData[restriction.field] = {
+            debtAmount: data[restriction.field]?.debtAmount || 0,
+            creditLevel: data[restriction.field]?.creditLevel || 'نامشخص',
+            paymentStatus: data[restriction.field]?.paymentStatus || 'نامشخص'
+          };
+        }
+      }
+    });
+
+    // Add restriction flag
+    filteredData.restrictedData = user.role === 'CRM';
+
+    return filteredData;
   }
 
-  private filterSingleItem(rules: any, item: any): any {
-    if (!rules.fields) {
-      return item;
-    }
+  /**
+   * Logout user
+   */
+  static logout(sessionId: string): boolean {
+    return this.activeSessions.delete(sessionId);
+  }
 
-    const filtered = {};
-    for (const [field, value] of Object.entries(item)) {
-      const fieldAccess = rules.fields[field];
+  /**
+   * Generate session ID
+   */
+  private static generateSessionId(): string {
+    return Math.random().toString(36).substring(2, 15) + 
+           Math.random().toString(36).substring(2, 15) + 
+           Date.now().toString();
+  }
+
+  /**
+   * Get all active sessions (for admin monitoring)
+   */
+  static getActiveSessions(): Array<{ sessionId: string; user: CrmUser }> {
+    return Array.from(this.activeSessions.entries()).map(([sessionId, user]) => ({
+      sessionId,
+      user
+    }));
+  }
+
+  /**
+   * Validate session and return user
+   */
+  static validateSession(sessionId: string): CrmUser | null {
+    const user = this.activeSessions.get(sessionId);
+    if (!user) return null;
+
+    // Session is valid, return user
+    return user;
+  }
+
+  /**
+   * Create middleware for CRM authentication
+   */
+  static createAuthMiddleware() {
+    return (req: any, res: any, next: any) => {
+      const sessionId = req.headers['x-session-id'] || req.session?.crmSessionId;
       
-      if (fieldAccess === 'FULL') {
-        filtered[field] = value;
-      } else if (fieldAccess === 'LIMITED') {
-        // Apply limited access logic (e.g., only show range for credit)
-        filtered[field] = this.applyLimitedAccess(field, value);
+      if (!sessionId) {
+        return res.status(401).json({ error: 'احراز هویت مورد نیاز است' });
       }
-      // 'NONE' fields are excluded
-    }
 
-    return filtered;
+      const user = this.validateSession(sessionId);
+      if (!user) {
+        return res.status(401).json({ error: 'جلسه نامعتبر است' });
+      }
+
+      req.crmUser = user;
+      next();
+    };
   }
 
-  private applyLimitedAccess(field: string, value: any): any {
-    switch (field) {
-      case 'credit':
-        // Show credit range instead of exact amount
-        if (typeof value === 'number') {
-          if (value > 1000000) return 'بالا';
-          if (value > 500000) return 'متوسط';
-          return 'پایین';
+  /**
+   * Create role-based access middleware
+   */
+  static createRoleMiddleware(requiredRole?: 'ADMIN' | 'CRM', requiredPermission?: { resource: string; action: string }) {
+    return (req: any, res: any, next: any) => {
+      const user = req.crmUser;
+      
+      if (!user) {
+        return res.status(401).json({ error: 'احراز هویت مورد نیاز است' });
+      }
+
+      // Check role requirement
+      if (requiredRole && user.role !== requiredRole) {
+        return res.status(403).json({ error: 'دسترسی کافی ندارید' });
+      }
+
+      // Check permission requirement
+      if (requiredPermission) {
+        const hasAccess = this.hasPermission(user, requiredPermission.resource, requiredPermission.action);
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'دسترسی به این منبع ندارید' });
         }
-        return value;
-      default:
-        return value;
-    }
-  }
-
-  // Session Management
-  async validateSession(sessionId: string): Promise<CrmSession | null> {
-    const session = this.activeSessions.get(sessionId);
-    if (!session || this.isSessionExpired(session)) {
-      if (session) {
-        this.activeSessions.delete(sessionId);
       }
-      return null;
-    }
-    return session;
-  }
 
-  private isSessionExpired(session: CrmSession): boolean {
-    return new Date() > session.expiresAt;
-  }
-
-  async extendSession(sessionId: string): Promise<boolean> {
-    const session = this.activeSessions.get(sessionId);
-    if (!session || this.isSessionExpired(session)) {
-      return false;
-    }
-
-    // Extend session by original duration
-    const extensionHours = session.role === 'ADMIN' ? 8 : 4;
-    session.expiresAt = new Date(Date.now() + extensionHours * 60 * 60 * 1000);
-    
-    return true;
-  }
-
-  async logout(sessionId: string): Promise<void> {
-    const session = this.activeSessions.get(sessionId);
-    if (session) {
-      await this.logSecurityEvent('LOGOUT', session);
-      this.activeSessions.delete(sessionId);
-    }
-  }
-
-  // Security Auditing
-  private async logSecurityEvent(eventType: string, session: CrmSession): Promise<void> {
-    try {
-      await storage.createActivityLog({
-        type: `SECURITY_${eventType}`,
-        description: `${eventType} for ${session.role} user: ${session.username}`,
-        relatedId: session.userId,
-        metadata: {
-          sessionId: session.sessionId,
-          role: session.role,
-          panelType: session.panelType,
-          timestamp: new Date().toISOString()
-        }
-      });
-    } catch (error) {
-      console.error('Failed to log security event:', error);
-    }
-  }
-
-  async getActiveSessions(): Promise<CrmSession[]> {
-    // Clean expired sessions first
-    for (const [sessionId, session] of this.activeSessions.entries()) {
-      if (this.isSessionExpired(session)) {
-        this.activeSessions.delete(sessionId);
-      }
-    }
-    
-    return Array.from(this.activeSessions.values());
-  }
-
-  // Utility Methods
-  private generateSessionId(): string {
-    return `crm_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-  }
-
-  // Security Health Check
-  async performSecurityAudit(): Promise<{
-    activeSessions: number;
-    expiredSessionsCleared: number;
-    securityAlerts: string[];
-  }> {
-    let expiredCount = 0;
-    const alerts: string[] = [];
-
-    // Clean expired sessions
-    for (const [sessionId, session] of this.activeSessions.entries()) {
-      if (this.isSessionExpired(session)) {
-        this.activeSessions.delete(sessionId);
-        expiredCount++;
-      }
-    }
-
-    // Check for security concerns
-    const adminSessions = Array.from(this.activeSessions.values())
-      .filter(s => s.role === 'ADMIN').length;
-    
-    if (adminSessions > 3) {
-      alerts.push(`Unusual number of admin sessions: ${adminSessions}`);
-    }
-
-    return {
-      activeSessions: this.activeSessions.size,
-      expiredSessionsCleared: expiredCount,
-      securityAlerts: alerts
+      next();
     };
   }
 }
 
-export const crmAuthService = new CrmAuthService();
+export default CrmAuthService;
