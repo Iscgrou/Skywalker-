@@ -46,19 +46,23 @@ class CrmDataSyncService {
       console.log(`CRM cache updated with ${representatives.length} representatives`);
       
       // Log sync activity
-      await storage.logActivity('CRM_SYNC_CRM_REPRESENTATIVE_SYNC', `Data synchronization completed: ${representatives.length} records processed`, {
-        syncTime: new Date().toISOString(),
-        recordCount: representatives.length,
-        eventType: 'CRM_REPRESENTATIVE_SYNC'
-      });
+      try {
+        await storage.logActivity('CRM_SYNC_CRM_REPRESENTATIVE_SYNC', `Data synchronization completed: ${representatives.length} records processed`, {
+          syncTime: new Date().toISOString(),
+          recordCount: representatives.length,
+          eventType: 'CRM_REPRESENTATIVE_SYNC'
+        });
 
-      // Update admin reports
-      console.log('Admin report cache updated');
-      await storage.logActivity('CRM_SYNC_ADMIN_TEAM_REPORT_GENERATED', `Data synchronization completed: ${representatives.length} records processed`, {
-        syncTime: new Date().toISOString(),
-        recordCount: representatives.length,
-        eventType: 'ADMIN_TEAM_REPORT_GENERATED'
-      });
+        // Update admin reports
+        console.log('Admin report cache updated');
+        await storage.logActivity('CRM_SYNC_ADMIN_TEAM_REPORT_GENERATED', `Data synchronization completed: ${representatives.length} records processed`, {
+          syncTime: new Date().toISOString(),
+          recordCount: representatives.length,
+          eventType: 'ADMIN_TEAM_REPORT_GENERATED'
+        });
+      } catch (logError) {
+        console.log('Sync activity logging skipped:', logError.message);
+      }
 
     } catch (error) {
       console.error('CRM sync failed:', error);

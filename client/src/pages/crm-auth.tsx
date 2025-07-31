@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ import {
   AlertTriangle,
   CheckCircle2
 } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { useCrmAuth } from '@/hooks/use-crm-auth';
 
 const loginSchema = z.object({
   username: z.string().min(1, 'نام کاربری الزامی است'),
@@ -36,6 +35,9 @@ export default function CrmAuth() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [selectedPanel, setSelectedPanel] = useState<'admin' | 'crm'>('admin');
+  
+  // Use CRM authentication context
+  const { user, loginMutation } = useCrmAuth();
 
   const {
     register,
@@ -51,28 +53,29 @@ export default function CrmAuth() {
     }
   });
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: LoginForm) => {
-      const response = await apiRequest('POST', '/api/crm/auth/login', data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      console.log('Login successful:', data);
-      
-      // Redirect based on role
-      if (data.user.role === 'ADMIN') {
-        setLocation('/admin/dashboard');
-      } else if (data.user.role === 'CRM') {
-        setLocation('/crm/dashboard');
-      }
-    },
-    onError: (error) => {
-      console.error('Login failed:', error);
+  // Redirect if already authenticated
+  if (user) {
+    if (user.role === 'ADMIN') {
+      setLocation('/admin/dashboard');
+    } else if (user.role === 'CRM') {
+      setLocation('/crm/dashboard');
     }
-  });
+    return null;
+  }
 
   const onSubmit = (data: LoginForm) => {
-    loginMutation.mutate(data);
+    loginMutation.mutate(data, {
+      onSuccess: (response) => {
+        console.log('Login successful:', response);
+        
+        // Redirect based on role
+        if (response.user.role === 'ADMIN') {
+          setLocation('/admin/dashboard');
+        } else if (response.user.role === 'CRM') {
+          setLocation('/crm/dashboard');
+        }
+      }
+    });
   };
 
   // Set credentials based on panel selection
