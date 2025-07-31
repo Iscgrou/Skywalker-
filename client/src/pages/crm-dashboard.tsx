@@ -16,9 +16,11 @@ import {
   MessageSquare,
   Target,
   Activity,
-  Settings
+  Settings,
+  Bell
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 
 interface CrmDashboardData {
   totalRepresentatives: number;
@@ -121,9 +123,15 @@ export default function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardData?.totalRepresentatives || 0}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-3">
               {dashboardData?.activeRepresentatives || 0} نماینده فعال
             </p>
+            <Link href="/crm/representatives">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <Users className="h-4 w-4" />
+                مشاهده همه
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -134,9 +142,15 @@ export default function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardData?.pendingTasks || 0}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-3">
               {dashboardData?.completedTasksToday || 0} انجام شده امروز
             </p>
+            <Link href="/crm/tasks">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <Target className="h-4 w-4" />
+                مدیریت وظایف
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -147,9 +161,15 @@ export default function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardData?.aiInsights?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-3">
               توصیه‌های جدید
             </p>
+            <Link href="/crm/analytics">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <Brain className="h-4 w-4" />
+                مشاهده آمار
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -160,9 +180,15 @@ export default function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{dashboardData?.performanceAlerts?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mb-3">
               نیاز به بررسی
             </p>
+            <Link href="/crm/notifications">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <Bell className="h-4 w-4" />
+                مشاهده اعلان‌ها
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

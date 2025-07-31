@@ -27,6 +27,10 @@ import NotFound from "@/pages/not-found";
 import CrmAuth from "@/pages/crm-auth";
 import CrmDashboard from "@/pages/crm-dashboard";
 import RepresentativeProfile from "@/pages/representative-profile";
+import RepresentativesList from "@/pages/representatives-list";
+import CrmTasks from "@/pages/crm-tasks";
+import CrmAnalytics from "@/pages/crm-analytics";
+import CrmNotifications from "@/pages/crm-notifications";
 import UnifiedAuth from "@/pages/unified-auth";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -84,7 +88,11 @@ function AuthenticatedRouter() {
       <CrmAuthProvider>
         <Switch>
           <Route path="/crm/dashboard" component={CrmDashboard} />
+          <Route path="/crm/representatives" component={RepresentativesList} />
           <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
+          <Route path="/crm/tasks" component={CrmTasks} />
+          <Route path="/crm/analytics" component={CrmAnalytics} />
+          <Route path="/crm/notifications" component={CrmNotifications} />
           <Route path="/crm/*" component={NotFound} />
         </Switch>
       </CrmAuthProvider>
