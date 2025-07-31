@@ -2,6 +2,8 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import { crmRoutes } from "./routes/crm-routes";
+import { crmDataSyncService } from "./services/crm-data-sync";
 import multer from "multer";
 
 // Extend Request interface to include multer file
@@ -1125,6 +1127,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('خطا در هماهنگی مالی:', error);
       res.status(500).json({ error: 'خطا در هماهنگی مالی', details: error.message });
     }
+  });
+
+  // CRM Routes Integration
+  app.use("/api/crm", crmRoutes);
+
+  // Initialize CRM real-time sync
+  crmDataSyncService.startRealTimeSync();
+
+  // Enhanced health check endpoint
+  app.get("/health", (req, res) => {
+    res.json({ 
+      status: "healthy", 
+      timestamp: new Date().toISOString(),
+      services: {
+        financial: "running",
+        crm: "running",
+        auth: "running",
+        sync: crmDataSyncService.getSyncStatus().isRunning ? "running" : "stopped"
+      }
+    });
   });
 
   const httpServer = createServer(app);

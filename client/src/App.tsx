@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { CrmAuthProvider } from "./hooks/use-crm-auth";
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
@@ -23,6 +24,9 @@ import Settings from "@/pages/settings";
 import PublicPortal from "@/pages/public-portal";
 import AdminLogin from "@/pages/admin-login";
 import NotFound from "@/pages/not-found";
+import CrmAuth from "@/pages/crm-auth";
+import CrmDashboard from "@/pages/crm-dashboard";
+import RepresentativeProfile from "@/pages/representative-profile";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -48,6 +52,7 @@ function AuthenticatedRouter() {
   
   // Check if this is a public portal route
   const isPublicPortal = location.startsWith('/portal/');
+  const isCrmRoute = location.startsWith('/crm/');
   
   if (isPublicPortal) {
     return (
@@ -69,6 +74,20 @@ function AuthenticatedRouter() {
           </Route>
         </Switch>
       </div>
+    );
+  }
+
+  // Handle CRM routes separately
+  if (isCrmRoute) {
+    return (
+      <CrmAuthProvider>
+        <Switch>
+          <Route path="/crm/auth" component={CrmAuth} />
+          <Route path="/crm/dashboard" component={CrmDashboard} />
+          <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
+          <Route path="/crm/*" component={NotFound} />
+        </Switch>
+      </CrmAuthProvider>
     );
   }
   
