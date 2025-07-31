@@ -267,9 +267,9 @@ export const crmPerformanceAnalytics = pgTable("crm_performance_analytics", {
   averageCompletionTime: integer("average_completion_time"), // in hours
   
   // Quality Metrics
-  averageQualityScore: decimal("average_quality_score", { precision: 5, 2 }),
-  communicationQuality: decimal("communication_quality", { precision: 5, 2 }),
-  customerSatisfaction: decimal("customer_satisfaction", { precision: 5, 2 }),
+  averageQualityScore: decimal("average_quality_score", { precision: 5, scale: 2 }),
+  communicationQuality: decimal("communication_quality", { precision: 5, scale: 2 }),
+  customerSatisfaction: decimal("customer_satisfaction", { precision: 5, scale: 2 }),
   
   // Relationship Metrics
   relationshipScore: integer("relationship_score"), // 1-100

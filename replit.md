@@ -11,9 +11,13 @@ MarFaNet is a comprehensive financial management system designed for managing in
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
-- **Security Requirements**: Admin panel requires login authentication; public representative portal should remain accessible without login
-- **Authentication**: Username and password system with secure session management
-- **Default Admin Credentials**: mgr / 8679 (created automatically on first startup)
+- **Security Requirements**: 
+  - Admin panel (mgr/8679) for financial management with full access
+  - CRM panel (crm/8679) for customer relationship management with restricted access (debt amounts and profiles only)
+  - Public representative portal remains accessible without login
+- **Authentication**: Dual-panel username and password system with role-based access control
+- **CRM Integration**: Intelligent Persian Cultural AI system for representative management
+- **Development Approach**: DA VINCI v6.0 Adaptive Systems Architecture with Tier-based development
 
 ## System Architecture
 The application features a modern full-stack architecture with distinct client and server components.
@@ -29,17 +33,27 @@ The application features a modern full-stack architecture with distinct client a
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
+- **Database**: PostgreSQL with Drizzle ORM (Extended with CRM Intelligence Tables)
 - **Database Provider**: Neon serverless PostgreSQL
 - **File Processing**: Multer for handling JSON file uploads
-- **External Integrations**: Google Gemini AI and Telegram Bot API
+- **External Integrations**: Google Gemini AI, Telegram Bot API, Persian Cultural AI System
+- **CRM AI Engine**: Persian Cultural Intelligence for representative management with psychological profiling
 - **Core Features**:
     - **Invoice Management**: Bulk JSON upload processing, automatic calculation, Persian date handling, and Telegram notifications.
     - **Representative Portal**: Public access via unique public IDs, displaying invoices and usage data.
     - **AI Assistant**: Google Gemini integration for financial analysis.
     - **Financial Tracking**: Comprehensive debt, payment, and commission tracking.
-    - **Authentication System**: Secure login for admin panel with session management and bcrypt password hashing.
-    - **Clock Mechanism Architecture**: Designed around "Hour Hand" (Financial Management), "Minute Hand" (Representative Management), and "Second Hand" (Automation & Monitoring) concepts for atomic transactions, data integrity, and audit trails.
+    - **CRM Intelligence System**: 
+      - Persian Cultural AI for representative psychological profiling
+      - Intelligent task generation and management
+      - Representative level classification (NEW/ACTIVE/INACTIVE)
+      - Performance analytics and team reporting
+      - AI Knowledge Base with learning capabilities
+    - **Dual Authentication System**: 
+      - Admin panel (mgr/8679) with full financial access
+      - CRM panel (crm/8679) with restricted access to debt amounts and profiles only
+      - Role-based access control and data segmentation
+    - **Clock Mechanism Architecture**: Extended with CRM integration - "Hour Hand" (Financial Management), "Minute Hand" (Representative Management + CRM), and "Second Hand" (Automation & Monitoring + AI Decision Logging).
     - **Data Reset System**: Selective data deletion with referential integrity preservation, admin authentication, and activity logging.
     - **JSON Processing**: Support for PHPMyAdmin export formats, advanced parsing, and sequential processing of large data files.
 
