@@ -73,7 +73,7 @@ const invoiceTemplateSchema = z.object({
 
 
 const aiSettingsSchema = z.object({
-  geminiApiKey: z.string().min(1, "کلید API الزامی است"),
+  xaiApiKey: z.string().min(1, "کلید xAI Grok الزامی است"),
   enableAutoAnalysis: z.boolean(),
   analysisFrequency: z.string(),
 });
@@ -186,7 +186,7 @@ export default function Settings() {
   const aiForm = useForm<AiSettingsData>({
     resolver: zodResolver(aiSettingsSchema),
     defaultValues: {
-      geminiApiKey: "",
+      xaiApiKey: "",
       enableAutoAnalysis: false,
       analysisFrequency: "daily"
     }
@@ -278,10 +278,49 @@ export default function Settings() {
 
 
 
+  // xAI Grok API mutations
+  const testGrokConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/settings/xai-grok/test');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.success ? "اتصال موفق" : "اتصال ناموفق",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "خطا در تست اتصال",
+        description: "لطفاً تنظیمات را بررسی کنید",
+        variant: "destructive",
+      });
+    }
+  });
+
   const onAiSubmit = async (data: AiSettingsData) => {
-    await updateSettingMutation.mutateAsync({ key: 'gemini_api_key', value: data.geminiApiKey });
-    await updateSettingMutation.mutateAsync({ key: 'ai_auto_analysis', value: data.enableAutoAnalysis.toString() });
-    await updateSettingMutation.mutateAsync({ key: 'ai_analysis_frequency', value: data.analysisFrequency });
+    try {
+      const response = await apiRequest('POST', '/api/settings/xai-grok/configure', { 
+        apiKey: data.xaiApiKey 
+      });
+      const result = await response.json();
+      
+      await updateSettingMutation.mutateAsync({ key: 'ai_auto_analysis', value: data.enableAutoAnalysis.toString() });
+      await updateSettingMutation.mutateAsync({ key: 'ai_analysis_frequency', value: data.analysisFrequency });
+      
+      toast({
+        title: "تنظیمات xAI Grok ذخیره شد",
+        description: result.message,
+      });
+    } catch (error: any) {
+      toast({
+        title: "خطا در ذخیره تنظیمات",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   // Data Reset Functions
@@ -744,7 +783,7 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Bot className="w-5 h-5 ml-2" />
-                تنظیمات هوش مصنوعی (Gemini AI)
+                تنظیمات هوش مصنوعی (xAI Grok)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -752,24 +791,36 @@ export default function Settings() {
                 <form onSubmit={aiForm.handleSubmit(onAiSubmit)} className="space-y-6">
                   <FormField
                     control={aiForm.control}
-                    name="geminiApiKey"
+                    name="xaiApiKey"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>کلید API گمینی</FormLabel>
+                        <FormLabel>کلید API xAI Grok</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="AIza..."
+                            placeholder="xai-..."
                             type="password"
                             {...field} 
                           />
                         </FormControl>
                         <FormDescription>
-                          کلید API خود را از Google AI Studio دریافت کنید
+                          کلید API خود را از پلتفرم xAI دریافت کنید
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  <div className="flex space-x-2">
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={() => testGrokConnectionMutation.mutate()}
+                      disabled={testGrokConnectionMutation.isPending || !aiForm.watch('xaiApiKey')}
+                    >
+                      <TestTube className="w-4 h-4 mr-2" />
+                      {testGrokConnectionMutation.isPending ? "در حال تست..." : "تست اتصال"}
+                    </Button>
+                  </div>
                   
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -820,14 +871,15 @@ export default function Settings() {
 
                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
                     <h4 className="font-medium text-green-900 dark:text-green-200 mb-2">
-                      قابلیت‌های هوش مصنوعی
+                      قابلیت‌های DA VINCI v6.0 Persian AI Engine
                     </h4>
                     <div className="space-y-1 text-sm text-green-800 dark:text-green-300">
-                      <div>✓ تحلیل وضعیت مالی شرکت</div>
-                      <div>✓ ارزیابی ریسک نمایندگان</div>
-                      <div>✓ پیشنهادات بهبود عملکرد</div>
-                      <div>✓ هشدارهای هوشمند</div>
-                      <div>✓ تولید گزارشات تحلیلی</div>
+                      <div>✓ تحلیل وضعیت مالی با نگاه فرهنگی ایرانی</div>
+                      <div>✓ پروفایل‌سازی روانشناختی نمایندگان</div>
+                      <div>✓ تولید خودکار وظایف با انطباق فرهنگی</div>
+                      <div>✓ تحلیل هوشمند عملکرد بر اساس الگوهای بومی</div>
+                      <div>✓ گزارشات تحلیلی با زبان و فرهنگ فارسی</div>
+                      <div>✓ سیستم آموزش و تطبیق مستمر</div>
                     </div>
                   </div>
 

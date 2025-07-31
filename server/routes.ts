@@ -2,8 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import crmRoutes from "./routes/crm-routes";
-import aiEngineRoutes from "./routes/ai-engine-routes";
+// CRM routes are imported in registerCrmRoutes function
 import { crmDataSyncService } from "./services/crm-data-sync";
 import multer from "multer";
 
@@ -35,12 +34,8 @@ import {
   getDefaultTelegramTemplate, 
   formatInvoiceStatus 
 } from "./services/telegram";
-import { 
-  analyzeFinancialData, 
-  analyzeRepresentative, 
-  generateFinancialReport, 
-  answerFinancialQuestion 
-} from "./services/gemini";
+import { xaiGrokEngine } from "./services/xai-grok-engine";
+import { registerCrmRoutes } from "./routes/crm-routes";
 import bcrypt from "bcryptjs";
 
 // Configure multer for file uploads with broader JSON acceptance
@@ -73,6 +68,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   } catch (error) {
     console.error("Failed to initialize default admin user:", error);
   }
+
+  // Register CRM routes
+  registerCrmRoutes(app);
+
+  // xAI Grok Configuration API
+  app.post("/api/settings/xai-grok/configure", requireAuth, async (req, res) => {
+    try {
+      const { apiKey } = req.body;
+      
+      if (!apiKey) {
+        return res.status(400).json({ error: "کلید API الزامی است" });
+      }
+
+      // Update Grok engine configuration
+      xaiGrokEngine.updateConfiguration(apiKey);
+      
+      // Save to settings
+      await storage.updateSetting('XAI_API_KEY', apiKey);
+      
+      res.json({ 
+        success: true, 
+        message: "تنظیمات xAI Grok ذخیره شد" 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در ذخیره تنظیمات" });
+    }
+  });
+
+  app.post("/api/settings/xai-grok/test", requireAuth, async (req, res) => {
+    try {
+      const result = await xaiGrokEngine.testConnection();
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در تست اتصال" });
+    }
+  });
   
   // Authentication API
   app.post("/api/auth/login", async (req, res) => {
@@ -665,11 +696,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Assistant API
+  // xAI Grok Assistant API
+  app.post("/api/ai/test-connection", requireAuth, async (req, res) => {
+    try {
+      const result = await xaiGrokEngine.testConnection();
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در تست اتصال xAI Grok" });
+    }
+  });
+
   app.post("/api/ai/analyze-financial", requireAuth, async (req, res) => {
     try {
       const dashboardData = await storage.getDashboardData();
-      const analysis = await analyzeFinancialData(
+      
+      // Use Grok for financial analysis
+      const analysis = await xaiGrokEngine.analyzeFinancialData(
         dashboardData.totalRevenue,
         dashboardData.totalDebt,
         dashboardData.activeRepresentatives,
@@ -690,16 +732,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "نماینده یافت نشد" });
       }
 
-      const invoices = await storage.getInvoicesByRepresentative(representative.id);
-      
-      const analysis = await analyzeRepresentative({
-        name: representative.name,
-        totalDebt: representative.totalDebt || "0",
-        totalSales: representative.totalSales || "0",
-        invoiceCount: invoices.length
-      });
-      
-      res.json(analysis);
+      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative);
+      res.json({ representative, culturalProfile });
     } catch (error) {
       res.status(500).json({ error: "خطا در تحلیل نماینده" });
     }
@@ -708,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/question", requireAuth, async (req, res) => {
     try {
       const { question } = req.body;
-      const answer = await answerFinancialQuestion(question);
+      const answer = await xaiGrokEngine.answerFinancialQuestion(question);
       res.json({ answer });
     } catch (error) {
       res.status(500).json({ error: "خطا در دریافت پاسخ از دستیار هوشمند" });
@@ -1131,10 +1165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CRM Routes Integration
-  app.use("/api/crm", crmRoutes);
+  // CRM routes are already registered via registerCrmRoutes() function
   
-  // AI Engine Routes Integration
-  app.use("/api/ai", aiEngineRoutes);
+  // AI Engine routes are integrated above in xAI Grok configuration section
 
   // Initialize CRM real-time sync
   crmDataSyncService.startRealTimeSync();
