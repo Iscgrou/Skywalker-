@@ -32,6 +32,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { apiRequest } from '@/lib/queryClient';
+import AIInsightsPanel from '@/components/crm/ai-insights-panel';
 
 interface RepresentativeProfile {
   representativeId: number;
@@ -345,7 +346,10 @@ export default function RepresentativeProfile() {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">اطلاعات کلی</TabsTrigger>
           <TabsTrigger value="performance">عملکرد</TabsTrigger>
-          <TabsTrigger value="ai-insights">بینش‌های AI</TabsTrigger>
+          <TabsTrigger value="ai-analysis" className="gap-2">
+            <Brain className="h-4 w-4" />
+            تحلیل هوشمند
+          </TabsTrigger>
           <TabsTrigger value="contact">تماس</TabsTrigger>
         </TabsList>
 
@@ -615,6 +619,14 @@ export default function RepresentativeProfile() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* AI Analysis Tab */}
+        <TabsContent value="ai-analysis" className="space-y-4">
+          <AIInsightsPanel 
+            representativeId={profile.basicProfile.id}
+            representativeName={profile.basicProfile.name}
+          />
         </TabsContent>
 
         <TabsContent value="contact" className="space-y-4">

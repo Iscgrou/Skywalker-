@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import crmRoutes from "./routes/crm-routes";
+import aiEngineRoutes from "./routes/ai-engine-routes";
 import { crmDataSyncService } from "./services/crm-data-sync";
 import multer from "multer";
 
@@ -1131,6 +1132,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // CRM Routes Integration
   app.use("/api/crm", crmRoutes);
+  
+  // AI Engine Routes Integration
+  app.use("/api/ai", aiEngineRoutes);
 
   // Initialize CRM real-time sync
   crmDataSyncService.startRealTimeSync();
