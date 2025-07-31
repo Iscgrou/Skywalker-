@@ -3,6 +3,12 @@
 ## Overview
 MarFaNet is a comprehensive financial management system designed for managing invoices, payments, and sales representatives. It includes advanced features such as AI analysis, Telegram integration for notifications, and bulk invoice processing. The system aims to streamline financial operations for businesses, providing detailed tracking of debts, payments, and commissions. Its core capabilities include efficient invoice generation, representative financial oversight, and automated reporting, supporting both administrative and public-facing portals.
 
+**Clock Mechanism Architecture** - The system operates on a synchronized clock mechanism where:
+- Hour Hand (Financial Management): Atomic invoice editing and financial transactions
+- Minute Hand (Representative Management): Financial reconciliation and debt management  
+- Second Hand (Monitoring & Automation): Transaction monitoring and audit trails
+- All components work in perfect synchronization maintaining data integrity
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 - **Security Requirements**: Admin panel requires login authentication; public representative portal should remain accessible without login
