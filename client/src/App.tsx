@@ -27,6 +27,7 @@ import NotFound from "@/pages/not-found";
 import CrmAuth from "@/pages/crm-auth";
 import CrmDashboard from "@/pages/crm-dashboard";
 import RepresentativeProfile from "@/pages/representative-profile";
+import UnifiedAuth from "@/pages/unified-auth";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -82,7 +83,6 @@ function AuthenticatedRouter() {
     return (
       <CrmAuthProvider>
         <Switch>
-          <Route path="/crm/auth" component={CrmAuth} />
           <Route path="/crm/dashboard" component={CrmDashboard} />
           <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
           <Route path="/crm/*" component={NotFound} />
@@ -103,9 +103,13 @@ function AuthenticatedRouter() {
     );
   }
   
-  // Show login page if not authenticated
+  // Show unified login page if not authenticated
   if (!isAuthenticated) {
-    return <AdminLogin onLoginSuccess={login} />;
+    return (
+      <CrmAuthProvider>
+        <UnifiedAuth />
+      </CrmAuthProvider>
+    );
   }
   
   // Show admin panel if authenticated
