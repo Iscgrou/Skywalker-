@@ -78,7 +78,7 @@ export default function UnifiedAuth() {
         setLoginType('admin');
         
         // Try admin login
-        adminAuth.login(data.username, data.password, {
+        adminAuth.loginMutation.mutate(data, {
           onSuccess: () => {
             toast({
               title: "ورود موفق",
@@ -86,10 +86,10 @@ export default function UnifiedAuth() {
             });
             setLocation('/dashboard');
           },
-          onError: (error: string) => {
+          onError: (error: any) => {
             toast({
               title: "خطا در ورود",
-              description: error,
+              description: "نام کاربری یا رمز عبور اشتباه است",
               variant: "destructive",
             });
           }

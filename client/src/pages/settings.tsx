@@ -662,9 +662,9 @@ export default function Settings() {
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                           <div className="space-y-0.5">
                             <FormLabel>نمایش نام کاربری ادمین</FormLabel>
-                            <FormDescription>
+                            <div className="text-sm text-muted-foreground">
                               نمایش ستون admin_username در جدول
-                            </FormDescription>
+                            </div>
                           </div>
                           <FormControl>
                             <Switch
@@ -683,9 +683,9 @@ export default function Settings() {
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                           <div className="space-y-0.5">
                             <FormLabel>نمایش زمان رویداد</FormLabel>
-                            <FormDescription>
+                            <div className="text-sm text-muted-foreground">
                               نمایش ستون event_timestamp در جدول
-                            </FormDescription>
+                            </div>
                           </div>
                           <FormControl>
                             <Switch

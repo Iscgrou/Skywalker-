@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AuthContextType {
@@ -7,6 +8,7 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  loginMutation: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -14,6 +16,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      const response = await apiRequest('POST', '/api/auth/login', credentials);
+      return response.json();
+    },
+    onSuccess: () => {
+      setIsAuthenticated(true);
+    },
+    onError: () => {
+      setIsAuthenticated(false);
+    }
+  });
 
   const checkAuth = async () => {
     try {
@@ -52,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         checkAuth,
+        loginMutation,
       }}
     >
       {children}
