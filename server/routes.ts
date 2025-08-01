@@ -37,7 +37,7 @@ import {
 import { xaiGrokEngine } from "./services/xai-grok-engine";
 import { registerCrmRoutes } from "./routes/crm-routes";
 import bcrypt from "bcryptjs";
-import { generateFinancialReport } from "./services/report-generator";
+// Commented out temporarily - import { generateFinancialReport } from "./services/report-generator";
 
 // Configure multer for file uploads with broader JSON acceptance
 const upload = multer({

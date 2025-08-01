@@ -49,10 +49,16 @@ export function registerCrmRoutes(app: Express) {
       }
 
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        // Fix Drizzle query type issue
+        const finalQuery = db.select().from(representatives).where(and(...conditions));
+        const results = await finalQuery;
+        res.json(results);
+        return;
       }
       
       // Add sorting
+      const results = await query;
+      res.json(results);
       if (sortBy === 'debt') {
         query = query.orderBy(desc(representatives.totalDebt));
       } else if (sortBy === 'sales') {
@@ -320,6 +326,70 @@ export function registerCrmRoutes(app: Express) {
   });
 
   // ==================== INTELLIGENT TASK MANAGEMENT - PHASE 2 ====================
+  
+  // Get all tasks list (alias route)
+  app.get("/api/crm/tasks/list", async (req, res) => {
+    try {
+      const { status, priority, representativeId } = req.query;
+      
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (priority) filters.priority = priority;
+      if (representativeId) filters.representativeId = parseInt(representativeId as string);
+      
+      const tasks = await taskManagementService.getAllTasks(filters);
+      
+      res.json({
+        success: true,
+        data: tasks,
+        count: tasks.length
+      });
+    } catch (error) {
+      console.error('خطا در دریافت وظایف:', error);
+      res.status(500).json({ error: 'خطا در دریافت لیست وظایف' });
+    }
+  });
+
+  // Generate new task
+  app.post("/api/crm/tasks/generate", async (req, res) => {
+    try {
+      const { representativeId, taskType, priority } = req.body;
+      
+      const newTask = await taskManagementService.generateSmartTask(representativeId, taskType, priority);
+      
+      res.json({
+        success: true,
+        data: newTask,
+        message: 'وظیفه جدید با موفقیت ایجاد شد'
+      });
+    } catch (error) {
+      console.error('خطا در ایجاد وظیفه:', error);
+      res.status(500).json({ error: 'خطا در ایجاد وظیفه جدید' });
+    }
+  });
+
+  // Cultural Profile Analysis (standalone)
+  app.post("/api/crm/analysis/cultural-profile", async (req, res) => {
+    try {
+      const { representativeId } = req.body;
+      
+      const representative = await db.select().from(representatives).where(eq(representatives.id, representativeId)).limit(1);
+      if (!representative.length) {
+        return res.status(404).json({ error: 'نماینده یافت نشد' });
+      }
+      
+      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative[0]);
+      
+      res.json({
+        success: true,
+        data: culturalProfile,
+        representative: representative[0]
+      });
+    } catch (error) {
+      console.error('خطا در تحلیل فرهنگی:', error);
+      res.status(500).json({ error: 'خطا در تحلیل پروفایل فرهنگی' });
+    }
+  });
   
   // Get all tasks with filters
   app.get("/api/crm/tasks", crmAuthMiddleware, async (req, res) => {
