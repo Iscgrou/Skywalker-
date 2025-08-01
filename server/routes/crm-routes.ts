@@ -8,6 +8,7 @@ import { representatives } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
 import { taskManagementService, TaskWithDetails } from "../services/task-management-service";
 import { performanceAnalyticsService } from "../services/performance-analytics-service";
+import { gamificationEngine } from "../services/gamification-engine";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
@@ -538,6 +539,82 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching analytics dashboard:', error);
       res.status(500).json({ error: 'خطا در دریافت داشبورد آمار' });
+    }
+  });
+
+  // ==================== GAMIFICATION SYSTEM ====================
+  
+  app.get("/api/crm/gamification/profile/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const gamifiedProfile = await gamificationEngine.getGamifiedProfile(parseInt(id as string));
+      
+      res.json(gamifiedProfile);
+    } catch (error) {
+      console.error('Error fetching gamified profile:', error);
+      res.status(500).json({ error: 'خطا در دریافت پروفایل گیمیفیکیشن' });
+    }
+  });
+
+  app.get("/api/crm/gamification/leaderboard", async (req, res) => {
+    try {
+      const { period = 'monthly' } = req.query;
+      
+      const leaderboard = await gamificationEngine.generateLeaderboard(period as any);
+      
+      res.json(leaderboard);
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      res.status(500).json({ error: 'خطا در دریافت جدول امتیازات' });
+    }
+  });
+
+  app.post("/api/crm/gamification/award-xp", async (req, res) => {
+    try {
+      const { representativeId, xpAmount, reason } = req.body;
+      
+      await gamificationEngine.awardXP(representativeId, xpAmount, reason);
+      
+      res.json({ success: true, message: `${xpAmount} امتیاز اعطا شد` });
+    } catch (error) {
+      console.error('Error awarding XP:', error);
+      res.status(500).json({ error: 'خطا در اعطای امتیاز' });
+    }
+  });
+
+  app.get("/api/crm/gamification/challenges/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const dailyChallenges = await gamificationEngine.createDailyChallenges();
+      
+      res.json({
+        success: true,
+        data: dailyChallenges,
+        count: dailyChallenges.length
+      });
+    } catch (error) {
+      console.error('Error fetching challenges:', error);
+      res.status(500).json({ error: 'خطا در دریافت چالش‌ها' });
+    }
+  });
+
+  app.post("/api/crm/gamification/check-achievements", async (req, res) => {
+    try {
+      const { representativeId } = req.body;
+      
+      const newAchievements = await gamificationEngine.checkAchievements(representativeId);
+      
+      res.json({
+        success: true,
+        data: newAchievements,
+        count: newAchievements.length,
+        message: newAchievements.length > 0 ? 'دستاوردهای جدید کسب شد!' : 'هیچ دستاورد جدیدی یافت نشد'
+      });
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+      res.status(500).json({ error: 'خطا در بررسی دستاوردها' });
     }
   });
 }

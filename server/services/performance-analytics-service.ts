@@ -142,9 +142,14 @@ export class PerformanceAnalyticsService {
     includeAIInsights: boolean = true
   ): Promise<PerformanceMetrics> {
     try {
-      const representative = await storage.getRepresentativeById(representativeId);
+      // Try to get representative from database directly first
+      const [representative] = await db.select()
+        .from(representatives)
+        .where(eq(representatives.id, representativeId))
+        .limit(1);
+      
       if (!representative) {
-        throw new Error('نماینده یافت نشد');
+        throw new Error(`نماینده با شناسه ${representativeId} یافت نشد`);
       }
 
       // Calculate date range based on period
@@ -185,7 +190,7 @@ export class PerformanceAnalyticsService {
 
       return {
         representativeId,
-        representativeName: representative.name,
+        representativeName: representative.name || `نماینده ${representativeId}`,
         period,
         metrics: {
           salesPerformance: salesMetrics,
@@ -300,7 +305,11 @@ export class PerformanceAnalyticsService {
   // ================== METRICS CALCULATION METHODS ==================
 
   private async calculateSalesMetrics(representativeId: number, dateRange: any) {
-    const representative = await storage.getRepresentativeById(representativeId);
+    const [representative] = await db.select()
+      .from(representatives)
+      .where(eq(representatives.id, representativeId))
+      .limit(1);
+    
     if (!representative) return this.getDefaultSalesMetrics();
 
     // Calculate with actual data
@@ -330,7 +339,11 @@ export class PerformanceAnalyticsService {
 
   private async calculateCulturalMetrics(representativeId: number, dateRange: any) {
     try {
-      const representative = await storage.getRepresentativeById(representativeId);
+      const [representative] = await db.select()
+        .from(representatives)
+        .where(eq(representatives.id, representativeId))
+        .limit(1);
+      
       if (!representative) return this.getDefaultCulturalMetrics();
 
       // Use Persian AI Engine for cultural analysis
@@ -349,7 +362,11 @@ export class PerformanceAnalyticsService {
   }
 
   private async calculateFinancialMetrics(representativeId: number, dateRange: any) {
-    const representative = await storage.getRepresentativeById(representativeId);
+    const [representative] = await db.select()
+      .from(representatives)
+      .where(eq(representatives.id, representativeId))
+      .limit(1);
+    
     if (!representative) return this.getDefaultFinancialMetrics();
 
     const totalDebt = parseFloat((representative.totalDebt || 0).toString());
