@@ -7,6 +7,8 @@ export interface TelegramMessage {
   status: string;
   portalLink: string;
   invoiceNumber: string;
+  isResend?: boolean;
+  sendCount?: number;
 }
 
 export async function sendInvoiceToTelegram(
@@ -16,6 +18,11 @@ export async function sendInvoiceToTelegram(
   template: string
 ): Promise<boolean> {
   try {
+    // Determine resend indicator
+    const resendIndicator = message.isResend 
+      ? ` (ارسال مجدد - ${message.sendCount || 1})` 
+      : '';
+    
     // Replace template variables with actual data
     let messageText = template
       .replace(/{representative_name}/g, message.representativeName)
@@ -25,7 +32,8 @@ export async function sendInvoiceToTelegram(
       .replace(/{issue_date}/g, message.issueDate)
       .replace(/{status}/g, message.status)
       .replace(/{portal_link}/g, message.portalLink)
-      .replace(/{invoice_number}/g, message.invoiceNumber);
+      .replace(/{invoice_number}/g, message.invoiceNumber)
+      .replace(/{resend_indicator}/g, resendIndicator);
 
     const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
     
@@ -74,7 +82,7 @@ export async function sendBulkInvoicesToTelegram(
 }
 
 export function getDefaultTelegramTemplate(): string {
-  return `📋 فاکتور شماره {invoice_number}
+  return `📋 فاکتور شماره {invoice_number}{resend_indicator}
 
 🏪 نماینده: {representative_name}
 👤 صاحب فروشگاه: {shop_owner}

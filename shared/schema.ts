@@ -63,7 +63,24 @@ export const invoices = pgTable("invoices", {
   usageData: json("usage_data"), // Raw JSON data from uploaded file
   sentToTelegram: boolean("sent_to_telegram").default(false),
   telegramSentAt: timestamp("telegram_sent_at"),
+  telegramSendCount: integer("telegram_send_count").default(0), // تعداد دفعات ارسال
   createdAt: timestamp("created_at").defaultNow()
+});
+
+// Telegram Send History (تاریخچه ارسال تلگرام) - برای پیگیری ارسال مجدد
+export const telegramSendHistory = pgTable("telegram_send_history", {
+  id: serial("id").primaryKey(),
+  invoiceId: integer("invoice_id").notNull(),
+  sendType: text("send_type").notNull(), // "FIRST_SEND", "RESEND"
+  sentAt: timestamp("sent_at").defaultNow(),
+  sentBy: text("sent_by").notNull(), // User who initiated the send
+  botToken: text("bot_token"), // Token used (for audit)
+  chatId: text("chat_id"), // Chat ID used (for audit)
+  messageTemplate: text("message_template"), // Template used
+  sendStatus: text("send_status").notNull().default("SUCCESS"), // SUCCESS, FAILED
+  errorMessage: text("error_message"), // If failed
+  telegramMessageId: text("telegram_message_id"), // Telegram's message ID if successful
+  metadata: json("metadata") // Additional data
 });
 
 // Payments (پرداخت‌ها)
@@ -512,7 +529,13 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   invoiceNumber: true,
   sentToTelegram: true,
   telegramSentAt: true,
+  telegramSendCount: true,
   createdAt: true
+});
+
+export const insertTelegramSendHistorySchema = createInsertSchema(telegramSendHistory).omit({
+  id: true,
+  sentAt: true
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
@@ -679,3 +702,6 @@ export type InsertCrmPerformanceAnalytics = z.infer<typeof insertCrmPerformanceA
 
 export type CrmSystemEvent = typeof crmSystemEvents.$inferSelect;
 export type InsertCrmSystemEvent = z.infer<typeof insertCrmSystemEventSchema>;
+
+export type TelegramSendHistory = typeof telegramSendHistory.$inferSelect;
+export type InsertTelegramSendHistory = z.infer<typeof insertTelegramSendHistorySchema>;

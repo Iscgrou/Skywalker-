@@ -1,6 +1,6 @@
 import { 
   representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers, invoiceEdits,
-  financialTransactions, dataIntegrityConstraints, invoiceBatches, crmUsers,
+  financialTransactions, dataIntegrityConstraints, invoiceBatches, crmUsers, telegramSendHistory,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
@@ -14,7 +14,9 @@ import {
   // فاز ۱: Import برای مدیریت دوره‌ای فաکتورها
   type InvoiceBatch, type InsertInvoiceBatch,
   // CRM Users Import
-  type CrmUser, type InsertCrmUser
+  type CrmUser, type InsertCrmUser,
+  // Telegram Send History Import
+  type TelegramSendHistory, type InsertTelegramSendHistory
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
@@ -85,6 +87,11 @@ export interface IStorage {
   updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice>;
   markInvoicesAsSentToTelegram(invoiceIds: number[]): Promise<void>;
   getInvoicesWithBatchInfo(): Promise<(Invoice & { batch?: InvoiceBatch })[]>;
+
+  // Telegram Send History - برای پیگیری ارسال مجدد
+  getTelegramSendHistory(invoiceId: number): Promise<TelegramSendHistory[]>;
+  createTelegramSendHistory(history: InsertTelegramSendHistory): Promise<TelegramSendHistory>;
+  markInvoicesAsSentToTelegramWithHistory(invoiceIds: number[], sentBy: string, botToken?: string, chatId?: string, template?: string): Promise<void>;
 
   // Payments
   getPayments(): Promise<Payment[]>;
@@ -430,7 +437,7 @@ export class DatabaseStorage implements IStorage {
             usageData: invoices.usageData,
             sentToTelegram: invoices.sentToTelegram,
             telegramSentAt: invoices.telegramSentAt,
-
+            telegramSendCount: invoices.telegramSendCount,
             createdAt: invoices.createdAt,
             // Batch fields (nullable)
             batchName: invoiceBatches.batchName,
@@ -455,7 +462,7 @@ export class DatabaseStorage implements IStorage {
           usageData: row.usageData,
           sentToTelegram: row.sentToTelegram,
           telegramSentAt: row.telegramSentAt,
-
+          telegramSendCount: row.telegramSendCount,
           createdAt: row.createdAt,
           batch: row.batchName ? {
             id: row.batchId!,
@@ -608,6 +615,100 @@ export class DatabaseStorage implements IStorage {
       description: `${invoiceIds.length} فاکتور به تلگرام ارسال شد`,
       metadata: { invoiceIds }
     });
+  }
+
+  // Telegram Send History Methods - for resending capability
+  async getTelegramSendHistory(invoiceId: number): Promise<TelegramSendHistory[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(telegramSendHistory)
+        .where(eq(telegramSendHistory.invoiceId, invoiceId))
+        .orderBy(desc(telegramSendHistory.sentAt)),
+      'getTelegramSendHistory'
+    );
+  }
+
+  async createTelegramSendHistory(history: InsertTelegramSendHistory): Promise<TelegramSendHistory> {
+    return await withDatabaseRetry(
+      async () => {
+        const [newHistory] = await db
+          .insert(telegramSendHistory)
+          .values(history)
+          .returning();
+        return newHistory;
+      },
+      'createTelegramSendHistory'
+    );
+  }
+
+  async markInvoicesAsSentToTelegramWithHistory(
+    invoiceIds: number[], 
+    sentBy: string, 
+    botToken?: string, 
+    chatId?: string, 
+    template?: string
+  ): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const whereConditions = invoiceIds.map(id => eq(invoices.id, id));
+        const whereClause = whereConditions.length === 1 ? whereConditions[0] : or(...whereConditions);
+        
+        // Get current invoices to check if they were previously sent
+        const currentInvoices = await db.select().from(invoices).where(whereClause);
+        
+        // Update invoices with send info
+        await db
+          .update(invoices)
+          .set({ 
+            sentToTelegram: true, 
+            telegramSentAt: new Date(),
+            telegramSendCount: sql`${invoices.telegramSendCount} + 1`
+          })
+          .where(whereClause);
+
+        // Create history records for each invoice
+        for (const invoice of currentInvoices) {
+          const sendType = invoice.sentToTelegram ? 'RESEND' : 'FIRST_SEND';
+          
+          await this.createTelegramSendHistory({
+            invoiceId: invoice.id,
+            sendType,
+            sentBy,
+            botToken: botToken || null,
+            chatId: chatId || null,
+            messageTemplate: template || null,
+            sendStatus: 'SUCCESS',
+            metadata: {
+              previousSendCount: invoice.telegramSendCount || 0,
+              isResend: invoice.sentToTelegram
+            }
+          });
+        }
+
+        const resendCount = currentInvoices.filter(inv => inv.sentToTelegram).length;
+        const firstSendCount = invoiceIds.length - resendCount;
+        
+        let description = '';
+        if (firstSendCount > 0 && resendCount > 0) {
+          description = `${firstSendCount} فاکتور جدید و ${resendCount} فاکتور مجددا به تلگرام ارسال شد`;
+        } else if (resendCount > 0) {
+          description = `${resendCount} فاکتور مجددا به تلگرام ارسال شد`;
+        } else {
+          description = `${firstSendCount} فاکتور به تلگرام ارسال شد`;
+        }
+
+        await this.createActivityLog({
+          type: "telegram_sent",
+          description,
+          metadata: { 
+            invoiceIds, 
+            firstSendCount, 
+            resendCount,
+            sentBy 
+          }
+        });
+      },
+      'markInvoicesAsSentToTelegramWithHistory'
+    );
   }
 
   async getPayments(): Promise<Payment[]> {

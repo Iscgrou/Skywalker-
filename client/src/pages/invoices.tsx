@@ -123,14 +123,12 @@ export default function Invoices() {
   }) || [];
 
   const handleSelectAll = () => {
-    const unsentInvoices = filteredInvoices
-      .filter(inv => !inv.sentToTelegram)
-      .map(inv => inv.id);
+    const allInvoiceIds = filteredInvoices.map(inv => inv.id);
       
-    if (selectedInvoices.length === unsentInvoices.length) {
+    if (selectedInvoices.length === allInvoiceIds.length) {
       setSelectedInvoices([]);
     } else {
-      setSelectedInvoices(unsentInvoices);
+      setSelectedInvoices(allInvoiceIds);
     }
   };
 
@@ -393,14 +391,13 @@ export default function Invoices() {
               <div className="flex items-center space-x-2 space-x-reverse">
                 <Checkbox
                   checked={
-                    filteredInvoices.filter(inv => !inv.sentToTelegram).length > 0 &&
-                    selectedInvoices.length === 
-                      filteredInvoices.filter(inv => !inv.sentToTelegram).length
+                    filteredInvoices.length > 0 &&
+                    selectedInvoices.length === filteredInvoices.length
                   }
                   onCheckedChange={handleSelectAll}
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  انتخاب همه فاکتورهای ارسال نشده
+                  انتخاب همه فاکتورها
                 </span>
               </div>
               
@@ -454,7 +451,6 @@ export default function Invoices() {
                       onCheckedChange={(checked) => 
                         handleInvoiceSelect(invoice.id, checked as boolean)
                       }
-                      disabled={invoice.sentToTelegram}
                     />
                   </TableCell>
                   
@@ -510,11 +506,14 @@ export default function Invoices() {
                   <TableCell>
                     <div className="flex flex-col space-y-1">
                       <Badge variant={invoice.sentToTelegram ? "default" : "secondary"}>
-                        {invoice.sentToTelegram ? "ارسال شده" : "ارسال نشده"}
+                        {invoice.sentToTelegram 
+                          ? `ارسال شده ${invoice.telegramSendCount ? `(${toPersianDigits(invoice.telegramSendCount.toString())} بار)` : ''}`
+                          : "ارسال نشده"
+                        }
                       </Badge>
                       {invoice.telegramSentAt && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(invoice.telegramSentAt).toLocaleString('fa-IR')}
+                          آخرین ارسال: {new Date(invoice.telegramSentAt).toLocaleString('fa-IR')}
                         </span>
                       )}
                     </div>
@@ -526,17 +525,19 @@ export default function Invoices() {
                         <Eye className="w-4 h-4" />
                       </Button>
                       
-                      {!invoice.sentToTelegram && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSingleInvoiceSend(invoice.id)}
-                          disabled={sendToTelegramMutation.isPending}
-                        >
-                          <Send className="w-4 h-4 ml-1" />
-                          ارسال
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant={invoice.sentToTelegram ? "secondary" : "outline"}
+                        onClick={() => handleSingleInvoiceSend(invoice.id)}
+                        disabled={sendToTelegramMutation.isPending}
+                        className={invoice.sentToTelegram ? 
+                          "border-orange-200 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950" : 
+                          ""
+                        }
+                      >
+                        <Send className="w-4 h-4 ml-1" />
+                        {invoice.sentToTelegram ? "ارسال مجدد" : "ارسال"}
+                      </Button>
                       
                       <Button size="sm" variant="ghost">
                         <Download className="w-4 h-4" />
@@ -557,25 +558,61 @@ export default function Invoices() {
             <DialogTitle>تأیید ارسال به تلگرام</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-gray-600 dark:text-gray-400">
-              آیا مطمئن هستید که می‌خواهید {toPersianDigits(selectedInvoices.length.toString())} فاکتور را به ربات تلگرام ارسال کنید؟
-            </p>
-            
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
-                فاکتورهای انتخاب شده:
-              </h4>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {filteredInvoices
-                  .filter(inv => selectedInvoices.includes(inv.id))
-                  .map(inv => (
-                    <div key={inv.id} className="text-sm text-blue-800 dark:text-blue-300">
-                      • {inv.invoiceNumber} - {inv.representativeName} ({formatCurrency(inv.amount)} ت)
+            {(() => {
+              const selectedInvoiceData = filteredInvoices.filter(inv => selectedInvoices.includes(inv.id));
+              const newSends = selectedInvoiceData.filter(inv => !inv.sentToTelegram);
+              const resends = selectedInvoiceData.filter(inv => inv.sentToTelegram);
+              
+              return (
+                <>
+                  <div className="text-gray-600 dark:text-gray-400">
+                    {newSends.length > 0 && resends.length > 0 ? (
+                      <p>
+                        آیا مطمئن هستید که می‌خواهید {toPersianDigits(newSends.length.toString())} فاکتور جدید و {toPersianDigits(resends.length.toString())} فاکتور مجددا به تلگرام ارسال کنید؟
+                      </p>
+                    ) : resends.length > 0 ? (
+                      <p>
+                        آیا مطمئن هستید که می‌خواهید {toPersianDigits(resends.length.toString())} فاکتور را مجددا به تلگرام ارسال کنید؟
+                      </p>
+                    ) : (
+                      <p>
+                        آیا مطمئن هستید که می‌خواهید {toPersianDigits(newSends.length.toString())} فاکتور را به تلگرام ارسال کنید؟
+                      </p>
+                    )}
+                  </div>
+                  
+                  {newSends.length > 0 && (
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                      <h4 className="font-medium text-green-900 dark:text-green-200 mb-2">
+                        فاکتورهای جدید ({toPersianDigits(newSends.length.toString())}):
+                      </h4>
+                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                        {newSends.map(inv => (
+                          <div key={inv.id} className="text-sm text-green-800 dark:text-green-300">
+                            • {inv.invoiceNumber} - {inv.representativeName} ({formatCurrency(inv.amount)} ت)
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))
-                }
-              </div>
-            </div>
+                  )}
+                  
+                  {resends.length > 0 && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+                      <h4 className="font-medium text-orange-900 dark:text-orange-200 mb-2">
+                        فاکتورهای ارسال مجدد ({toPersianDigits(resends.length.toString())}):
+                      </h4>
+                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                        {resends.map(inv => (
+                          <div key={inv.id} className="text-sm text-orange-800 dark:text-orange-300">
+                            • {inv.invoiceNumber} - {inv.representativeName} (ارسال #{toPersianDigits((inv.telegramSendCount || 0) + 1)})
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             
             <div className="flex justify-end space-x-2 space-x-reverse">
               <Button 

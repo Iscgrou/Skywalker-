@@ -965,7 +965,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               issueDate: invoice.issueDate,
               status: formatInvoiceStatus(invoice.status),
               portalLink,
-              invoiceNumber: invoice.invoiceNumber
+              invoiceNumber: invoice.invoiceNumber,
+              isResend: invoice.sentToTelegram || false,
+              sendCount: (invoice.telegramSendCount || 0) + 1
             });
           }
         }
@@ -981,7 +983,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (result.success > 0) {
-        await storage.markInvoicesAsSentToTelegram(invoiceIds);
+        // Get user info for history tracking
+        const sentBy = (req as any).user?.username || 'مدیر سیستم';
+        
+        await storage.markInvoicesAsSentToTelegramWithHistory(
+          invoiceIds.slice(0, result.success), // Only successful ones
+          sentBy,
+          botToken,
+          chatId,
+          messageTemplate
+        );
       }
 
       res.json({
