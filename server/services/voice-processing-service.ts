@@ -237,10 +237,9 @@ class VoiceProcessingService {
     `;
 
     try {
-      const analysis = await xaiGrokEngine.processQuery(prompt, {
-        type: 'cultural_analysis',
-        priority: 'high',
-        context: context
+      const analysis = await xaiGrokEngine.analyzeCulturalProfile({
+        name: context.existingData?.name || 'نماینده',
+        text: prompt
       });
 
       return {
@@ -273,10 +272,9 @@ class VoiceProcessingService {
     `;
 
     try {
-      const response = await xaiGrokEngine.processQuery(prompt, {
-        type: 'insight_generation',
-        priority: context.urgencyLevel,
-        context: context
+      const response = await xaiGrokEngine.generateInsights(prompt, {
+        urgencyLevel: context.urgencyLevel,
+        representativeId: context.representativeId
       });
 
       return this.parseInsights(response);

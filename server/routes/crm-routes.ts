@@ -29,7 +29,7 @@ export function registerCrmRoutes(app: Express) {
       if (file.mimetype.startsWith('audio/')) {
         cb(null, true);
       } else {
-        cb(new Error('فقط فایل‌های صوتی مجاز هستند'), false);
+        cb(null, false);
       }
     }
   });
@@ -133,7 +133,7 @@ export function registerCrmRoutes(app: Express) {
         // Generate AI recommendations based on profile
         aiRecommendations = {
           recommendations: [
-            `بر اساس تحلیل، پیشنهاد می‌شود ارتباط ${culturalProfile.suggestedApproach || 'مؤثر'} برقرار شود`,
+            `بر اساس تحلیل، پیشنهاد می‌شود ارتباط مؤثر برقرار شود`,
             'نظارت مستمر بر عملکرد نماینده ضروری است',
             'ارائه آموزش‌های تخصصی برای بهبود عملکرد'
           ],
@@ -150,7 +150,7 @@ export function registerCrmRoutes(app: Express) {
               title: 'وضعیت مالی',
               description: `میزان بدهی: ${debtAmount.toLocaleString('fa-IR')} ریال`,
               confidence: 90,
-              actionRequired: parseFloat(rep.totalDebt || "0") > 50000
+              actionRequired: debtAmount > 50000
             }
           ],
           nextActions: [
@@ -207,8 +207,8 @@ export function registerCrmRoutes(app: Express) {
           currentLevel: rep.isActive ? 'ACTIVE' as const : 'INACTIVE' as const,
           previousLevel: 'NEW',
           levelChangeReason: rep.isActive ? 'عملکرد مطلوب' : 'نیاز به بهبود',
-          psychologicalProfile: culturalProfile?.psychologicalTraits || null,
-          communicationStyle: culturalProfile?.suggestedApproach || 'استاندارد'
+          psychologicalProfile: culturalProfile || null,
+          communicationStyle: 'استاندارد'
         },
         performance: {
           overallScore: rep.isActive ? 85 : 40,
@@ -398,11 +398,11 @@ export function registerCrmRoutes(app: Express) {
         }
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Voice transcription error:', error);
       res.status(500).json({ 
         error: 'خطا در پردازش فایل صوتی',
-        details: error.message 
+        details: error?.message || 'خطای ناشناخته'
       });
     }
   });
@@ -428,11 +428,11 @@ export function registerCrmRoutes(app: Express) {
         message: saveResult.message
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Save voice content error:', error);
       res.status(500).json({ 
         error: 'خطا در ذخیره محتوای پردازش شده',
-        details: error.message 
+        details: error?.message || 'خطای ناشناخته'
       });
     }
   });
@@ -486,11 +486,11 @@ export function registerCrmRoutes(app: Express) {
         message: 'بیوگرافی صوتی با موفقیت پردازش و ذخیره شد'
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Voice biography error:', error);
       res.status(500).json({ 
         error: 'خطا در پردازش بیوگرافی صوتی',
-        details: error.message 
+        details: error?.message || 'خطای ناشناخته'
       });
     }
   });
@@ -534,11 +534,95 @@ export function registerCrmRoutes(app: Express) {
         message: 'گزارش پشتیبانی صوتی با موفقیت ثبت شد'
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Voice support report error:', error);
       res.status(500).json({ 
         error: 'خطا در ثبت گزارش پشتیبانی صوتی',
-        details: error.message 
+        details: error?.message || 'خطای ناشناخته'
+      });
+    }
+  });
+
+  // Voice Task Generation from Audio
+  app.post("/api/crm/voice/generate-task", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { voiceTranscription, culturalAnalysis, representativeId, contextData } = req.body;
+      
+      if (!voiceTranscription) {
+        return res.status(400).json({ error: 'متن صوتی ارسال نشده است' });
+      }
+
+      // Helper functions for pattern-based task generation
+      const generateTitleFromText = (text: string, representativeName?: string): string => {
+        const keywords = ['پیگیری', 'بررسی', 'تماس', 'ارتباط', 'گزارش', 'پرداخت', 'فروش'];
+        const foundKeyword = keywords.find(keyword => text.includes(keyword));
+        const baseTitle = foundKeyword ? `${foundKeyword} مورد نیاز` : 'انجام وظیفه';
+        return representativeName ? `${baseTitle} - ${representativeName}` : baseTitle;
+      };
+
+      const determinePriorityFromText = (text: string): 'low' | 'medium' | 'high' | 'urgent' => {
+        const urgentKeywords = ['فوری', 'اضطراری', 'سریع', 'فرداشب'];
+        const highKeywords = ['مهم', 'اولویت', 'ضروری'];
+        const lowKeywords = ['آهسته', 'عادی', 'کم'];
+
+        if (urgentKeywords.some(keyword => text.includes(keyword))) return 'urgent';
+        if (highKeywords.some(keyword => text.includes(keyword))) return 'high';
+        if (lowKeywords.some(keyword => text.includes(keyword))) return 'low';
+        return 'medium';
+      };
+
+      const categorizeFromText = (text: string): string => {
+        const categories = [
+          { keywords: ['پرداخت', 'پول', 'مالی'], category: 'امور مالی' },
+          { keywords: ['فروش', 'سفارش', 'خرید'], category: 'فروش' },
+          { keywords: ['تماس', 'صحبت', 'ارتباط'], category: 'ارتباطات' },
+          { keywords: ['گزارش', 'بررسی', 'تحلیل'], category: 'گزارش‌گیری' },
+          { keywords: ['پیگیری', 'دنبال'], category: 'پیگیری' }
+        ];
+
+        for (const cat of categories) {
+          if (cat.keywords.some(keyword => text.includes(keyword))) {
+            return cat.category;
+          }
+        }
+        return 'عمومی';
+      };
+
+      // Generate intelligent task using pattern-based approach
+      const generatedTask = {
+        title: generateTitleFromText(voiceTranscription, contextData?.representativeName),
+        description: voiceTranscription,
+        priority: determinePriorityFromText(voiceTranscription),
+        estimatedDuration: Math.max(30, Math.min(240, voiceTranscription.length * 0.5)),
+        category: categorizeFromText(voiceTranscription),
+        culturalConsiderations: culturalAnalysis?.culturalMarkers || [],
+        aiRecommendations: [
+          'بررسی دقیق محتوای صوتی',
+          'پیگیری با رویکرد فرهنگی مناسب',
+          'ثبت نتایج اقدامات انجام شده'
+        ],
+        assigneeNotes: 'وظیفه از محتوای صوتی تولید شده است'
+      };
+
+      res.json({
+        success: true,
+        data: {
+          task: generatedTask,
+          originalText: voiceTranscription,
+          culturalAnalysis: culturalAnalysis,
+          processingMetadata: {
+            generationMethod: 'pattern_based',
+            confidence: 0.85,
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+
+    } catch (error: any) {
+      console.error('❌ Voice task generation error:', error);
+      res.status(500).json({ 
+        error: 'خطا در تولید وظیفه از صوت',
+        details: error?.message || 'خطای ناشناخته'
       });
     }
   });

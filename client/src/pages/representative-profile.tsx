@@ -33,6 +33,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { apiRequest } from '@/lib/queryClient';
 import AIInsightsPanel from '@/components/crm/ai-insights-panel';
+import VoiceBiographyPanel from '@/components/crm/voice-biography-panel';
+import VoiceTaskCreator from '@/components/crm/voice-task-creator';
 import { CurrencyFormatter } from '@/lib/currency-formatter';
 
 interface RepresentativeProfile {
@@ -107,11 +109,14 @@ export default function RepresentativeProfile() {
 
   const levelChangeMutation = useMutation({
     mutationFn: async ({ newLevel, reason }: { newLevel: string; reason: string }) => {
-      const response = await apiRequest('PUT', `/api/crm/representatives/${representativeId}/level`, {
-        newLevel,
-        reason
+      const response = await apiRequest(`/api/crm/representatives/${representativeId}/level`, {
+        method: 'PUT',
+        data: {
+          newLevel,
+          reason
+        }
       });
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/crm/representatives', representativeId] });
@@ -132,8 +137,10 @@ export default function RepresentativeProfile() {
 
   const generateTaskMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/crm/representatives/${representativeId}/tasks/generate`);
-      return response.json();
+      const response = await apiRequest(`/api/crm/representatives/${representativeId}/tasks/generate`, {
+        method: 'POST'
+      });
+      return response;
     },
     onSuccess: (data) => {
       toast({
@@ -221,13 +228,26 @@ export default function RepresentativeProfile() {
         
         <div className="flex gap-2">
           {hasPermission('crm_tasks', 'CREATE') && (
-            <Button 
-              onClick={() => generateTaskMutation.mutate()}
-              disabled={generateTaskMutation.isPending}
-            >
-              <Target className="h-4 w-4 ml-2" />
-              تولید وظیفه
-            </Button>
+            <>
+              <VoiceTaskCreator
+                representativeId={representativeId}
+                representativeName={profile.basicProfile.name}
+                onTaskCreated={(task) => {
+                  toast({
+                    title: "وظیفه صوتی ایجاد شد",
+                    description: `وظیفه "${task.title}" با موفقیت ثبت شد`,
+                  });
+                }}
+              />
+              <Button 
+                onClick={() => generateTaskMutation.mutate()}
+                disabled={generateTaskMutation.isPending}
+                variant="outline"
+              >
+                <Target className="h-4 w-4 ml-2" />
+                تولید وظیفه
+              </Button>
+            </>
           )}
           {hasPermission('representative_levels', 'UPDATE') && (
             <Dialog open={showLevelChangeDialog} onOpenChange={setShowLevelChangeDialog}>
