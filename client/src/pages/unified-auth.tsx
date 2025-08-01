@@ -1,5 +1,5 @@
 // 🔐 UNIFIED AUTHENTICATION PAGE - Admin & CRM Login
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -137,16 +137,14 @@ export default function UnifiedAuth() {
     }
   };
 
-  // Check if user is already authenticated
-  if (adminAuth.isAuthenticated) {
-    setLocation('/dashboard');
-    return null;
-  }
-
-  if (crmAuth.user) {
-    setLocation('/crm/dashboard');
-    return null;
-  }
+  // Check if user is already authenticated - use useEffect to avoid setState during render
+  useEffect(() => {
+    if (adminAuth.isAuthenticated) {
+      setLocation('/dashboard');
+    } else if (crmAuth.user) {
+      setLocation('/crm/dashboard');
+    }
+  }, [adminAuth.isAuthenticated, crmAuth.user, setLocation]);
 
   const isLoading = adminAuth.isLoading || crmAuth.loginMutation.isPending;
 
