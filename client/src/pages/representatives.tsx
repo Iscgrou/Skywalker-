@@ -122,8 +122,8 @@ export default function Representatives() {
 
   const createMutation = useMutation({
     mutationFn: async (data: RepresentativeFormData) => {
-      const response = await apiRequest('POST', '/api/representatives', data);
-      return response.json();
+      const response = await apiRequest('/api/representatives', { method: 'POST', data });
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -153,8 +153,8 @@ export default function Representatives() {
   const updateMutation = useMutation({
     mutationFn: async (data: RepresentativeFormData) => {
       if (!editingRep) throw new Error("نماینده انتخاب نشده");
-      const response = await apiRequest('PUT', `/api/representatives/${editingRep.id}`, data);
-      return response.json();
+      const response = await apiRequest(`/api/representatives/${editingRep.id}`, { method: 'PUT', data });
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -176,8 +176,8 @@ export default function Representatives() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await apiRequest('DELETE', `/api/representatives/${id}`);
-      return response.json();
+      const response = await apiRequest(`/api/representatives/${id}`, { method: 'DELETE' });
+      return response;
     },
     onSuccess: () => {
       toast({
