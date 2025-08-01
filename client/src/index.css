@@ -122,17 +122,18 @@
 
   /* Claymorphism Utility Classes */
   .clay-card {
-    background: var(--card);
+    background: rgba(30, 30, 40, 0.6);
     border-radius: 20px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.03);
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     backdrop-filter: blur(10px);
   }
 
   .clay-card:hover {
-    box-shadow: var(--clay-shadow-hover);
+    box-shadow: 0 8px 32px rgba(166, 139, 201, 0.1);
     transform: translateY(-2px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .clay-button {
@@ -166,27 +167,29 @@
   }
 
   .clay-input {
-    background: var(--input);
+    background: rgba(20, 20, 30, 0.6);
     border-radius: 16px;
     box-shadow: var(--clay-shadow-inner);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.03);
     transition: all 0.2s ease;
+    color: rgba(220, 220, 240, 0.9);
   }
 
   .clay-input:focus {
-    box-shadow: var(--clay-shadow-inner), 0 0 0 3px rgba(166, 139, 201, 0.3);
+    box-shadow: var(--clay-shadow-inner), 0 0 0 2px rgba(166, 139, 201, 0.1);
     outline: none;
   }
 
   .clay-badge {
-    background: var(--clay-peach);
+    background: rgba(40, 35, 50, 0.7);
     border-radius: 12px;
-    box-shadow: var(--clay-shadow-outer);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     font-weight: 600;
     font-size: 0.75rem;
     padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.02);
     backdrop-filter: blur(8px);
+    color: rgba(200, 200, 220, 0.9);
   }
 
   .clay-progress {
@@ -206,8 +209,8 @@
   .clay-metric-card {
     background: linear-gradient(135deg, var(--clay-lavender) 0%, var(--clay-baby-blue) 100%);
     border-radius: 24px;
-    box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     color: white;
     overflow: hidden;
     position: relative;
@@ -220,30 +223,31 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
     pointer-events: none;
   }
 
   .clay-alert {
-    background: var(--clay-sage);
+    background: rgba(45, 40, 55, 0.6);
     border-radius: 18px;
-    box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.02);
     backdrop-filter: blur(12px);
   }
 
   .clay-nav-item {
-    background: var(--card);
+    background: rgba(25, 25, 35, 0.5);
     border-radius: 14px;
-    box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.02);
     transition: all 0.2s ease;
     backdrop-filter: blur(15px);
   }
 
   .clay-nav-item:hover {
-    box-shadow: var(--clay-shadow-hover);
+    box-shadow: 0 6px 24px rgba(166, 139, 201, 0.08);
     transform: translateY(-1px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .clay-nav-item.active {
@@ -267,10 +271,10 @@
 
   @keyframes clayPulse {
     0%, 100% {
-      box-shadow: var(--clay-shadow-outer);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
     }
     50% {
-      box-shadow: var(--clay-shadow-hover);
+      box-shadow: 0 6px 24px rgba(166, 139, 201, 0.1);
     }
   }
 

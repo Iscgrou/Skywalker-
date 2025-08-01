@@ -225,7 +225,7 @@ export default function CrmDashboard() {
               <ClayButton 
                 variant="ghost" 
                 size="sm" 
-                className="w-full gap-2 bg-white/20 hover:bg-white/30"
+                className="w-full gap-2 bg-white/05 hover:bg-white/10"
                 onClick={handleFinancialReportClick}
               >
                 <TrendingUp className="h-4 w-4" />
@@ -247,7 +247,7 @@ export default function CrmDashboard() {
               <ClayButton 
                 variant="ghost" 
                 size="sm" 
-                className="w-full gap-2 bg-white/20 hover:bg-white/30"
+                className="w-full gap-2 bg-white/05 hover:bg-white/10"
               >
                 <Target className="h-4 w-4" />
                 مشاهده وظایف
@@ -270,7 +270,7 @@ export default function CrmDashboard() {
               <ClayButton 
                 variant="ghost" 
                 size="sm" 
-                className="w-full gap-2 bg-white/20 hover:bg-white/30"
+                className="w-full gap-2 bg-white/05 hover:bg-white/10"
               >
                 <TrendingUp className="h-4 w-4" />
                 گزارش مالی
