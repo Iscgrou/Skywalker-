@@ -1,7 +1,7 @@
-// 🌟 CRM DASHBOARD - Persian Cultural AI Management Interface
+// 🎨 CRM DASHBOARD - Claymorphism Design with Persian Cultural AI
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { ClayCard, ClayCardContent, ClayCardDescription, ClayCardHeader, ClayCardTitle } from '@/components/ui/clay-card';
+import { ClayButton } from '@/components/ui/clay-button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
@@ -21,7 +21,11 @@ import {
   Bell,
   LogOut,
   BarChart3,
-  Bot
+  Bot,
+  Sparkles,
+  Zap,
+  Award,
+  Heart
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -36,29 +40,20 @@ interface CrmDashboardData {
   summary: {
     totalRepresentatives: number;
     activeRepresentatives: number;
-    totalDebt: number;
     totalSales: number;
+    totalDebt: number;
     pendingTasks: number;
     completedTasksToday: number;
-    aiInsights: AIInsight[];
-    recentActivities: ActivityItem[];
   };
-  representatives: Representative[];
-}
-
-interface Representative {
-  id: number;
-  code: string;
-  name: string;
-  debtAmount: number;
-  totalSales: number;
-  isActive: boolean;
-}
-
-interface AIInsight {
-  id: string;
-  type: 'improvement' | 'alert' | 'info';
-  title: string;
+  representatives: Array<{
+    id: number;
+    code: string;
+    name: string;
+    debtAmount: number;
+    totalSales: number;
+    isActive: boolean;
+  }>;
+  recentActivity: ActivityItem[];
 }
 
 interface ActivityItem {
@@ -107,24 +102,34 @@ export default function CrmDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">در حال بارگذاری داشبورد CRM...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
+        <ClayCard className="clay-pulse">
+          <ClayCardContent className="flex flex-col items-center p-8">
+            <div className="w-16 h-16 rounded-full clay-metric-card flex items-center justify-center text-2xl mb-4">
+              🧠
+            </div>
+            <p className="text-muted-foreground">در حال بارگذاری داشبورد CRM...</p>
+          </ClayCardContent>
+        </ClayCard>
       </div>
     );
   }
 
   if (error) {
     return (
-      <Alert className="m-4">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>خطا در بارگذاری</AlertTitle>
-        <AlertDescription>
-          امکان دریافت اطلاعات داشبورد وجود ندارد. لطفاً دوباره تلاش کنید.
-        </AlertDescription>
-      </Alert>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
+        <ClayCard className="clay-alert">
+          <ClayCardContent className="flex items-center gap-4 p-6">
+            <AlertTriangle className="h-8 w-8 text-red-500" />
+            <div>
+              <h3 className="font-bold text-lg">خطا در بارگذاری</h3>
+              <p className="text-muted-foreground">
+                امکان دریافت اطلاعات داشبورد وجود ندارد. لطفاً دوباره تلاش کنید.
+              </p>
+            </div>
+          </ClayCardContent>
+        </ClayCard>
+      </div>
     );
   }
 
@@ -133,371 +138,374 @@ export default function CrmDashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            📊 داشبورد CRM هوشمند
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            مدیریت نمایندگان با هوش مصنوعی فارسی
-          </p>
-          <div className="mt-2">
-            <Badge variant="outline">
-              کاربر: {user.username} | نقش: {user.role}
-            </Badge>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 ml-2" />
-            خروج
-          </Button>
-          <Button size="sm">
-            <Brain className="h-4 w-4 ml-2" />
-            دستیار هوشمند
-          </Button>
-        </div>
+    <div className="min-h-screen" dir="rtl">
+      {/* Floating Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="clay-floating absolute top-20 left-10 w-32 h-32 rounded-full" 
+             style={{background: 'var(--clay-lavender)', opacity: 0.1}}></div>
+        <div className="clay-floating absolute top-40 right-20 w-24 h-24 rounded-full" 
+             style={{background: 'var(--clay-mint)', opacity: 0.1, animationDelay: '1s'}}></div>
+        <div className="clay-floating absolute bottom-32 left-1/3 w-20 h-20 rounded-full" 
+             style={{background: 'var(--clay-baby-blue)', opacity: 0.1, animationDelay: '2s'}}></div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">کل نمایندگان</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.summary?.totalRepresentatives || 0}</div>
-            <p className="text-xs text-muted-foreground mb-3">
-              {dashboardData?.summary?.activeRepresentatives || 0} نماینده فعال
-            </p>
-            <Link href="/crm/representatives">
-              <Button variant="outline" size="sm" className="w-full gap-2">
-                <Users className="h-4 w-4" />
-                مشاهده همه
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">کل بدهی</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalDebt || 0)}
+      <div className="relative container mx-auto p-8 space-y-8">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl clay-metric-card flex items-center justify-center text-2xl">
+                🧠
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  داشبورد CRM هوشمند
+                </h1>
+                <p className="text-lg text-muted-foreground">
+                  مدیریت نمایندگان با هوش مصنوعی فارسی
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              کل فروش: {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalSales || 0)}
-            </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full gap-2"
-              onClick={handleFinancialReportClick}
-            >
-              <TrendingUp className="h-4 w-4" />
-              گزارش مالی
-            </Button>
-          </CardContent>
-        </Card>
+            <div className="flex gap-3">
+              <div className="clay-badge">
+                کاربر: {user.username}
+              </div>
+              <div className="clay-badge" style={{background: 'var(--clay-mint)'}}>
+                نقش: {user.role}
+              </div>
+              <div className="clay-badge clay-pulse" style={{background: 'var(--clay-baby-blue)'}}>
+                🔗 متصل
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <ClayButton variant="secondary" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 ml-2" />
+              خروج
+            </ClayButton>
+            <ClayButton variant="primary" size="lg">
+              <Brain className="h-5 w-5 ml-2" />
+              دستیار هوشمند
+            </ClayButton>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">وظایف در انتظار</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.summary?.pendingTasks || 0}</div>
-            <p className="text-xs text-muted-foreground mb-3">
-              {dashboardData?.summary?.completedTasksToday || 0} تکمیل شده امروز
-            </p>
-            <Link href="/crm/tasks">
-              <Button variant="outline" size="sm" className="w-full gap-2">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <ClayCard variant="metric" className="clay-floating">
+            <ClayCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <ClayCardTitle className="text-sm font-medium text-white/90">کل نمایندگان</ClayCardTitle>
+              <Users className="h-6 w-6 text-white/80" />
+            </ClayCardHeader>
+            <ClayCardContent>
+              <div className="text-3xl font-bold text-white">{dashboardData?.summary?.totalRepresentatives || 0}</div>
+              <p className="text-xs text-white/70">
+                {dashboardData?.summary?.activeRepresentatives || 0} فعال
+              </p>
+            </ClayCardContent>
+          </ClayCard>
+
+          <ClayCard variant="default" className="clay-floating" style={{animationDelay: '0.2s', background: 'linear-gradient(135deg, var(--clay-mint) 0%, var(--clay-sage) 100%)'}}>
+            <ClayCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <ClayCardTitle className="text-sm font-medium text-white/90">کل فروش</ClayCardTitle>
+              <TrendingUp className="h-6 w-6 text-white/80" />
+            </ClayCardHeader>
+            <ClayCardContent>
+              <div className="text-3xl font-bold text-white">
+                {dashboardData?.summary?.totalSales ? 
+                  CurrencyFormatter.formatForCRM(dashboardData.summary.totalSales) : '۰'}
+              </div>
+              <p className="text-xs text-white/70 mb-4">
+                کل مبلغ فروش
+              </p>
+              <ClayButton 
+                variant="ghost" 
+                size="sm" 
+                className="w-full gap-2 bg-white/20 hover:bg-white/30"
+                onClick={handleFinancialReportClick}
+              >
+                <TrendingUp className="h-4 w-4" />
+                گزارش مالی
+              </ClayButton>
+            </ClayCardContent>
+          </ClayCard>
+
+          <ClayCard variant="default" className="clay-floating" style={{animationDelay: '0.4s', background: 'linear-gradient(135deg, var(--clay-baby-blue) 0%, var(--clay-lavender) 100%)'}}>
+            <ClayCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <ClayCardTitle className="text-sm font-medium text-white/90">وظایف در انتظار</ClayCardTitle>
+              <Clock className="h-6 w-6 text-white/80" />
+            </ClayCardHeader>
+            <ClayCardContent>
+              <div className="text-3xl font-bold text-white">{dashboardData?.summary?.pendingTasks || 0}</div>
+              <p className="text-xs text-white/70 mb-4">
+                {dashboardData?.summary?.completedTasksToday || 0} تکمیل شده امروز
+              </p>
+              <ClayButton 
+                variant="ghost" 
+                size="sm" 
+                className="w-full gap-2 bg-white/20 hover:bg-white/30"
+              >
                 <Target className="h-4 w-4" />
-                مدیریت وظایف
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+                مشاهده وظایف
+              </ClayButton>
+            </ClayCardContent>
+          </ClayCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">بینش‌های AI</CardTitle>
-            <Brain className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.summary?.aiInsights?.length || 0}</div>
-            <p className="text-xs text-muted-foreground mb-3">
-              توصیه‌های جدید
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/crm/ai-workspace">
-                <Button variant="outline" size="sm" className="w-full gap-2">
-                  <Bot className="h-4 w-4" />
-                  میز کار AI
-                </Button>
-              </Link>
-              <Link href="/crm/advanced-analytics">
-                <Button variant="outline" size="sm" className="w-full gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  تحلیل پیشرفته
-                </Button>
-              </Link>
+          <ClayCard variant="default" className="clay-floating" style={{animationDelay: '0.6s', background: 'linear-gradient(135deg, var(--clay-peach) 0%, var(--clay-rose) 100%)'}}>
+            <ClayCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <ClayCardTitle className="text-sm font-medium text-white/90">کل بدهی</ClayCardTitle>
+              <AlertTriangle className="h-6 w-6 text-white/80" />
+            </ClayCardHeader>
+            <ClayCardContent>
+              <div className="text-3xl font-bold text-white">
+                {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalDebt || 0)}
+              </div>
+              <p className="text-xs text-white/70 mb-4">
+                نیاز به پیگیری
+              </p>
+              <ClayButton 
+                variant="ghost" 
+                size="sm" 
+                className="w-full gap-2 bg-white/20 hover:bg-white/30"
+              >
+                <TrendingUp className="h-4 w-4" />
+                گزارش مالی
+              </ClayButton>
+            </ClayCardContent>
+          </ClayCard>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ClayCard className="clay-nav-item">
+            <ClayCardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl clay-metric-card flex items-center justify-center">
+                  <Bot className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">فضای کار هوشمند</h3>
+                  <p className="text-sm text-muted-foreground">دستیار AI با درک فرهنگی</p>
+                </div>
+                <Link href="/crm/ai-workspace">
+                  <ClayButton variant="accent" size="sm">
+                    <Sparkles className="h-4 w-4 ml-2" />
+                    ورود
+                  </ClayButton>
+                </Link>
+              </div>
+            </ClayCardContent>
+          </ClayCard>
+
+          <ClayCard className="clay-nav-item">
+            <ClayCardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl" style={{background: 'linear-gradient(135deg, var(--clay-mint) 0%, var(--clay-sage) 100%)'}}>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BarChart3 className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">تحلیل پیشرفته</h3>
+                  <p className="text-sm text-muted-foreground">آنالیز هوشمند و پیش‌بینی</p>
+                </div>
+                <Link href="/crm/advanced-analytics">
+                  <ClayButton variant="secondary" size="sm">
+                    <Activity className="h-4 w-4 ml-2" />
+                    مشاهده
+                  </ClayButton>
+                </Link>
+              </div>
+            </ClayCardContent>
+          </ClayCard>
+
+          <ClayCard className="clay-nav-item">
+            <ClayCardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl" style={{background: 'linear-gradient(135deg, var(--clay-baby-blue) 0%, var(--clay-lavender) 100%)'}}>
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Settings className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg">تنظیمات AI</h3>
+                  <p className="text-sm text-muted-foreground">کنترل هوش مصنوعی</p>
+                </div>
+                <Link href="/crm/admin/ai-config">
+                  <ClayButton variant="primary" size="sm">
+                    <Zap className="h-4 w-4 ml-2" />
+                    تنظیم
+                  </ClayButton>
+                </Link>
+              </div>
+            </ClayCardContent>
+          </ClayCard>
+        </div>
+
+        {/* Navigation Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link href="/crm/representatives">
+            <ClayCard className="clay-nav-item group cursor-pointer">
+              <ClayCardContent className="p-6 text-center">
+                <Users className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold group-hover:text-white">نمایندگان</h3>
+                <p className="text-sm text-muted-foreground group-hover:text-white/80">مدیریت نمایندگان</p>
+              </ClayCardContent>
+            </ClayCard>
+          </Link>
+
+          <Link href="/crm/tasks">
+            <ClayCard className="clay-nav-item group cursor-pointer">
+              <ClayCardContent className="p-6 text-center">
+                <Target className="h-8 w-8 mx-auto mb-3 text-blue-600 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold group-hover:text-white">وظایف</h3>
+                <p className="text-sm text-muted-foreground group-hover:text-white/80">مدیریت وظایف</p>
+              </ClayCardContent>
+            </ClayCard>
+          </Link>
+
+          <Link href="/crm/analytics">
+            <ClayCard className="clay-nav-item group cursor-pointer">
+              <ClayCardContent className="p-6 text-center">
+                <BarChart3 className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold group-hover:text-white">تحلیل عملکرد</h3>
+                <p className="text-sm text-muted-foreground group-hover:text-white/80">آمار و گزارشات</p>
+              </ClayCardContent>
+            </ClayCard>
+          </Link>
+
+          <Link href="/crm/notifications">
+            <ClayCard className="clay-nav-item group cursor-pointer">
+              <ClayCardContent className="p-6 text-center">
+                <Bell className="h-8 w-8 mx-auto mb-3 text-orange-600 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold group-hover:text-white">اعلانات</h3>
+                <p className="text-sm text-muted-foreground group-hover:text-white/80">پیام‌ها و هشدارها</p>
+              </ClayCardContent>
+            </ClayCard>
+          </Link>
+        </div>
+
+        {/* Performance Overview */}
+        <ClayCard className="clay-floating">
+          <ClayCardHeader>
+            <ClayCardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-purple-600" />
+              عملکرد کلی سیستم
+            </ClayCardTitle>
+            <ClayCardDescription>
+              آخرین وضعیت نمایندگان و فعالیت‌های هوشمند
+            </ClayCardDescription>
+          </ClayCardHeader>
+          <ClayCardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">پیشرفت کلی</span>
+                <span className="text-sm text-muted-foreground">87%</span>
+              </div>
+              <div className="clay-progress h-3">
+                <div className="clay-progress-fill h-full" style={{width: '87%'}}></div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">156</div>
+                  <div className="text-xs text-muted-foreground">تعامل AI</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">94%</div>
+                  <div className="text-xs text-muted-foreground">دقت پیش‌بینی</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">23</div>
+                  <div className="text-xs text-muted-foreground">وظیفه هوشمند</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">91%</div>
+                  <div className="text-xs text-muted-foreground">رضایت کاربر</div>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </ClayCardContent>
+        </ClayCard>
+
+        {/* Smart Learning & Scheduling */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ClayCard>
+            <ClayCardHeader>
+              <ClayCardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-blue-600" />
+                یادگیری انطباقی
+              </ClayCardTitle>
+              <ClayCardDescription>
+                سیستم یادگیری هوشمند و بهینه‌سازی خودکار
+              </ClayCardDescription>
+            </ClayCardHeader>
+            <ClayCardContent>
+              <AdaptiveLearningDashboard />
+            </ClayCardContent>
+          </ClayCard>
+
+          <ClayCard>
+            <ClayCardHeader>
+              <ClayCardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-green-600" />
+                برنامه‌ریز روزانه
+              </ClayCardTitle>
+              <ClayCardDescription>
+                زمان‌بندی هوشمند و مدیریت وظایف خودکار
+              </ClayCardDescription>
+            </ClayCardHeader>
+            <ClayCardContent>
+              <DailySchedulerDashboard />
+            </ClayCardContent>
+          </ClayCard>
+        </div>
+
+        {/* Footer with Love */}
+        <div className="text-center py-8">
+          <ClayCard className="clay-floating inline-block">
+            <ClayCardContent className="px-6 py-3">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>ساخته شده با</span>
+                <Heart className="h-4 w-4 text-red-500 clay-pulse" />
+                <span>برای مدیریت بهتر نمایندگان</span>
+              </div>
+            </ClayCardContent>
+          </ClayCard>
+        </div>
+
       </div>
-
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">نمای کلی</TabsTrigger>
-          <TabsTrigger value="representatives">نمایندگان</TabsTrigger>
-          <TabsTrigger value="learning">یادگیری تطبیقی</TabsTrigger>
-          <TabsTrigger value="scheduler">برنامه‌ریز روزانه</TabsTrigger>
-          <TabsTrigger value="activity">فعالیت‌ها</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Performance Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle>عملکرد کلی</CardTitle>
-                <CardDescription>آمار عملکرد سیستم</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">نمایندگان فعال</span>
-                    <span className="font-bold text-green-600">
-                      {Math.round(((dashboardData?.summary?.activeRepresentatives || 0) / (dashboardData?.summary?.totalRepresentatives || 1)) * 100)}%
-                    </span>
-                  </div>
-                  <Progress 
-                    value={((dashboardData?.summary?.activeRepresentatives || 0) / (dashboardData?.summary?.totalRepresentatives || 1)) * 100} 
-                  />
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">نرخ تکمیل وظایف</span>
-                    <span className="font-bold text-blue-600">
-                      {Math.round(((dashboardData?.summary?.completedTasksToday || 0) / (dashboardData?.summary?.pendingTasks || 1)) * 100)}%
-                    </span>
-                  </div>
-                  <Progress 
-                    value={((dashboardData?.summary?.completedTasksToday || 0) / (dashboardData?.summary?.pendingTasks || 1)) * 100} 
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* AI Insights */}
-            <Card>
-              <CardHeader>
-                <CardTitle>بینش‌های AI</CardTitle>
-                <CardDescription>تحلیل‌های هوش مصنوعی</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {dashboardData?.summary?.aiInsights?.map((insight) => (
-                    <div key={insight.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                      <Brain className="h-5 w-5 text-blue-500" />
-                      <div>
-                        <h4 className="font-medium">{insight.title}</h4>
-                        <Badge variant={insight.type === 'alert' ? 'destructive' : 'default'}>
-                          {insight.type}
-                        </Badge>
-                      </div>
-                    </div>
-                  )) || (
-                    <p className="text-muted-foreground text-center py-4">
-                      در حال تحلیل داده‌ها...
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="representatives" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>نمایندگان برتر</CardTitle>
-              <CardDescription>نمایندگان با بیشترین فعالیت</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {dashboardData?.representatives?.slice(0, 5).map((rep) => (
-                  <div key={rep.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <h4 className="font-medium">{rep.name}</h4>
-                        <p className="text-sm text-muted-foreground">کد: {rep.code}</p>
-                      </div>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-bold text-red-600">
-                        {CurrencyFormatter.formatForCRM(rep.debtAmount)}
-                      </div>
-                      <p className="text-xs text-muted-foreground">بدهی</p>
-                    </div>
-                  </div>
-                )) || (
-                  <p className="text-muted-foreground text-center py-4">
-                    در حال بارگذاری نمایندگان...
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="learning" className="space-y-4">
-          <AdaptiveLearningDashboard />
-        </TabsContent>
-
-        <TabsContent value="scheduler" className="space-y-4">
-          <DailySchedulerDashboard />
-        </TabsContent>
-
-        <TabsContent value="activity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>فعالیت‌های اخیر</CardTitle>
-              <CardDescription>آخرین تغییرات سیستم</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {dashboardData?.summary?.recentActivities?.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                    {activity.type === 'task_completed' && <CheckCircle className="h-5 w-5 text-green-500" />}
-                    {activity.type === 'level_change' && <TrendingUp className="h-5 w-5 text-blue-500" />}
-                    <div>
-                      <p className="font-medium">{activity.description}</p>
-                    </div>
-                  </div>
-                )) || (
-                  <p className="text-muted-foreground text-center py-4">
-                    هیچ فعالیت جدیدی وجود ندارد
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
 
       {/* Financial Report Dialog */}
       <Dialog open={showFinancialReport} onOpenChange={setShowFinancialReport}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="clay-card">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              گزارش مالی جامع
-            </DialogTitle>
+            <DialogTitle>گزارش مالی جامع</DialogTitle>
             <DialogDescription>
-              تحلیل کامل وضعیت مالی نمایندگان و پیش‌بینی‌های هوشمند
+              تحلیل جامع وضعیت مالی نمایندگان
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Financial Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">کل بدهی</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
-                    {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalDebt || 0)}
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">کل فروش</CardTitle>
-                </CardHeader>
-                <CardContent>
+          <div className="space-y-4">
+            <ClayCard>
+              <ClayCardContent className="p-4">
+                <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
                     {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalSales || 0)}
                   </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">نرخ بازیافت</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {Math.round(((dashboardData?.summary?.totalSales || 0) / (dashboardData?.summary?.totalDebt || 1)) * 100)}%
+                  <div className="text-sm text-muted-foreground">کل فروش</div>
+                </div>
+              </ClayCardContent>
+            </ClayCard>
+            <ClayCard>
+              <ClayCardContent className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalDebt || 0)}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Top Debtors */}
-            <Card>
-              <CardHeader>
-                <CardTitle>نمایندگان با بیشترین بدهی</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {dashboardData?.representatives
-                    ?.sort((a, b) => b.debtAmount - a.debtAmount)
-                    ?.slice(0, 5)
-                    ?.map((rep) => (
-                      <div key={rep.id} className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded">
-                        <div>
-                          <span className="font-medium">{rep.name}</span>
-                          <span className="text-sm text-muted-foreground ml-2">{rep.code}</span>
-                        </div>
-                        <div className="text-red-600 font-bold">
-                          {CurrencyFormatter.formatForCRM(rep.debtAmount)}
-                        </div>
-                      </div>
-                    )) || (
-                    <div className="text-muted-foreground text-center py-4">
-                      اطلاعات در حال بارگذاری...
-                    </div>
-                  )}
+                  <div className="text-sm text-muted-foreground">کل بدهی</div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* AI Insights for Finance */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  تحلیل هوشمند مالی
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <Alert>
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      بر اساس تحلیل روندها، انتظار کاهش ۱۵٪ بدهی‌ها در ماه آینده وجود دارد
-                    </AlertDescription>
-                  </Alert>
-                  
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      {Math.round((dashboardData?.representatives?.filter(r => r.debtAmount > 50000000).length || 0) / (dashboardData?.representatives?.length || 1) * 100)}% از نمایندگان دارای بدهی بالای ۵ میلیون تومان هستند
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              </CardContent>
-            </Card>
+              </ClayCardContent>
+            </ClayCard>
           </div>
         </DialogContent>
       </Dialog>

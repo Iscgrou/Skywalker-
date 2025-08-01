@@ -3,62 +3,92 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(240, 10%, 3.9%);
-  --muted: hsl(240, 4.8%, 95.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(240, 10%, 3.9%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(240, 10%, 3.9%);
-  --border: hsl(240, 5.9%, 90%);
-  --input: hsl(240, 5.9%, 90%);
-  --primary: hsl(207, 90%, 54%);
-  --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(120, 61%, 50%);
-  --secondary-foreground: hsl(222.2, 84%, 4.9%);
-  --accent: hsl(32, 95%, 44%);
-  --accent-foreground: hsl(210, 40%, 98%);
-  --destructive: hsl(0, 84.2%, 60.2%);
-  --destructive-foreground: hsl(210, 40%, 98%);
-  --ring: hsl(240, 10%, 3.9%);
-  --radius: 0.5rem;
+  /* Claymorphism Theme - Soft Pastel Colors */
+  --background: hsl(280, 15%, 97%);
+  --foreground: hsl(260, 15%, 25%);
+  --muted: hsl(290, 20%, 92%);
+  --muted-foreground: hsl(270, 10%, 55%);
+  --popover: hsl(285, 25%, 95%);
+  --popover-foreground: hsl(260, 15%, 25%);
+  --card: hsl(295, 25%, 96%);
+  --card-foreground: hsl(260, 15%, 25%);
+  --border: hsl(285, 15%, 88%);
+  --input: hsl(290, 20%, 94%);
+  --primary: hsl(258, 62%, 75%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(155, 45%, 78%);
+  --secondary-foreground: hsl(160, 20%, 25%);
+  --accent: hsl(195, 55%, 80%);
+  --accent-foreground: hsl(200, 25%, 25%);
+  --destructive: hsl(350, 65%, 75%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --ring: hsl(258, 30%, 65%);
+  --radius: 1.2rem;
   
-  /* Custom MarFaNet colors */
-  --marfanet-primary: hsl(207, 90%, 54%);
-  --marfanet-secondary: hsl(120, 61%, 50%);
-  --marfanet-accent: hsl(32, 95%, 44%);
-  --marfanet-error: hsl(0, 84%, 60%);
-  --marfanet-surface: hsl(240, 4.8%, 95.9%);
+  /* Claymorphism Specific Colors */
+  --clay-lavender: hsl(258, 62%, 75%);
+  --clay-mint: hsl(155, 45%, 78%);
+  --clay-baby-blue: hsl(195, 55%, 80%);
+  --clay-peach: hsl(25, 70%, 85%);
+  --clay-rose: hsl(340, 50%, 82%);
+  --clay-sage: hsl(85, 35%, 75%);
+  
+  /* Shadow Variables */
+  --clay-shadow-outer: 8px 8px 20px rgba(160, 130, 190, 0.15), -8px -8px 20px rgba(255, 255, 255, 0.9);
+  --clay-shadow-inner: inset 4px 4px 8px rgba(160, 130, 190, 0.1), inset -4px -4px 8px rgba(255, 255, 255, 0.8);
+  --clay-shadow-pressed: inset 6px 6px 12px rgba(160, 130, 190, 0.2), inset -6px -6px 12px rgba(255, 255, 255, 0.6);
+  --clay-shadow-hover: 12px 12px 24px rgba(160, 130, 190, 0.2), -12px -12px 24px rgba(255, 255, 255, 0.95);
+  
+  /* Custom MarFaNet colors with clay treatment */
+  --marfanet-primary: var(--clay-lavender);
+  --marfanet-secondary: var(--clay-mint);
+  --marfanet-accent: var(--clay-baby-blue);
+  --marfanet-error: var(--clay-rose);
+  --marfanet-surface: hsl(290, 20%, 94%);
 }
 
 .dark {
-  --background: hsl(240, 10%, 3.9%);
-  --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 3.7%, 15.9%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(207, 90%, 54%);
-  --primary-foreground: hsl(210, 40%, 98%);
-  --secondary: hsl(240, 3.7%, 15.9%);
-  --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(240, 3.7%, 15.9%);
-  --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 62.8%, 30.6%);
-  --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(240, 4.9%, 83.9%);
+  /* Dark Claymorphism Theme */
+  --background: hsl(260, 25%, 8%);
+  --foreground: hsl(280, 15%, 85%);
+  --muted: hsl(270, 20%, 15%);
+  --muted-foreground: hsl(270, 10%, 60%);
+  --popover: hsl(265, 25%, 12%);
+  --popover-foreground: hsl(280, 15%, 85%);
+  --card: hsl(265, 25%, 10%);
+  --card-foreground: hsl(280, 15%, 85%);
+  --border: hsl(270, 15%, 20%);
+  --input: hsl(270, 20%, 18%);
+  --primary: hsl(258, 62%, 65%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(155, 35%, 35%);
+  --secondary-foreground: hsl(155, 45%, 85%);
+  --accent: hsl(195, 45%, 35%);
+  --accent-foreground: hsl(195, 55%, 85%);
+  --destructive: hsl(350, 55%, 45%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --ring: hsl(258, 30%, 55%);
+  
+  /* Dark Claymorphism Colors */
+  --clay-lavender: hsl(258, 62%, 65%);
+  --clay-mint: hsl(155, 35%, 35%);
+  --clay-baby-blue: hsl(195, 45%, 35%);
+  --clay-peach: hsl(25, 50%, 45%);
+  --clay-rose: hsl(340, 40%, 45%);
+  --clay-sage: hsl(85, 25%, 35%);
+  
+  /* Dark Shadow Variables */
+  --clay-shadow-outer: 8px 8px 20px rgba(0, 0, 0, 0.4), -8px -8px 20px rgba(80, 60, 100, 0.1);
+  --clay-shadow-inner: inset 4px 4px 8px rgba(0, 0, 0, 0.3), inset -4px -4px 8px rgba(80, 60, 100, 0.05);
+  --clay-shadow-pressed: inset 6px 6px 12px rgba(0, 0, 0, 0.5), inset -6px -6px 12px rgba(80, 60, 100, 0.02);
+  --clay-shadow-hover: 12px 12px 24px rgba(0, 0, 0, 0.5), -12px -12px 24px rgba(80, 60, 100, 0.15);
   
   /* Dark mode MarFaNet colors */
-  --marfanet-primary: hsl(207, 90%, 60%);
-  --marfanet-secondary: hsl(120, 61%, 55%);
-  --marfanet-accent: hsl(32, 95%, 50%);
-  --marfanet-error: hsl(0, 84%, 65%);
-  --marfanet-surface: hsl(240, 3.7%, 15.9%);
+  --marfanet-primary: var(--clay-lavender);
+  --marfanet-secondary: var(--clay-mint);
+  --marfanet-accent: var(--clay-baby-blue);
+  --marfanet-error: var(--clay-rose);
+  --marfanet-surface: hsl(270, 20%, 18%);
 }
 
 @layer base {
@@ -70,6 +100,158 @@
     @apply bg-background text-foreground font-sans antialiased;
     direction: rtl;
     font-family: 'Inter', 'Tahoma', 'Arial', sans-serif;
+    background: linear-gradient(135deg, hsl(285, 25%, 95%) 0%, hsl(295, 20%, 92%) 50%, hsl(275, 30%, 94%) 100%);
+    min-height: 100vh;
+  }
+
+  /* Claymorphism Utility Classes */
+  .clay-card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--clay-shadow-outer);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .clay-card:hover {
+    box-shadow: var(--clay-shadow-hover);
+    transform: translateY(-2px);
+  }
+
+  .clay-button {
+    background: var(--clay-lavender);
+    border-radius: 16px;
+    box-shadow: var(--clay-shadow-outer);
+    border: none;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    color: white;
+  }
+
+  .clay-button:hover {
+    box-shadow: var(--clay-shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  .clay-button:active {
+    box-shadow: var(--clay-shadow-pressed);
+    transform: translateY(1px);
+  }
+
+  .clay-button-secondary {
+    background: var(--clay-mint);
+    color: var(--secondary-foreground);
+  }
+
+  .clay-button-accent {
+    background: var(--clay-baby-blue);
+    color: var(--accent-foreground);
+  }
+
+  .clay-input {
+    background: var(--input);
+    border-radius: 16px;
+    box-shadow: var(--clay-shadow-inner);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    transition: all 0.2s ease;
+  }
+
+  .clay-input:focus {
+    box-shadow: var(--clay-shadow-inner), 0 0 0 3px rgba(166, 139, 201, 0.3);
+    outline: none;
+  }
+
+  .clay-badge {
+    background: var(--clay-peach);
+    border-radius: 12px;
+    box-shadow: var(--clay-shadow-outer);
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+
+  .clay-progress {
+    background: var(--muted);
+    border-radius: 20px;
+    box-shadow: var(--clay-shadow-inner);
+    overflow: hidden;
+  }
+
+  .clay-progress-fill {
+    background: linear-gradient(90deg, var(--clay-lavender) 0%, var(--clay-baby-blue) 100%);
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(166, 139, 201, 0.3);
+    transition: width 0.5s ease;
+  }
+
+  .clay-metric-card {
+    background: linear-gradient(135deg, var(--clay-lavender) 0%, var(--clay-baby-blue) 100%);
+    border-radius: 24px;
+    box-shadow: var(--clay-shadow-outer);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .clay-metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .clay-alert {
+    background: var(--clay-sage);
+    border-radius: 18px;
+    box-shadow: var(--clay-shadow-outer);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .clay-nav-item {
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: var(--clay-shadow-outer);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
+  }
+
+  .clay-nav-item:hover {
+    box-shadow: var(--clay-shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  .clay-nav-item.active {
+    background: var(--clay-lavender);
+    color: white;
+    box-shadow: var(--clay-shadow-pressed);
+  }
+
+  .clay-floating {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .clay-pulse {
+    animation: clayPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes clayPulse {
+    0%, 100% {
+      box-shadow: var(--clay-shadow-outer);
+    }
+    50% {
+      box-shadow: var(--clay-shadow-hover);
+    }
   }
 
   /* RTL Support */
