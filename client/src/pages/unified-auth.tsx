@@ -58,16 +58,12 @@ export default function UnifiedAuth() {
     }
   });
 
-  // Auto-fill credentials when user selects panel type
-  const fillAdminCredentials = () => {
-    setValue('username', 'mgr');
-    setValue('password', '8679');
+  // Set panel type without auto-filling credentials
+  const selectAdminPanel = () => {
     setLoginType('admin');
   };
 
-  const fillCrmCredentials = () => {
-    setValue('username', 'crm');
-    setValue('password', '8679');
+  const selectCrmPanel = () => {
     setLoginType('crm');
   };
 
@@ -227,7 +223,7 @@ export default function UnifiedAuth() {
                   type="button"
                   variant="outline"
                   className="h-12 flex flex-col gap-1"
-                  onClick={fillAdminCredentials}
+                  onClick={selectAdminPanel}
                 >
                   <Settings className="h-4 w-4" />
                   <span className="text-xs">پنل مدیریت</span>
@@ -237,7 +233,7 @@ export default function UnifiedAuth() {
                   type="button"
                   variant="outline"
                   className="h-12 flex flex-col gap-1"
-                  onClick={fillCrmCredentials}
+                  onClick={selectCrmPanel}
                 >
                   <Users className="h-4 w-4" />
                   <span className="text-xs">پنل CRM</span>
