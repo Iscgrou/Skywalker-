@@ -288,8 +288,8 @@ export default function CrmDashboard() {
                   <Bot className="h-6 w-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-gray-200">فضای کار هوشمند</h3>
-                  <p className="text-sm text-gray-400">دستیار AI با درک فرهنگی</p>
+                  <h3 className="font-semibold text-lg text-white">فضای کار هوشمند</h3>
+                  <p className="text-sm text-gray-200">دستیار AI با درک فرهنگی</p>
                 </div>
                 <Link href="/crm/ai-workspace">
                   <ClayButton variant="accent" size="sm">
@@ -310,8 +310,8 @@ export default function CrmDashboard() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-gray-200">تحلیل پیشرفته</h3>
-                  <p className="text-sm text-gray-400">آنالیز هوشمند و پیش‌بینی</p>
+                  <h3 className="font-semibold text-lg text-white">تحلیل پیشرفته</h3>
+                  <p className="text-sm text-gray-200">آنالیز هوشمند و پیش‌بینی</p>
                 </div>
                 <Link href="/crm/advanced-analytics">
                   <ClayButton variant="secondary" size="sm">
@@ -332,8 +332,8 @@ export default function CrmDashboard() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg text-gray-200">تنظیمات AI</h3>
-                  <p className="text-sm text-gray-400">کنترل هوش مصنوعی</p>
+                  <h3 className="font-semibold text-lg text-white">تنظیمات AI</h3>
+                  <p className="text-sm text-gray-200">کنترل هوش مصنوعی</p>
                 </div>
                 <Link href="/crm/admin/ai-config">
                   <ClayButton variant="primary" size="sm">
@@ -436,11 +436,11 @@ export default function CrmDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ClayCard>
             <ClayCardHeader>
-              <ClayCardTitle className="flex items-center gap-2 text-gray-200">
+              <ClayCardTitle className="flex items-center gap-2 text-white">
                 <Brain className="h-5 w-5 text-blue-400" />
                 یادگیری انطباقی
               </ClayCardTitle>
-              <ClayCardDescription className="text-gray-400">
+              <ClayCardDescription className="text-gray-200">
                 سیستم یادگیری هوشمند و بهینه‌سازی خودکار
               </ClayCardDescription>
             </ClayCardHeader>
@@ -451,11 +451,11 @@ export default function CrmDashboard() {
 
           <ClayCard>
             <ClayCardHeader>
-              <ClayCardTitle className="flex items-center gap-2 text-gray-200">
+              <ClayCardTitle className="flex items-center gap-2 text-white">
                 <Clock className="h-5 w-5 text-green-400" />
                 برنامه‌ریز روزانه
               </ClayCardTitle>
-              <ClayCardDescription className="text-gray-400">
+              <ClayCardDescription className="text-gray-200">
                 زمان‌بندی هوشمند و مدیریت وظایف خودکار
               </ClayCardDescription>
             </ClayCardHeader>
@@ -469,7 +469,7 @@ export default function CrmDashboard() {
         <div className="text-center py-8">
           <ClayCard className="clay-floating inline-block">
             <ClayCardContent className="px-6 py-3">
-              <div className="flex items-center gap-2 text-gray-400">
+              <div className="flex items-center gap-2 text-gray-300">
                 <span>ساخته شده با</span>
                 <Heart className="h-4 w-4 text-red-400 clay-pulse" />
                 <span>برای مدیریت بهتر نمایندگان</span>
