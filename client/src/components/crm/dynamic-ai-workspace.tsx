@@ -1,9 +1,9 @@
 // 🤖 DYNAMIC AI WORKSPACE - DA VINCI v9.0 Phase 2
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card as BaseCard, CardContent as BaseCardContent, CardDescription as BaseCardDescription, CardHeader as BaseCardHeader, CardTitle as BaseCardTitle } from '@/components/ui/card';
+import { Button as BaseButton } from '@/components/ui/button';
+import { Badge as BaseBadge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,6 +99,32 @@ interface RealtimeMetrics {
   learningRate: number;
   culturalAdaptationScore: number;
 }
+
+// Claymorphism Components
+const ClayCard = ({ className = '', children, ...props }: any) => (
+  <BaseCard className={`clay-card ${className}`} {...props}>{children}</BaseCard>
+);
+
+const ClayCardContent = ({ className = '', children, ...props }: any) => (
+  <BaseCardContent className={className} {...props}>{children}</BaseCardContent>
+);
+
+const ClayCardHeader = ({ className = '', children, ...props }: any) => (
+  <BaseCardHeader className={className} {...props}>{children}</BaseCardHeader>
+);
+
+const ClayCardTitle = ({ className = '', children, ...props }: any) => (
+  <BaseCardTitle className={className} {...props}>{children}</BaseCardTitle>
+);
+
+const ClayButton = ({ className = '', variant = 'default', children, ...props }: any) => {
+  const clayVariant = variant === 'default' ? 'clay-primary' : `clay-${variant}`;
+  return <BaseButton className={`clay-button ${clayVariant} ${className}`} {...props}>{children}</BaseButton>;
+};
+
+const ClayBadge = ({ className = '', children, ...props }: any) => (
+  <BaseBadge className={`clay-badge ${className}`} {...props}>{children}</BaseBadge>
+);
 
 export default function DynamicAIWorkspace() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -220,25 +246,32 @@ export default function DynamicAIWorkspace() {
 
   if (workspaceLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">در حال بارگذاری میز کار هوشمند...</p>
+      <div className="min-h-screen clay-background relative">
+        <div className="container mx-auto px-6 py-8">
+          <ClayCard>
+            <ClayCardHeader>
+              <ClayCardTitle className="flex items-center gap-2 text-white">
+                <Brain className="h-6 w-6 animate-pulse" />
+                در حال بارگذاری فضای کار AI...
+              </ClayCardTitle>
+            </ClayCardHeader>
+          </ClayCard>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="min-h-screen clay-background relative" dir="rtl">
+      <div className="container mx-auto px-6 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Bot className="h-8 w-8 text-blue-600" />
+            <Bot className="h-8 w-8 text-blue-400" />
             <div>
-              <h1 className="text-3xl font-bold">میز کار هوشمند AI</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-3xl font-bold text-white">میز کار هوشمند AI</h1>
+              <p className="text-gray-300">
                 دستیار هوشمند فارسی برای مدیریت CRM پیشرفته
               </p>
             </div>
@@ -264,20 +297,20 @@ export default function DynamicAIWorkspace() {
       </div>
 
       {/* Real-time Metrics Dashboard */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <ClayCard>
+        <ClayCardHeader>
+          <ClayCardTitle className="flex items-center gap-2 text-white">
             <Activity className="h-5 w-5" />
             متریک‌های لحظه‌ای سیستم
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </ClayCardTitle>
+        </ClayCardHeader>
+        <ClayCardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
                 {workspaceData?.realTimeMetrics?.aiProcessingLoad || 0}%
               </div>
-              <p className="text-xs text-muted-foreground">بار پردازش AI</p>
+              <p className="text-xs text-gray-300">بار پردازش AI</p>
               <Progress value={workspaceData?.realTimeMetrics?.aiProcessingLoad || 0} className="mt-2" />
             </div>
             
@@ -285,39 +318,39 @@ export default function DynamicAIWorkspace() {
               <div className="text-2xl font-bold text-green-600">
                 {toPersianDigits(workspaceData?.realTimeMetrics?.decisionAccuracy || 0)}%
               </div>
-              <p className="text-xs text-muted-foreground">دقت تصمیم‌گیری</p>
+              <p className="text-xs text-gray-300">دقت تصمیم‌گیری</p>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
                 {toPersianDigits(workspaceData?.realTimeMetrics?.culturalAdaptationScore || 0)}%
               </div>
-              <p className="text-xs text-muted-foreground">سازگاری فرهنگی</p>
+              <p className="text-xs text-gray-300">سازگاری فرهنگی</p>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
                 {toPersianDigits(workspaceData?.realTimeMetrics?.responseTime || 0)}ms
               </div>
-              <p className="text-xs text-muted-foreground">زمان پاسخ</p>
+              <p className="text-xs text-gray-300">زمان پاسخ</p>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">
                 {toPersianDigits(workspaceData?.realTimeMetrics?.contextSwitches || 0)}
               </div>
-              <p className="text-xs text-muted-foreground">تغییر زمینه</p>
+              <p className="text-xs text-gray-300">تغییر زمینه</p>
             </div>
             
             <div className="text-center">
               <div className="text-2xl font-bold text-indigo-600">
                 {toPersianDigits(workspaceData?.realTimeMetrics?.learningRate || 0)}%
               </div>
-              <p className="text-xs text-muted-foreground">نرخ یادگیری</p>
+              <p className="text-xs text-gray-300">نرخ یادگیری</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </ClayCardContent>
+      </ClayCard>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
@@ -588,6 +621,7 @@ export default function DynamicAIWorkspace() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
