@@ -2,6 +2,9 @@
 import { nanoid } from 'nanoid';
 import { storage } from '../storage';
 import { persianAIEngine } from './persian-ai-engine';
+import { db } from '../db';
+import { aiKnowledgeBase } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 import type { 
   AiKnowledgeBase, 
   InsertAiKnowledgeBase,
@@ -80,9 +83,23 @@ export class AdaptiveLearningService {
 
   private async loadExistingKnowledge() {
     try {
-      // This would load from aiKnowledgeBase table
-      // For now, initialize with empty state
-      console.log('Loading existing knowledge patterns...');
+      const knowledgeEntries = await db
+        .select()
+        .from(aiKnowledgeBase)
+        .where(eq(aiKnowledgeBase.category, 'LEARNING_PATTERN'));
+
+      let loadedCount = 0;
+      for (const entry of knowledgeEntries) {
+        try {
+          const pattern: LearningPattern = JSON.parse(entry.description);
+          this.learningPatterns.set(pattern.id, pattern);
+          loadedCount++;
+        } catch (parseError) {
+          console.warn(`Failed to parse learning pattern ${entry.knowledgeId}`);
+        }
+      }
+
+      console.log(`Loading existing knowledge patterns... ${loadedCount} patterns loaded`);
     } catch (error) {
       console.error('Error loading knowledge:', error);
     }
@@ -288,7 +305,27 @@ export class AdaptiveLearningService {
 
   private async storeLearningPattern(pattern: LearningPattern): Promise<void> {
     this.learningPatterns.set(pattern.id, pattern);
-    // In a real implementation, this would store to database
+    
+    // Store to persistent database
+    try {
+      await db.insert(aiKnowledgeBase).values({
+        knowledgeId: pattern.id,
+        category: 'LEARNING_PATTERN',
+        title: `${pattern.patternType} Pattern`,
+        description: JSON.stringify(pattern),
+        sourceType: 'TASK_RESULT',
+        sourceId: pattern.id,
+        applicableScenarios: pattern.context,
+        successRate: pattern.reliability.toString(),
+        culturalContext: JSON.stringify(pattern.insights.culturalInsights),
+        tags: ['adaptive_learning', pattern.patternType.toLowerCase()],
+        isActive: true,
+        confidenceLevel: pattern.reliability
+      });
+      console.log(`💾 Learning pattern persisted to database: ${pattern.id}`);
+    } catch (error) {
+      console.error('Error persisting learning pattern:', error);
+    }
   }
 
   private async updateKnowledgeBase(pattern: LearningPattern): Promise<void> {

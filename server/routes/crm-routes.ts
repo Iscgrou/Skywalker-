@@ -707,7 +707,24 @@ export function registerCrmRoutes(app: Express) {
 
   // ==================== DAILY AI SCHEDULER ====================
   
-  // Generate Daily Schedule
+  // Generate Daily Schedule (Main endpoint for frontend)
+  app.get("/api/crm/daily-scheduler/generate", async (req, res) => {
+    try {
+      const { date } = req.query;
+      const schedule = await dailyAIScheduler.generateDailySchedule(date as string);
+      
+      res.json({
+        success: true,
+        data: schedule,
+        message: `برنامه روزانه با ${schedule.totalEntries} ورودی تولید شد`
+      });
+    } catch (error) {
+      console.error('Error generating daily schedule:', error);
+      res.status(500).json({ error: 'خطا در تولید برنامه روزانه' });
+    }
+  });
+  
+  // Generate Daily Schedule (Legacy endpoint)
   app.get("/api/crm/scheduler/daily", async (req, res) => {
     try {
       const { date } = req.query;
@@ -783,6 +800,28 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching learning patterns:', error);
       res.status(500).json({ error: 'خطا در دریافت الگوهای یادگیری' });
+    }
+  });
+
+  // Generate Learning-Based Instructions
+  app.post("/api/crm/learning/generate-instructions", async (req, res) => {
+    try {
+      const { representativeId } = req.body;
+      
+      if (!representativeId) {
+        return res.status(400).json({ error: 'شناسه نماینده الزامی است' });
+      }
+      
+      const instructions = await adaptiveLearningService.generateDailyInstructions();
+      
+      res.json({
+        success: true,
+        data: instructions,
+        message: 'دستورالعمل‌های مبتنی بر یادگیری تولید شد'
+      });
+    } catch (error) {
+      console.error('Error generating learning instructions:', error);
+      res.status(500).json({ error: 'خطا در تولید دستورالعمل‌ها' });
     }
   });
 
