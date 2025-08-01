@@ -302,14 +302,14 @@ export class PersianAIEngine {
 
   // متدهای کمکی محاسبات
   private async calculateSalesPerformance(rep: Representative): Promise<number> {
-    const totalSales = parseFloat(rep.totalSales.toString()) || 0;
+    const totalSales = parseFloat((rep.totalSales || 0).toString());
     const avgSales = 50000000; // میانگین فروش (نیاز به محاسبه واقعی)
     return Math.min(100, (totalSales / avgSales) * 100);
   }
 
   private async calculatePaymentScore(rep: Representative): Promise<number> {
-    const debt = parseFloat(rep.totalDebt.toString()) || 0;
-    const sales = parseFloat(rep.totalSales.toString()) || 0;
+    const debt = parseFloat((rep.totalDebt || 0).toString());
+    const sales = parseFloat((rep.totalSales || 0).toString());
     if (sales === 0) return 50;
     const debtRatio = debt / sales;
     return Math.max(0, 100 - (debtRatio * 100));

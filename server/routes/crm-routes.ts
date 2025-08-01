@@ -7,6 +7,7 @@ import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
 import { representatives } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
 import { taskManagementService, TaskWithDetails } from "../services/task-management-service";
+import { performanceAnalyticsService } from "../services/performance-analytics-service";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
@@ -477,6 +478,66 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('خطا در تحلیل وظایف:', error);
       res.status(500).json({ error: 'خطا در دریافت آمار وظایف' });
+    }
+  });
+
+  // ==================== PERFORMANCE ANALYTICS ====================
+  
+  app.get("/api/crm/analytics/representative/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { period = 'monthly', includeInsights = 'true' } = req.query;
+      
+      const performanceMetrics = await performanceAnalyticsService.analyzeRepresentativePerformance(
+        parseInt(id as string),
+        period as string,
+        includeInsights === 'true'
+      );
+      
+      res.json(performanceMetrics);
+    } catch (error) {
+      console.error('Error fetching representative analytics:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار نماینده' });
+    }
+  });
+
+  app.get("/api/crm/analytics/team", async (req, res) => {
+    try {
+      const { period = 'monthly', includeForecasting = 'true' } = req.query;
+      
+      const teamReport = await performanceAnalyticsService.generateTeamPerformanceReport(
+        period as string,
+        includeForecasting === 'true'
+      );
+      
+      res.json(teamReport);
+    } catch (error) {
+      console.error('Error fetching team analytics:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار تیم' });
+    }
+  });
+
+  app.get("/api/crm/analytics/dashboard", async (req, res) => {
+    try {
+      // Get summary analytics for dashboard
+      const teamReport = await performanceAnalyticsService.generateTeamPerformanceReport('monthly', false);
+      
+      const dashboardData = {
+        teamOverview: teamReport.overallMetrics,
+        topPerformers: teamReport.topPerformers.slice(0, 3),
+        criticalAlerts: teamReport.underPerformers.length,
+        trendsData: {
+          salesGrowth: teamReport.overallMetrics.salesGrowth,
+          taskCompletion: teamReport.overallMetrics.taskCompletionRate,
+          culturalAlignment: teamReport.overallMetrics.culturalAlignmentAvg
+        },
+        departmentStats: teamReport.departmentBreakdown
+      };
+      
+      res.json(dashboardData);
+    } catch (error) {
+      console.error('Error fetching analytics dashboard:', error);
+      res.status(500).json({ error: 'خطا در دریافت داشبورد آمار' });
     }
   });
 }
