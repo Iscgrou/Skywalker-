@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useState, lazy } from "react";
+import { useState, useEffect, lazy } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -41,6 +41,13 @@ function CrmProtectedRoutes() {
   const { user, isLoading } = useCrmAuth();
   const [, setLocation] = useLocation();
 
+  // Use useEffect to handle redirect - avoid setState during render
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation('/');
+    }
+  }, [user, isLoading, setLocation]);
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -53,9 +60,8 @@ function CrmProtectedRoutes() {
     );
   }
 
-  // Redirect to login if not authenticated
+  // Return null while redirecting
   if (!user) {
-    setLocation('/');
     return null;
   }
 

@@ -6,6 +6,13 @@ MarFaNet is a comprehensive financial management system designed for managing in
 ## Recent Changes (2025-08-01)
 **🚀 DA VINCI v9.0 COMPREHENSIVE SYSTEM ENHANCEMENT - ALL PHASES COMPLETED:**
 
+**✅ CRITICAL BUG FIXES - Authentication & Routing (22:48 PM):**
+- **🔧 Fixed Bot import error**: Added missing Bot icon import to CRM Dashboard preventing white screen
+- **🔧 Resolved routing logic**: Implemented CrmProtectedRoutes with proper authentication checking
+- **🔧 Fixed React setState warning**: Moved setLocation calls to useEffect to prevent render-phase state updates
+- **🔧 Corrected redirect paths**: Changed from `/auth` to `/` for consistent login flow
+- **🔧 Enhanced error handling**: Proper TypeScript error resolution across all LSP diagnostics
+
 **✅ Phase 1 - Real Data Integration & Currency Standardization:**
 - **Currency Conversion**: Systematic Rial → Toman conversion across ALL CRM modules using CurrencyFormatter.formatForCRM
 - **Enhanced CRM Task Management**: Realistic statistics with dynamic data and Persian Cultural AI integration
