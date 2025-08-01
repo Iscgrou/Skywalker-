@@ -101,13 +101,18 @@ export default function UnifiedAuth() {
         // Try CRM login
         crmAuth.loginMutation.mutate(data, {
           onSuccess: (response) => {
+            console.log('CRM Login Success:', response);
             toast({
               title: "ورود موفق",
               description: "به پنل CRM خوش آمدید",
             });
-            setLocation('/crm/dashboard');
+            // Force navigation after successful CRM login
+            setTimeout(() => {
+              setLocation('/crm/dashboard');
+            }, 100);
           },
           onError: (error: any) => {
+            console.error('CRM Login Error:', error);
             toast({
               title: "خطا در ورود",
               description: "نام کاربری یا رمز عبور اشتباه است",

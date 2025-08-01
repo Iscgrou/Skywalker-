@@ -78,10 +78,12 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
       return await response.json();
     },
     onSuccess: (data) => {
+      console.log('CRM Auth Success - Setting user data:', data.user);
       queryClient.setQueryData(["/api/crm/auth/user"], data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/auth/user"] });
       
       toast({
-        title: "ورود موفق",
+        title: "ورود موفق", 
         description: `به ${data.user.panelType === 'ADMIN_PANEL' ? 'پنل ادمین' : 'پنل CRM'} خوش آمدید`,
       });
     },
