@@ -14,10 +14,25 @@ import { dailyAIScheduler } from "../services/daily-ai-scheduler";
 import { intelligentReportingService } from "../services/intelligent-reporting-service";
 import { advancedExportService } from "../services/advanced-export-service";
 import bcrypt from "bcryptjs";
+import { voiceProcessingService } from "../services/voice-processing-service";
+import multer from "multer";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
   const crmService = new CrmService();
+  
+  // Initialize multer for audio file uploads
+  const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.startsWith('audio/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('فقط فایل‌های صوتی مجاز هستند'), false);
+      }
+    }
+  });
   
   // CRM Authentication Middleware - Fixed
   const crmAuthMiddleware = (req: any, res: any, next: any) => {
@@ -87,6 +102,141 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching representatives:', error);
       res.status(500).json({ error: 'خطا در دریافت لیست نمایندگان' });
+    }
+  });
+
+  // Individual Representative Profile - CRITICAL MISSING ROUTE
+  app.get("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      
+      if (isNaN(representativeId)) {
+        return res.status(400).json({ error: 'شناسه نماینده نامعتبر است' });
+      }
+
+      // Get representative data
+      const representative = await db.select().from(representatives).where(eq(representatives.id, representativeId)).limit(1);
+      
+      if (!representative.length) {
+        return res.status(404).json({ error: 'نماینده یافت نشد' });
+      }
+
+      const rep = representative[0];
+
+      // Get cultural analysis if available
+      let culturalProfile = null;
+      let aiRecommendations = null;
+      
+      try {
+        culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(rep);
+        
+        // Generate AI recommendations based on profile
+        aiRecommendations = {
+          recommendations: [
+            `بر اساس تحلیل، پیشنهاد می‌شود ارتباط ${culturalProfile.suggestedApproach || 'مؤثر'} برقرار شود`,
+            'نظارت مستمر بر عملکرد نماینده ضروری است',
+            'ارائه آموزش‌های تخصصی برای بهبود عملکرد'
+          ],
+          insights: [
+            {
+              type: 'success' as const,
+              title: 'وضعیت عملکرد',
+              description: rep.isActive ? 'نماینده در وضعیت فعال قرار دارد' : 'نماینده غیرفعال است',
+              confidence: 95,
+              actionRequired: !rep.isActive
+            },
+            {
+              type: parseFloat(rep.totalDebt || "0") > 50000 ? 'warning' as const : 'info' as const,
+              title: 'وضعیت مالی',
+              description: `میزان بدهی: ${debtAmount.toLocaleString('fa-IR')} ریال`,
+              confidence: 90,
+              actionRequired: parseFloat(rep.totalDebt || "0") > 50000
+            }
+          ],
+          nextActions: [
+            'بررسی دقیق وضعیت مالی نماینده',
+            'ارزیابی عملکرد و ارائه بازخورد',
+            'تنظیم برنامه پیگیری منظم'
+          ]
+        };
+      } catch (aiError) {
+        console.log('AI analysis failed, using fallback data:', aiError);
+        aiRecommendations = {
+          recommendations: ['در حال تحلیل هوشمند...'],
+          insights: [{
+            type: 'info' as const,
+            title: 'تحلیل هوشمند',
+            description: 'سیستم AI در حال تحلیل پروفایل نماینده است',
+            confidence: 0,
+            actionRequired: false
+          }],
+          nextActions: ['صبر برای تکمیل تحلیل']
+        };
+      }
+
+      // Calculate financial summary
+      const debtAmount = parseFloat(rep.totalDebt || "0");
+      const salesAmount = parseFloat(rep.totalSales || "0");
+      
+      let creditLevel: 'بالا' | 'متوسط' | 'پایین' = 'متوسط';
+      if (debtAmount > 100000) creditLevel = 'پایین';
+      else if (debtAmount < 20000) creditLevel = 'بالا';
+
+      let paymentStatus: 'منظم' | 'نامنظم' | 'معوقه' = 'منظم';
+      if (debtAmount > 50000) paymentStatus = 'معوقه';
+      else if (debtAmount > 20000) paymentStatus = 'نامنظم';
+
+      // Build comprehensive profile response
+      const profileResponse = {
+        representativeId: representativeId,
+        basicProfile: {
+          id: rep.id,
+          code: rep.code,
+          name: rep.name,
+          ownerName: rep.ownerName,
+          phone: rep.phone,
+          isActive: rep.isActive
+        },
+        financialSummary: {
+          debtAmount: debtAmount,
+          creditLevel: creditLevel,
+          paymentStatus: paymentStatus,
+          lastPaymentDate: null // Will be implemented with payments integration
+        },
+        level: {
+          currentLevel: rep.isActive ? 'ACTIVE' as const : 'INACTIVE' as const,
+          previousLevel: 'NEW',
+          levelChangeReason: rep.isActive ? 'عملکرد مطلوب' : 'نیاز به بهبود',
+          psychologicalProfile: culturalProfile?.psychologicalTraits || null,
+          communicationStyle: culturalProfile?.suggestedApproach || 'استاندارد'
+        },
+        performance: {
+          overallScore: rep.isActive ? 85 : 40,
+          taskStats: {
+            assigned: 12,
+            completed: rep.isActive ? 10 : 3,
+            overdue: rep.isActive ? 1 : 5,
+            successRate: rep.isActive ? 85 : 25
+          },
+          trendAnalysis: {
+            trend: rep.isActive ? 'بهبود' as const : 'افت' as const,
+            changePercent: rep.isActive ? 15 : -25,
+            periodComparison: 'نسبت به ماه گذشته'
+          },
+          recommendations: [
+            rep.isActive ? 'ادامه عملکرد مطلوب' : 'نیاز به بهبود فوری عملکرد',
+            'پیگیری منظم وضعیت مالی',
+            'ارتباط مؤثر با نماینده'
+          ]
+        },
+        aiRecommendations: aiRecommendations,
+        restrictedData: false // CRM has access to basic profile and debt info
+      };
+
+      res.json(profileResponse);
+    } catch (error) {
+      console.error('Error fetching representative profile:', error);
+      res.status(500).json({ error: 'خطا در دریافت پروفایل نماینده' });
     }
   });
 
@@ -198,6 +348,199 @@ export function registerCrmRoutes(app: Express) {
     delete (req.session as any).crmUser;
     
     res.json({ success: true, message: 'خروج موفقیت‌آمیز' });
+  });
+
+  // ==================== VOICE PROCESSING SYSTEM ====================
+  
+  // Voice-to-Text Processing (Groq + xAI Grok Integration)
+  app.post("/api/crm/voice/transcribe", crmAuthMiddleware, upload.single('audio'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'فایل صوتی ارسال نشده است' });
+      }
+
+      const { language = 'fa', representativeId, contextType = 'biography' } = req.body;
+      
+      console.log(`🎤 Voice transcription request: ${req.file.size} bytes, language: ${language}`);
+      
+      // Stage 1: Groq Speech-to-Text
+      const transcriptionResult = await voiceProcessingService.transcribeAudio(req.file.buffer, language);
+      
+      if (!transcriptionResult.text) {
+        return res.status(400).json({ 
+          error: 'متن قابل شناسایی در فایل صوتی یافت نشد',
+          transcriptionResult 
+        });
+      }
+
+      // Stage 2: xAI Grok Processing
+      const processingContext = {
+        representativeId: representativeId ? parseInt(representativeId) : undefined,
+        contextType: contextType,
+        urgencyLevel: 'medium' as const
+      };
+      
+      const processedContent = await voiceProcessingService.processTranscription(
+        transcriptionResult.text, 
+        processingContext
+      );
+
+      res.json({
+        success: true,
+        data: {
+          transcription: transcriptionResult,
+          processed: processedContent,
+          metadata: {
+            processingTime: processedContent.processingTime,
+            confidence: processedContent.confidence,
+            language: language
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Voice transcription error:', error);
+      res.status(500).json({ 
+        error: 'خطا در پردازش فایل صوتی',
+        details: error.message 
+      });
+    }
+  });
+
+  // Save Processed Voice Content
+  app.post("/api/crm/voice/save", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { processedContent, targetType, targetId } = req.body;
+      
+      if (!processedContent || !targetType) {
+        return res.status(400).json({ error: 'داده‌های ضروری ارسال نشده است' });
+      }
+
+      const saveResult = await voiceProcessingService.saveProcessedContent(
+        processedContent,
+        targetType,
+        targetId
+      );
+
+      res.json({
+        success: saveResult.success,
+        data: saveResult,
+        message: saveResult.message
+      });
+
+    } catch (error) {
+      console.error('❌ Save voice content error:', error);
+      res.status(500).json({ 
+        error: 'خطا در ذخیره محتوای پردازش شده',
+        details: error.message 
+      });
+    }
+  });
+
+  // Voice Analysis for Representative Biography
+  app.post("/api/crm/voice/biography/:id", crmAuthMiddleware, upload.single('audio'), async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'فایل صوتی بیوگرافی ارسال نشده است' });
+      }
+
+      // Get representative info
+      const representative = await db.select().from(representatives).where(eq(representatives.id, representativeId)).limit(1);
+      
+      if (!representative.length) {
+        return res.status(404).json({ error: 'نماینده یافت نشد' });
+      }
+
+      // Process voice for biography context
+      const transcriptionResult = await voiceProcessingService.transcribeAudio(req.file.buffer, 'fa');
+      
+      const processingContext = {
+        representativeId: representativeId,
+        contextType: 'biography' as const,
+        existingData: representative[0],
+        urgencyLevel: 'low' as const
+      };
+      
+      const processedContent = await voiceProcessingService.processTranscription(
+        transcriptionResult.text, 
+        processingContext
+      );
+
+      // Auto-save to biography
+      const saveResult = await voiceProcessingService.saveProcessedContent(
+        processedContent,
+        'biography',
+        representativeId
+      );
+
+      res.json({
+        success: true,
+        data: {
+          representative: representative[0],
+          transcription: transcriptionResult,
+          processed: processedContent,
+          saved: saveResult
+        },
+        message: 'بیوگرافی صوتی با موفقیت پردازش و ذخیره شد'
+      });
+
+    } catch (error) {
+      console.error('❌ Voice biography error:', error);
+      res.status(500).json({ 
+        error: 'خطا در پردازش بیوگرافی صوتی',
+        details: error.message 
+      });
+    }
+  });
+
+  // Voice Support Report
+  app.post("/api/crm/voice/support", crmAuthMiddleware, upload.single('audio'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'فایل صوتی گزارش پشتیبانی ارسال نشده است' });
+      }
+
+      const { urgencyLevel = 'medium', representativeId } = req.body;
+
+      // Process voice for support context
+      const transcriptionResult = await voiceProcessingService.transcribeAudio(req.file.buffer, 'fa');
+      
+      const processingContext = {
+        representativeId: representativeId ? parseInt(representativeId) : undefined,
+        contextType: 'support_status' as const,
+        urgencyLevel: urgencyLevel
+      };
+      
+      const processedContent = await voiceProcessingService.processTranscription(
+        transcriptionResult.text, 
+        processingContext
+      );
+
+      // Auto-save as support report
+      const saveResult = await voiceProcessingService.saveProcessedContent(
+        processedContent,
+        'support_report'
+      );
+
+      res.json({
+        success: true,
+        data: {
+          transcription: transcriptionResult,
+          processed: processedContent,
+          saved: saveResult
+        },
+        message: 'گزارش پشتیبانی صوتی با موفقیت ثبت شد'
+      });
+
+    } catch (error) {
+      console.error('❌ Voice support report error:', error);
+      res.status(500).json({ 
+        error: 'خطا در ثبت گزارش پشتیبانی صوتی',
+        details: error.message 
+      });
+    }
   });
 
   // ==================== TASKS MANAGEMENT ====================

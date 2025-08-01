@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { apiRequest } from '@/lib/queryClient';
 import AIInsightsPanel from '@/components/crm/ai-insights-panel';
+import { CurrencyFormatter } from '@/lib/currency-formatter';
 
 interface RepresentativeProfile {
   representativeId: number;
@@ -302,8 +303,8 @@ export default function RepresentativeProfile() {
             <CardTitle className="text-sm">بدهی</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">
-              {profile.financialSummary.debtAmount.toLocaleString('fa-IR')} ریال
+            <div className="text-lg font-bold text-red-600">
+              {CurrencyFormatter.formatForCRM(profile.financialSummary.debtAmount)}
             </div>
             <div className="flex items-center gap-2 mt-1">
               <DollarSign className="h-3 w-3" />

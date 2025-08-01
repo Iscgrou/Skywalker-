@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Users, 
   Brain, 
@@ -25,6 +26,8 @@ import { Link, useLocation } from 'wouter';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { AdaptiveLearningDashboard } from '@/components/adaptive-learning-dashboard';
 import { DailySchedulerDashboard } from '@/components/daily-scheduler-dashboard';
+import { CurrencyFormatter } from '@/lib/currency-formatter';
+import { toPersianDigits } from '@/lib/persian-date';
 
 interface CrmDashboardData {
   summary: {
@@ -111,8 +114,11 @@ export default function CrmDashboard() {
     );
   }
 
+  // State for financial report
+  const [showFinancialReport, setShowFinancialReport] = useState(false);
+
   const formatNumber = (num: number) => {
-    return new Intl.NumberFormat('fa-IR').format(num);
+    return toPersianDigits(new Intl.NumberFormat('en-US').format(num));
   };
 
   return (
@@ -172,12 +178,17 @@ export default function CrmDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {formatNumber(dashboardData?.summary?.totalDebt || 0)} ریال
+              {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalDebt || 0)}
             </div>
             <p className="text-xs text-muted-foreground mb-3">
-              کل فروش: {formatNumber(dashboardData?.summary?.totalSales || 0)} ریال
+              کل فروش: {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalSales || 0)}
             </p>
-            <Button variant="outline" size="sm" className="w-full gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full gap-2"
+              onClick={() => setShowFinancialReport(true)}
+            >
               <TrendingUp className="h-4 w-4" />
               گزارش مالی
             </Button>
@@ -313,7 +324,7 @@ export default function CrmDashboard() {
                     </div>
                     <div className="text-left">
                       <div className="font-bold text-red-600">
-                        {formatNumber(rep.debtAmount)} ریال
+                        {CurrencyFormatter.formatForCRM(rep.debtAmount)}
                       </div>
                       <p className="text-xs text-muted-foreground">بدهی</p>
                     </div>
@@ -362,6 +373,112 @@ export default function CrmDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Financial Report Modal */}
+      <Dialog open={showFinancialReport} onOpenChange={setShowFinancialReport}>
+        <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              گزارش مالی جامع CRM
+            </DialogTitle>
+            <DialogDescription>
+              تحلیل مالی نمایندگان و وضعیت بدهی
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Financial Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">خلاصه مالی</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span>کل بدهی:</span>
+                    <span className="font-bold text-red-600">
+                      {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalDebt || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>کل فروش:</span>
+                    <span className="font-bold text-green-600">
+                      {CurrencyFormatter.formatForCRM(dashboardData?.summary?.totalSales || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span>خالص:</span>
+                    <span className="font-bold">
+                      {CurrencyFormatter.formatForCRM(
+                        (dashboardData?.summary?.totalSales || 0) - (dashboardData?.summary?.totalDebt || 0)
+                      )}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">وضعیت نمایندگان</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between">
+                    <span>کل نمایندگان:</span>
+                    <span className="font-bold">
+                      {formatNumber(dashboardData?.summary?.totalRepresentatives || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>فعال:</span>
+                    <span className="font-bold text-green-600">
+                      {formatNumber(dashboardData?.summary?.activeRepresentatives || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>غیرفعال:</span>
+                    <span className="font-bold text-orange-600">
+                      {formatNumber((dashboardData?.summary?.totalRepresentatives || 0) - (dashboardData?.summary?.activeRepresentatives || 0))}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Representative Financial Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">برترین بدهکاران</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {dashboardData?.representatives?.slice(0, 5).map((rep) => (
+                    <div key={rep.id} className="flex justify-between items-center p-2 border-b">
+                      <div>
+                        <span className="font-medium">{rep.name}</span>
+                        <span className="text-sm text-muted-foreground ml-2">({rep.code})</span>
+                      </div>
+                      <span className="font-bold text-red-600">
+                        {CurrencyFormatter.formatForCRM(rep.debtAmount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowFinancialReport(false)}>
+                بستن
+              </Button>
+              <Button>
+                صدور گزارش کامل
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
