@@ -10,10 +10,12 @@ import { apiRequest } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface CrmUser {
+  id?: number;
   username: string;
-  role: 'ADMIN' | 'CRM';
+  fullName?: string;
+  role: 'ADMIN' | 'CRM' | 'CRM_MANAGER';
   panelType: 'ADMIN_PANEL' | 'CRM_PANEL';
-  permissions: Permission[];
+  permissions: string[];
 }
 
 interface Permission {
@@ -132,15 +134,15 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
     if (user.role === 'ADMIN') return true;
     
     // Check specific permissions for CRM users
-    const permission = user.permissions?.find(p => 
-      p.resource === resource || p.resource === '*'
-    );
+    if (Array.isArray(user.permissions)) {
+      return user.permissions.includes(action) || user.permissions.includes('*');
+    }
     
-    return permission ? permission.actions.includes(action) : false;
+    return false;
   };
 
   const isAdmin = user?.role === 'ADMIN';
-  const isCrm = user?.role === 'CRM';
+  const isCrm = user?.role === 'CRM' || user?.role === 'CRM_MANAGER';
 
   return (
     <CrmAuthContext.Provider
