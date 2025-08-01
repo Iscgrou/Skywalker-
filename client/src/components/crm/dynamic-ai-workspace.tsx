@@ -38,6 +38,8 @@ import { apiRequest } from '@/lib/queryClient';
 import { CurrencyFormatter } from '@/lib/currency-formatter';
 import { toPersianDigits } from '@/lib/persian-date';
 
+
+
 interface AIWorkspaceData {
   activeContexts: AIContext[];
   currentFocus: string;
@@ -100,29 +102,33 @@ interface RealtimeMetrics {
   culturalAdaptationScore: number;
 }
 
-// Claymorphism Components
-const ClayCard = ({ className = '', children, ...props }: any) => (
+// Claymorphism Components - Use Base components with Clay styling
+const Card = ({ className = '', children, ...props }: any) => (
   <BaseCard className={`clay-card ${className}`} {...props}>{children}</BaseCard>
 );
 
-const ClayCardContent = ({ className = '', children, ...props }: any) => (
+const CardContent = ({ className = '', children, ...props }: any) => (
   <BaseCardContent className={className} {...props}>{children}</BaseCardContent>
 );
 
-const ClayCardHeader = ({ className = '', children, ...props }: any) => (
+const CardHeader = ({ className = '', children, ...props }: any) => (
   <BaseCardHeader className={className} {...props}>{children}</BaseCardHeader>
 );
 
-const ClayCardTitle = ({ className = '', children, ...props }: any) => (
+const CardTitle = ({ className = '', children, ...props }: any) => (
   <BaseCardTitle className={className} {...props}>{children}</BaseCardTitle>
 );
 
-const ClayButton = ({ className = '', variant = 'default', children, ...props }: any) => {
+const CardDescription = ({ className = '', children, ...props }: any) => (
+  <BaseCardDescription className={`text-gray-300 ${className}`} {...props}>{children}</BaseCardDescription>
+);
+
+const Button = ({ className = '', variant = 'default', children, ...props }: any) => {
   const clayVariant = variant === 'default' ? 'clay-primary' : `clay-${variant}`;
   return <BaseButton className={`clay-button ${clayVariant} ${className}`} {...props}>{children}</BaseButton>;
 };
 
-const ClayBadge = ({ className = '', children, ...props }: any) => (
+const Badge = ({ className = '', children, ...props }: any) => (
   <BaseBadge className={`clay-badge ${className}`} {...props}>{children}</BaseBadge>
 );
 
