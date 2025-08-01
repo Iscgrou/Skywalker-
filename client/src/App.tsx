@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import { CrmAuthProvider } from "./hooks/use-crm-auth";
+import { CrmAuthProvider, useCrmAuth } from "./hooks/use-crm-auth";
 
 // Layout components
 import Sidebar from "@/components/layout/sidebar";
@@ -35,6 +35,47 @@ import CrmAnalytics from "@/pages/crm-analytics";
 import CrmNotifications from "@/pages/crm-notifications";
 import PerformanceAnalytics from "@/pages/performance-analytics";
 import UnifiedAuth from "@/pages/unified-auth";
+
+// CRM Protected Routes Component
+function CrmProtectedRoutes() {
+  const { user, isLoading } = useCrmAuth();
+  const [, setLocation] = useLocation();
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">در حال بررسی احراز هویت CRM...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    setLocation('/');
+    return null;
+  }
+
+  // Render CRM routes if authenticated
+  return (
+    <Switch>
+      <Route path="/crm/dashboard" component={CrmDashboard} />
+      <Route path="/crm/representatives" component={RepresentativesList} />
+      <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
+      <Route path="/crm/tasks" component={CrmTasks} />
+      <Route path="/crm/analytics" component={CrmAnalytics} />
+      <Route path="/crm/performance-analytics" component={PerformanceAnalytics} />
+      <Route path="/crm/ai-workspace" component={lazy(() => import('./components/crm/dynamic-ai-workspace'))} />
+      <Route path="/crm/admin/ai-config" component={lazy(() => import('./components/crm/admin-ai-config'))} />
+      <Route path="/crm/advanced-analytics" component={lazy(() => import('./components/crm/advanced-analytics'))} />
+      <Route path="/crm/notifications" component={CrmNotifications} />
+      <Route path="/crm/*" component={NotFound} />
+    </Switch>
+  );
+}
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -85,23 +126,11 @@ function AuthenticatedRouter() {
     );
   }
 
-  // Handle CRM routes separately
+  // Handle CRM routes with authentication check
   if (isCrmRoute) {
     return (
       <CrmAuthProvider>
-        <Switch>
-          <Route path="/crm/dashboard" component={CrmDashboard} />
-          <Route path="/crm/representatives" component={RepresentativesList} />
-          <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
-          <Route path="/crm/tasks" component={CrmTasks} />
-          <Route path="/crm/analytics" component={CrmAnalytics} />
-          <Route path="/crm/performance-analytics" component={PerformanceAnalytics} />
-          <Route path="/crm/ai-workspace" component={lazy(() => import('./components/crm/dynamic-ai-workspace'))} />
-          <Route path="/crm/admin/ai-config" component={lazy(() => import('./components/crm/admin-ai-config'))} />
-          <Route path="/crm/advanced-analytics" component={lazy(() => import('./components/crm/advanced-analytics'))} />
-          <Route path="/crm/notifications" component={CrmNotifications} />
-          <Route path="/crm/*" component={NotFound} />
-        </Switch>
+        <CrmProtectedRoutes />
       </CrmAuthProvider>
     );
   }

@@ -20,7 +20,8 @@ import {
   Settings,
   Bell,
   LogOut,
-  BarChart3
+  BarChart3,
+  Bot
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -90,7 +91,7 @@ export default function CrmDashboard() {
   // Use useEffect to handle redirect - avoid setState during render
   useEffect(() => {
     if (!user) {
-      setLocation('/auth');
+      setLocation('/'); // Redirect to root login page
     }
   }, [user, setLocation]);
 
@@ -101,7 +102,7 @@ export default function CrmDashboard() {
 
   const handleLogout = () => {
     logoutMutation.mutate();
-    setLocation('/auth');
+    setLocation('/'); // Redirect to root login page
   };
 
   if (isLoading) {
