@@ -43,7 +43,9 @@ export function InvoiceManagement() {
   // دریافت لیست فاکتورها با اطلاعات batch
   const { data: invoices = [], isLoading, refetch } = useQuery({
     queryKey: ['/api/invoices/with-batch-info'],
-    queryFn: () => apiRequest('/api/invoices/with-batch-info')
+    queryFn: () => apiRequest('/api/invoices/with-batch-info'),
+    retry: 1,
+    retryOnMount: false
   });
 
   // Mutation برای حذف فاکتور
@@ -69,7 +71,7 @@ export function InvoiceManagement() {
   });
 
   // فیلتر کردن فاکتورها
-  const filteredInvoices = invoices.filter((invoice: Invoice) => {
+  const filteredInvoices = Array.isArray(invoices) ? invoices.filter((invoice: Invoice) => {
     const matchesSearch = 
       invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       invoice.representativeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -78,7 +80,7 @@ export function InvoiceManagement() {
     const matchesStatus = !statusFilter || invoice.status === statusFilter;
     
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
   // تابع کمکی برای نمایش وضعیت
   const getStatusBadge = (status: string) => {
@@ -175,14 +177,14 @@ export function InvoiceManagement() {
       {/* جدول فاکتورها */}
       <Card>
         <CardHeader>
-          <CardTitle>لیست فاکتورها ({filteredInvoices.length} فاکتور)</CardTitle>
+          <CardTitle>لیست فاکتورها ({Array.isArray(filteredInvoices) ? filteredInvoices.length : 0} فاکتور)</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">در حال بارگذاری...</div>
-          ) : filteredInvoices.length === 0 ? (
+          ) : !Array.isArray(filteredInvoices) || filteredInvoices.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              {invoices.length === 0 ? "هیچ فاکتوری یافت نشد" : "نتیجه‌ای برای جستجوی شما یافت نشد"}
+              {!Array.isArray(invoices) || invoices.length === 0 ? "هیچ فاکتوری یافت نشد" : "نتیجه‌ای برای جستجوی شما یافت نشد"}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -200,7 +202,7 @@ export function InvoiceManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredInvoices.map((invoice: Invoice) => (
+                  {Array.isArray(filteredInvoices) && filteredInvoices.map((invoice: Invoice) => (
                     <TableRow key={invoice.id}>
                       <TableCell className="font-mono">
                         {invoice.invoiceNumber}

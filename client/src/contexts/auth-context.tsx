@@ -19,8 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      const response = await apiRequest('POST', '/api/auth/login', credentials);
-      return response.json();
+      const response = await apiRequest('/api/auth/login', { method: 'POST', data: credentials });
+      return response;
     },
     onSuccess: () => {
       setIsAuthenticated(true);
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch("/api/auth/check");
+      const response = await fetch("/api/auth/check", { credentials: "include" });
       setIsAuthenticated(response.ok);
     } catch (error) {
       setIsAuthenticated(false);
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     } catch (error) {
       // Ignore logout errors
     } finally {
