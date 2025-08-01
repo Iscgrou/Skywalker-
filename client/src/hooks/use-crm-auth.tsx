@@ -60,10 +60,10 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/crm/auth/user"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("/api/crm/auth/user", { method: "GET" });
-        return await response.json();
+        const result = await apiRequest("/api/crm/auth/user", { method: "GET" });
+        return result;
       } catch (error: any) {
-        if (error.status === 401) {
+        if (error.message?.includes('401') || error.status === 401) {
           return undefined; // Not authenticated
         }
         throw error;
@@ -74,18 +74,17 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      const response = await apiRequest("/api/crm/auth/login", { method: "POST", data: credentials });
-      return await response.json();
+      console.log('CRM Login Request:', credentials);
+      const result = await apiRequest("/api/crm/auth/login", { method: "POST", data: credentials });
+      console.log('CRM Login Success Response:', result);
+      return result;
     },
     onSuccess: (data) => {
       console.log('CRM Auth Success - Setting user data:', data.user);
       queryClient.setQueryData(["/api/crm/auth/user"], data.user);
       queryClient.invalidateQueries({ queryKey: ["/api/crm/auth/user"] });
       
-      toast({
-        title: "ورود موفق", 
-        description: `به ${data.user.panelType === 'ADMIN_PANEL' ? 'پنل ادمین' : 'پنل CRM'} خوش آمدید`,
-      });
+      // Don't show duplicate toast here - let the unified-auth page handle it
     },
     onError: (error: any) => {
       let errorMessage = "خطا در ورود به سیستم";
