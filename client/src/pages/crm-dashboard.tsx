@@ -67,12 +67,19 @@ export default function CrmDashboard() {
   
   const { data: dashboardData, isLoading, error } = useQuery<CrmDashboardData>({
     queryKey: ['/api/crm/dashboard'],
-    refetchInterval: 30000 // Auto-refresh every 30 seconds
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    enabled: !!user // Only run query if user is authenticated
   });
 
-  // Check authentication
+  // Use useEffect to handle redirect - avoid setState during render
+  useEffect(() => {
+    if (!user) {
+      setLocation('/auth');
+    }
+  }, [user, setLocation]);
+
+  // Return early if no user - but don't redirect in render
   if (!user) {
-    setLocation('/auth');
     return null;
   }
 

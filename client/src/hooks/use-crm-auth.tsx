@@ -56,20 +56,22 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-  } = useQuery<CrmUser | undefined, Error>({
+  } = useQuery<CrmUser | null, Error>({
     queryKey: ["/api/crm/auth/user"],
     queryFn: async () => {
       try {
         const result = await apiRequest("/api/crm/auth/user", { method: "GET" });
-        return result;
+        return result || null; // Ensure we never return undefined
       } catch (error: any) {
         if (error.message?.includes('401') || error.status === 401) {
-          return undefined; // Not authenticated
+          return null; // Not authenticated - return null instead of undefined
         }
         throw error;
       }
     },
-    retry: false
+    retry: false,
+    staleTime: 0, // Always fetch fresh data
+    placeholderData: null // Use null as placeholder to avoid undefined
   });
 
   const loginMutation = useMutation({
