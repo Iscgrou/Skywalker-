@@ -63,8 +63,6 @@ export const invoices = pgTable("invoices", {
   usageData: json("usage_data"), // Raw JSON data from uploaded file
   sentToTelegram: boolean("sent_to_telegram").default(false),
   telegramSentAt: timestamp("telegram_sent_at"),
-  // فاز ۱: متادیتای دوره‌ای
-  periodInfo: json("period_info"), // اطلاعات دوره شامل period_start, period_end, batch_summary
   createdAt: timestamp("created_at").defaultNow()
 });
 
