@@ -6,6 +6,7 @@ import { xaiGrokEngine } from "../services/xai-grok-engine";
 import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
 import { representatives } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
+import { taskManagementService, TaskWithDetails } from "../services/task-management-service";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
@@ -27,9 +28,10 @@ export function registerCrmRoutes(app: Express) {
       const { search, status, level, sortBy } = req.query;
       
       let query = db.select().from(representatives);
+      let conditions = [];
       
       if (search) {
-        query = query.where(
+        conditions.push(
           or(
             like(representatives.name, `%${search}%`),
             like(representatives.code, `%${search}%`),
@@ -39,9 +41,13 @@ export function registerCrmRoutes(app: Express) {
       }
       
       if (status === 'active') {
-        query = query.where(eq(representatives.isActive, true));
+        conditions.push(eq(representatives.isActive, true));
       } else if (status === 'inactive') {
-        query = query.where(eq(representatives.isActive, false));
+        conditions.push(eq(representatives.isActive, false));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
       }
       
       // Add sorting
@@ -308,6 +314,169 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('خطا در ارزیابی سطح:', error);
       res.status(500).json({ error: 'خطا در ارزیابی سطح نماینده' });
+    }
+  });
+
+  // ==================== INTELLIGENT TASK MANAGEMENT - PHASE 2 ====================
+  
+  // Get all tasks with filters
+  app.get("/api/crm/tasks", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { status, priority, representativeId } = req.query;
+      
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (priority) filters.priority = priority;
+      if (representativeId) filters.representativeId = parseInt(representativeId as string);
+      
+      const tasks = await taskManagementService.getAllTasks(filters);
+      
+      res.json({
+        success: true,
+        data: tasks,
+        count: tasks.length
+      });
+    } catch (error) {
+      console.error('خطا در دریافت وظایف:', error);
+      res.status(500).json({ error: 'خطا در دریافت لیست وظایف' });
+    }
+  });
+
+  // Get tasks for specific representative
+  app.get("/api/crm/representative/:id/tasks", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      const { status, priority, taskType } = req.query;
+      
+      const filters: any = {};
+      if (status) filters.status = status;
+      if (priority) filters.priority = priority;
+      if (taskType) filters.taskType = taskType;
+      
+      const tasks = await taskManagementService.getRepresentativeTasks(representativeId, filters);
+      
+      res.json({
+        success: true,
+        data: tasks,
+        count: tasks.length
+      });
+    } catch (error) {
+      console.error('خطا در دریافت وظایف نماینده:', error);
+      res.status(500).json({ error: 'خطا در دریافت وظایف نماینده' });
+    }
+  });
+
+  // Generate task recommendations for representative
+  app.post("/api/crm/representative/:id/task-recommendations", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      const recommendations = await taskManagementService.generateTaskRecommendations(representativeId);
+      
+      res.json({
+        success: true,
+        data: recommendations,
+        count: recommendations.length
+      });
+    } catch (error) {
+      console.error('خطا در تولید پیشنهادات وظایف:', error);
+      res.status(500).json({ error: 'خطا در تولید پیشنهادات وظایف' });
+    }
+  });
+
+  // Create intelligent task
+  app.post("/api/crm/tasks", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { representativeId, ...taskData } = req.body;
+      
+      const newTask = await taskManagementService.createIntelligentTask(representativeId, taskData);
+      
+      res.json({
+        success: true,
+        data: newTask,
+        message: 'وظیفه هوشمند با موفقیت ایجاد شد'
+      });
+    } catch (error) {
+      console.error('خطا در ایجاد وظیفه:', error);
+      res.status(500).json({ error: 'خطا در ایجاد وظیفه هوشمند' });
+    }
+  });
+
+  // Update task status
+  app.patch("/api/crm/tasks/:taskId/status", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { taskId } = req.params;
+      const { status, completionNotes } = req.body;
+      
+      const updatedTask = await taskManagementService.updateTaskStatus(taskId, status, completionNotes);
+      
+      res.json({
+        success: true,
+        data: updatedTask,
+        message: 'وضعیت وظیفه به‌روزرسانی شد'
+      });
+    } catch (error) {
+      console.error('خطا در به‌روزرسانی وظیفه:', error);
+      res.status(500).json({ error: 'خطا در به‌روزرسانی وضعیت وظیفه' });
+    }
+  });
+
+  // Task analytics and performance metrics
+  app.get("/api/crm/tasks/analytics", crmAuthMiddleware, async (req, res) => {
+    try {
+      // Get task completion statistics
+      const allTasks = await taskManagementService.getAllTasks();
+      
+      const analytics = {
+        totalTasks: allTasks.length,
+        completedTasks: allTasks.filter(t => t.status === 'COMPLETED').length,
+        pendingTasks: allTasks.filter(t => t.status === 'PENDING').length,
+        inProgressTasks: allTasks.filter(t => t.status === 'IN_PROGRESS').length,
+        overdueTasks: allTasks.filter(t => {
+          return t.status !== 'COMPLETED' && new Date(t.dueDate) < new Date();
+        }).length,
+        
+        // Priority distribution
+        highPriorityTasks: allTasks.filter(t => t.priority === 'HIGH').length,
+        mediumPriorityTasks: allTasks.filter(t => t.priority === 'MEDIUM').length,
+        lowPriorityTasks: allTasks.filter(t => t.priority === 'LOW').length,
+        urgentTasks: allTasks.filter(t => t.priority === 'URGENT').length,
+        
+        // Task type distribution
+        taskTypeDistribution: {
+          FOLLOW_UP: allTasks.filter(t => t.taskType === 'FOLLOW_UP').length,
+          RELATIONSHIP_BUILDING: allTasks.filter(t => t.taskType === 'RELATIONSHIP_BUILDING').length,
+          SKILL_DEVELOPMENT: allTasks.filter(t => t.taskType === 'SKILL_DEVELOPMENT').length,
+          PERFORMANCE_REVIEW: allTasks.filter(t => t.taskType === 'PERFORMANCE_REVIEW').length,
+          CULTURAL_ADAPTATION: allTasks.filter(t => t.taskType === 'CULTURAL_ADAPTATION').length
+        },
+        
+        // Average metrics
+        averageAiConfidence: allTasks.reduce((sum, t) => sum + t.aiConfidenceScore, 0) / (allTasks.length || 1),
+        averageXpReward: allTasks.reduce((sum, t) => sum + t.xpReward, 0) / (allTasks.length || 1),
+        averageDifficulty: allTasks.reduce((sum, t) => sum + t.difficultyLevel, 0) / (allTasks.length || 1),
+        
+        // Recent activity
+        tasksCreatedToday: allTasks.filter(t => {
+          const today = new Date();
+          const taskDate = new Date(t.createdAt);
+          return taskDate.toDateString() === today.toDateString();
+        }).length,
+        
+        tasksCompletedToday: allTasks.filter(t => {
+          if (!t.completedAt) return false;
+          const today = new Date();
+          const completedDate = new Date(t.completedAt);
+          return completedDate.toDateString() === today.toDateString();
+        }).length
+      };
+      
+      res.json({
+        success: true,
+        data: analytics
+      });
+    } catch (error) {
+      console.error('خطا در تحلیل وظایف:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار وظایف' });
     }
   });
 }
