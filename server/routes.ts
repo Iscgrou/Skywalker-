@@ -138,13 +138,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req.session as any).authenticated = true;
       (req.session as any).userId = adminUser.id;
       (req.session as any).username = adminUser.username;
+      (req.session as any).role = adminUser.role || 'ADMIN';
+      (req.session as any).permissions = adminUser.permissions || [];
 
       res.json({ 
         success: true, 
         message: "ورود موفقیت‌آمیز",
         user: {
           id: adminUser.id,
-          username: adminUser.username
+          username: adminUser.username,
+          role: adminUser.role || 'ADMIN',
+          permissions: adminUser.permissions || [],
+          hasFullAccess: adminUser.role === 'SUPER_ADMIN' || (Array.isArray(adminUser.permissions) && adminUser.permissions.includes('FULL_ACCESS'))
         }
       });
     } catch (error) {
@@ -170,7 +175,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authenticated: true, 
         user: { 
           id: (req.session as any).userId, 
-          username: (req.session as any).username 
+          username: (req.session as any).username,
+          role: (req.session as any).role || 'ADMIN',
+          permissions: (req.session as any).permissions || [],
+          hasFullAccess: (req.session as any).role === 'SUPER_ADMIN' || (Array.isArray((req.session as any).permissions) && (req.session as any).permissions.includes('FULL_ACCESS'))
         } 
       });
     } else {

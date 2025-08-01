@@ -130,6 +130,8 @@ export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  role: text("role").default("ADMIN"), // "ADMIN", "SUPER_ADMIN", "VIEWER"
+  permissions: json("permissions").default(["FINANCIAL_MANAGEMENT", "REPORTS"]), // Array of permissions
   isActive: boolean("is_active").default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow()

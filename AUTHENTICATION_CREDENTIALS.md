@@ -11,13 +11,19 @@ Password: 8679
 Username: admin  
 Password: 8679
 ```
-**دسترسی‌ها:**
-- مدیریت کامل فاکتورها و پرداخت‌ها
-- مدیریت نمایندگان و شرکای فروش
-- دسترسی به تمام گزارش‌های مالی
-- تنظیمات سیستم و کاربران
-- مدیریت batch های فاکتور
-- دسترسی به AI Assistant
+**دسترسی‌ها (SUPER_ADMIN):**
+- ✅ FULL_ACCESS: دسترسی کامل بدون محدودیت
+- ✅ FINANCIAL_MANAGEMENT: مدیریت کامل مالی
+- ✅ USER_MANAGEMENT: مدیریت کاربران
+- ✅ SYSTEM_SETTINGS: تنظیمات سیستم
+- ✅ REPORTS: تمام گزارش‌ها
+- ✅ AI_ASSISTANT: دستیار هوشمند
+- ✅ INVOICE_MANAGEMENT: مدیریت فاکتورها
+- ✅ PAYMENT_MANAGEMENT: مدیریت پرداخت‌ها
+- ✅ REPRESENTATIVE_MANAGEMENT: مدیریت نمایندگان
+- ✅ BATCH_PROCESSING: پردازش دسته‌ای
+- ✅ EXPORT_REPORTS: خروجی گزارش‌ها
+- ✅ DATABASE_ACCESS: دسترسی پایگاه داده
 
 ### 🎯 پنل CRM (دسترسی محدود)
 ```
