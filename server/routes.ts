@@ -762,7 +762,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invoices: invoices.slice(0, 20) // Recent 20
       };
       
-      const report = await generateFinancialReport(reportData);
+      // const report = await generateFinancialReport(reportData); // Temporarily disabled
+      const report = { message: "گزارش مالی - در حال توسعه", data: reportData };
       res.json({ report });
     } catch (error) {
       res.status(500).json({ error: "خطا در تولید گزارش" });

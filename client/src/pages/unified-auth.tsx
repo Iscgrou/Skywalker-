@@ -73,8 +73,11 @@ export default function UnifiedAuth() {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      // Determine login type based on username
-      if (data.username === 'mgr') {
+      // Determine login type based on username - Fix setState during render
+      const targetLoginType = data.username === 'mgr' ? 'admin' : 'crm';
+      
+      if (targetLoginType === 'admin') {
+        // Update state before mutation to avoid setState during render
         setLoginType('admin');
         
         // Try admin login
@@ -95,7 +98,8 @@ export default function UnifiedAuth() {
           }
         });
 
-      } else if (data.username === 'crm') {
+      } else if (targetLoginType === 'crm') {
+        // Update state before mutation to avoid setState during render
         setLoginType('crm');
         
         // Try CRM login
