@@ -230,8 +230,8 @@ export default function Settings() {
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string, value: string }) => {
-      const response = await apiRequest('PUT', `/api/settings/${key}`, { value });
-      return response.json();
+      const response = await apiRequest(`/api/settings/${key}`, { method: 'PUT', data: { value } });
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -252,8 +252,8 @@ export default function Settings() {
   const testTelegramMutation = useMutation({
     mutationFn: async () => {
       // This would test the Telegram connection
-      const response = await apiRequest('POST', '/api/test-telegram');
-      return response.json();
+      const response = await apiRequest('/api/test-telegram', { method: 'POST' });
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -281,8 +281,8 @@ export default function Settings() {
   // xAI Grok API mutations
   const testGrokConnectionMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/settings/xai-grok/test');
-      return response.json();
+      const response = await apiRequest('/api/settings/xai-grok/test', { method: 'POST' });
+      return response;
     },
     onSuccess: (data) => {
       toast({
@@ -302,10 +302,11 @@ export default function Settings() {
 
   const onAiSubmit = async (data: AiSettingsData) => {
     try {
-      const response = await apiRequest('POST', '/api/settings/xai-grok/configure', { 
-        apiKey: data.xaiApiKey 
+      const response = await apiRequest('/api/settings/xai-grok/configure', { 
+        method: 'POST',
+        data: { apiKey: data.xaiApiKey }
       });
-      const result = await response.json();
+      const result = response;
       
       await updateSettingMutation.mutateAsync({ key: 'ai_auto_analysis', value: data.enableAutoAnalysis.toString() });
       await updateSettingMutation.mutateAsync({ key: 'ai_analysis_frequency', value: data.analysisFrequency });
@@ -326,8 +327,8 @@ export default function Settings() {
   // Data Reset Functions
   const fetchDataCountsMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/data-counts');
-      return response.json();
+      const response = await apiRequest('/api/admin/data-counts', { method: 'GET' });
+      return response;
     },
     onSuccess: (data) => {
       setDataCounts(data);
@@ -344,8 +345,8 @@ export default function Settings() {
 
   const resetDataMutation = useMutation({
     mutationFn: async (resetOptions: DataResetData) => {
-      const response = await apiRequest('POST', '/api/admin/reset-data', resetOptions);
-      return response.json();
+      const response = await apiRequest('/api/admin/reset-data', { method: 'POST', data: resetOptions });
+      return response;
     },
     onSuccess: (data) => {
       toast({
