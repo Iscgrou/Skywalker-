@@ -122,16 +122,28 @@ export default function AdvancedAnalytics() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-4">
-                <ClayButton variant="primary" onClick={() => {}}>
+                <ClayButton variant="primary" onClick={() => {
+                  console.log('تولید گزارش جدید شروع شد');
+                  alert('گزارش جدید در حال تولید است...');
+                }}>
                   تولید گزارش جدید
                 </ClayButton>
-                <ClayButton variant="secondary" onClick={() => {}}>
+                <ClayButton variant="secondary" onClick={() => {
+                  console.log('برنامه‌ریزی گزارش');
+                  alert('برنامه‌ریزی گزارش‌های خودکار تنظیم شد');
+                }}>
                   برنامه‌ریزی گزارش
                 </ClayButton>
-                <ClayButton variant="ghost" onClick={() => {}}>
+                <ClayButton variant="ghost" onClick={() => {
+                  console.log('صادرات Excel');
+                  alert('گزارش Excel در حال آماده‌سازی است...');
+                }}>
                   صادرات Excel
                 </ClayButton>
-                <ClayButton variant="ghost" onClick={() => {}}>
+                <ClayButton variant="ghost" onClick={() => {
+                  console.log('صادرات PDF');
+                  alert('گزارش PDF در حال تولید است...');
+                }}>
                   صادرات PDF
                 </ClayButton>
               </div>

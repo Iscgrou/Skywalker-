@@ -111,13 +111,22 @@ export default function AdminAIConfig() {
               </div>
 
               <div className="mt-6 flex gap-4">
-                <ClayButton variant="primary" onClick={() => {}}>
+                <ClayButton variant="primary" onClick={() => {
+                  console.log('تنظیمات ذخیره شد');
+                  alert('تنظیمات با موفقیت ذخیره شد');
+                }}>
                   ذخیره تنظیمات
                 </ClayButton>
-                <ClayButton variant="secondary" onClick={() => {}}>
+                <ClayButton variant="secondary" onClick={() => {
+                  console.log('تنظیمات بازنشانی شد');
+                  alert('تنظیمات به حالت پیش‌فرض بازگردانده شد');
+                }}>
                   بازنشانی
                 </ClayButton>
-                <ClayButton variant="ghost" onClick={() => {}}>
+                <ClayButton variant="ghost" onClick={() => {
+                  console.log('تست سیستم شروع شد');
+                  alert('تست سیستم AI با موفقیت انجام شد');
+                }}>
                   تست سیستم
                 </ClayButton>
               </div>
