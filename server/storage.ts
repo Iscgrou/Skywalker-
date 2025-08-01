@@ -71,8 +71,11 @@ export interface IStorage {
   getBatchInvoices(batchId: number): Promise<Invoice[]>;
   generateBatchCode(periodStart: string): Promise<string>;
 
-  // Invoices - بهبود یافته با پشتیبانی دوره‌ای
+  // Invoices - بهبود یافته با پشتیبانی دوره‌ای و مدیریت دستی
   getInvoices(): Promise<Invoice[]>;
+  getInvoice(id: number): Promise<Invoice | undefined>; // فاز ۲
+  updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice>; // فاز ۲
+  deleteInvoice(id: number): Promise<void>; // فاز ۲
   getInvoicesByRepresentative(repId: number): Promise<Invoice[]>;
   getInvoicesByBatch(batchId: number): Promise<Invoice[]>;
   getInvoicesForTelegram(): Promise<Invoice[]>; // Unsent invoices
@@ -544,13 +547,39 @@ export class DatabaseStorage implements IStorage {
     return newInvoice;
   }
 
+  // فاز ۲: Get single invoice method
+  async getInvoice(id: number): Promise<Invoice | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+        return invoice || undefined;
+      },
+      'getInvoice'
+    );
+  }
+
   async updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice> {
-    const [updated] = await db
-      .update(invoices)
-      .set(invoice)
-      .where(eq(invoices.id, id))
-      .returning();
-    return updated;
+    return await withDatabaseRetry(
+      async () => {
+        const [updated] = await db
+          .update(invoices)
+          .set({ ...invoice, updatedAt: new Date() })
+          .where(eq(invoices.id, id))
+          .returning();
+        return updated;
+      },
+      'updateInvoice'
+    );
+  }
+
+  // فاز ۲: Delete invoice method
+  async deleteInvoice(id: number): Promise<void> {
+    await withDatabaseRetry(
+      async () => {
+        await db.delete(invoices).where(eq(invoices.id, id));
+      },
+      'deleteInvoice'
+    );
   }
 
   async markInvoicesAsSentToTelegram(invoiceIds: number[]): Promise<void> {

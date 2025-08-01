@@ -12,7 +12,8 @@ import {
   Shield,
   LogOut,
   Menu,
-  X
+  X,
+  Edit
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const navigation = [
   { name: "داشبورد", href: "/dashboard", icon: BarChart3 },
   { name: "نمایندگان", href: "/representatives", icon: Users },
   { name: "فاکتورها", href: "/invoices", icon: FileText },
+  { name: "مدیریت فاکتورها", href: "/invoice-management", icon: Edit },
   { name: "پرداخت‌ها", href: "/payments", icon: CreditCard },
   { name: "همکاران فروش", href: "/sales-partners", icon: Handshake },
   { name: "گزارشات", href: "/reports", icon: ChartBar },

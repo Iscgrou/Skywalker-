@@ -580,6 +580,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // فاز ۲: Manual invoice creation API - ایجاد فاکتور دستی
+  app.post("/api/invoices/create-manual", requireAuth, async (req, res) => {
+    try {
+      console.log('🔧 فاز ۲: ایجاد فاکتور دستی');
+      const validatedData = insertInvoiceSchema.parse(req.body);
+      
+      // Check if representative exists
+      const representative = await storage.getRepresentative(validatedData.representativeId);
+      if (!representative) {
+        return res.status(404).json({ error: "نماینده یافت نشد" });
+      }
+
+      // Create manual invoice
+      const invoice = await storage.createInvoice({
+        ...validatedData,
+        status: validatedData.status || "unpaid",
+        usageData: validatedData.usageData || { 
+          type: "manual",
+          description: "فاکتور ایجاد شده به صورت دستی",
+          createdBy: (req.session as any)?.user?.username || 'admin',
+          createdAt: new Date().toISOString()
+        }
+      });
+
+      // Update representative financial data
+      await storage.updateRepresentativeFinancials(representative.id);
+
+      await storage.createActivityLog({
+        type: "manual_invoice_created",
+        description: `فاکتور دستی برای ${representative.name} به مبلغ ${validatedData.amount} ایجاد شد`,
+        relatedId: invoice.id,
+        metadata: {
+          representativeCode: representative.code,
+          amount: validatedData.amount,
+          issueDate: validatedData.issueDate,
+          createdBy: (req.session as any)?.user?.username || 'admin'
+        }
+      });
+
+      res.json({
+        success: true,
+        invoice: {
+          ...invoice,
+          representativeName: representative.name,
+          representativeCode: representative.code
+        }
+      });
+    } catch (error) {
+      console.error('Error creating manual invoice:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
+      } else {
+        res.status(500).json({ error: "خطا در ایجاد فاکتور دستی" });
+      }
+    }
+  });
+
+  // فاز ۲: Invoice editing API - ویرایش فاکتور
+  app.put("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      console.log('🔧 فاز ۲: ویرایش فاکتور');
+      const invoiceId = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      // Get original invoice for audit trail
+      const originalInvoice = await storage.getInvoice(invoiceId);
+      if (!originalInvoice) {
+        return res.status(404).json({ error: "فاکتور یافت نشد" });
+      }
+
+      // Update invoice
+      const updatedInvoice = await storage.updateInvoice(invoiceId, updateData);
+      
+      // Update representative financial data if amount changed
+      if (updateData.amount && parseFloat(updateData.amount) !== parseFloat(originalInvoice.amount)) {
+        await storage.updateRepresentativeFinancials(originalInvoice.representativeId);
+      }
+
+      // Log the edit
+      await storage.createActivityLog({
+        type: "invoice_edited",
+        description: `فاکتور ${originalInvoice.invoiceNumber} ویرایش شد`,
+        relatedId: invoiceId,
+        metadata: {
+          originalAmount: originalInvoice.amount,
+          newAmount: updateData.amount,
+          originalStatus: originalInvoice.status,
+          newStatus: updateData.status,
+          editedBy: (req.session as any)?.user?.username || 'admin',
+          changes: Object.keys(updateData)
+        }
+      });
+
+      res.json({
+        success: true,
+        invoice: updatedInvoice
+      });
+    } catch (error) {
+      console.error('Error updating invoice:', error);
+      res.status(500).json({ error: "خطا در ویرایش فاکتور" });
+    }
+  });
+
+  // فاز ۲: Delete invoice API - حذف فاکتور
+  app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      console.log('🔧 فاز ۲: حذف فاکتور');
+      const invoiceId = parseInt(req.params.id);
+      
+      // Get invoice details for audit
+      const invoice = await storage.getInvoice(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ error: "فاکتور یافت نشد" });
+      }
+
+      await storage.deleteInvoice(invoiceId);
+
+      // Update representative financial data
+      await storage.updateRepresentativeFinancials(invoice.representativeId);
+
+      await storage.createActivityLog({
+        type: "invoice_deleted",
+        description: `فاکتور ${invoice.invoiceNumber} حذف شد`,
+        relatedId: invoiceId,
+        metadata: {
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          representativeId: invoice.representativeId,
+          deletedBy: (req.session as any)?.user?.username || 'admin'
+        }
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      res.status(500).json({ error: "خطا در حذف فاکتور" });
+    }
+  });
+
+  // فاز ۲: Get single invoice details API
+  app.get("/api/invoices/:id", requireAuth, async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.id);
+      const invoice = await storage.getInvoice(invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "فاکتور یافت نشد" });
+      }
+
+      // Get representative info
+      const representative = await storage.getRepresentative(invoice.representativeId);
+
+      res.json({
+        ...invoice,
+        representativeName: representative?.name,
+        representativeCode: representative?.code
+      });
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+      res.status(500).json({ error: "خطا در دریافت جزئیات فاکتور" });
+    }
+  });
+
+  // فاز ۲: Get invoices with batch information API
+  app.get("/api/invoices/with-batch-info", requireAuth, async (req, res) => {
+    try {
+      console.log('🔧 فاز ۲: دریافت فاکتورها با اطلاعات batch');
+      
+      // Get all invoices with representative and batch info
+      const invoices = await storage.getInvoices();
+      const representatives = await storage.getRepresentatives();
+      const batches = await storage.getInvoiceBatches();
+      
+      // Create lookup maps for performance
+      const repMap = new Map(representatives.map(rep => [rep.id, rep]));
+      const batchMap = new Map(batches.map(batch => [batch.id, batch]));
+      
+      // Enhance invoices with additional info
+      const enhancedInvoices = invoices.map(invoice => {
+        const rep = repMap.get(invoice.representativeId);
+        const batch = invoice.batchId ? batchMap.get(invoice.batchId) : null;
+        
+        return {
+          ...invoice,
+          representativeName: rep?.name,
+          representativeCode: rep?.code,
+          batch: batch ? {
+            id: batch.id,
+            batchName: batch.batchName,
+            batchCode: batch.batchCode
+          } : null
+        };
+      });
+      
+      res.json(enhancedInvoices);
+    } catch (error) {
+      console.error('Error fetching invoices with batch info:', error);
+      res.status(500).json({ error: "خطا در دریافت اطلاعات فاکتورها" });
+    }
+  });
+
   // Send invoices to Telegram
   app.post("/api/invoices/send-telegram", requireAuth, async (req, res) => {
     try {
