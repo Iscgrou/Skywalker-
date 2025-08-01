@@ -1,7 +1,7 @@
 // 🔍 CURRENCY AUDIT SERVICE - DA VINCI v9.0 Phase 1 Enhancement
 import { storage } from "../storage";
 import { db } from "../db";
-import { auditLogs } from "@shared/schema";
+// import { auditLogs } from "@shared/schema"; // Will be implemented in database schema
 
 export interface CurrencyAuditEntry {
   id?: string;

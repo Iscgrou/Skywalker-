@@ -325,11 +325,11 @@ export class TaskManagementService {
         );
       } catch (error) {
         console.log('Using fallback task recommendations');
-        recommendations = this.generateFallbackRecommendations(representative, levelAssessment);
+        recommendations = await this.generateTaskRecommendations(representativeId);
       }
 
       // Process and enhance recommendations
-      const enhancedRecommendations: TaskRecommendation[] = recommendations.map(rec => ({
+      const enhancedRecommendations: TaskRecommendation[] = recommendations.map((rec: any) => ({
         taskType: rec.taskType || rec.type,
         priority: this.calculateTaskPriority(rec, levelAssessment, culturalProfile),
         title: rec.title,
@@ -358,7 +358,7 @@ export class TaskManagementService {
     dateRange?: { start: Date; end: Date };
   }): Promise<TaskWithDetails[]> {
     try {
-      let query = db.select({
+      const query = db.select({
         id: crmTasks.id,
         taskId: crmTasks.taskId,
         representativeId: crmTasks.representativeId,
@@ -595,9 +595,9 @@ export class TaskManagementService {
     // Apply Persian cultural context
     const adaptedTask = { ...taskData };
     
-    if (culturalProfile.culturalBackground === 'traditional') {
+    if (culturalProfile?.culturalBackground === 'traditional') {
       adaptedTask.description = `با رعایت ارزش‌های سنتی: ${adaptedTask.description}`;
-    } else if (culturalProfile.culturalBackground === 'modern') {
+    } else if (culturalProfile?.culturalBackground === 'modern') {
       adaptedTask.description = `با رویکرد مدرن: ${adaptedTask.description}`;
     }
 
@@ -610,7 +610,8 @@ export class TaskManagementService {
   ): Partial<TaskWithDetails> {
     const adjustedTask = { ...taskData };
     
-    switch (levelAssessment) {
+    const levelStr = typeof levelAssessment === 'string' ? levelAssessment : levelAssessment?.currentLevel || 'ACTIVE';
+    switch (levelStr) {
       case 'NEW':
         adjustedTask.difficultyLevel = Math.min(adjustedTask.difficultyLevel || 1, 2);
         break;
@@ -631,9 +632,9 @@ export class TaskManagementService {
   ): Partial<TaskWithDetails> {
     const adaptedTask = { ...taskData };
     
-    if (culturalProfile.personalityType === 'analytical') {
+    if (culturalProfile?.personalityType === 'analytical') {
       adaptedTask.description = `تحلیل دقیق: ${adaptedTask.description}`;
-    } else if (culturalProfile.personalityType === 'relationship-focused') {
+    } else if (culturalProfile?.personalityType === 'relationship-focused') {
       adaptedTask.description = `تقویت روابط: ${adaptedTask.description}`;
     }
 
