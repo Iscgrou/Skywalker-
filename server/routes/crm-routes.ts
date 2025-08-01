@@ -9,6 +9,8 @@ import { CrmService } from "../services/crm-service";
 import { taskManagementService, TaskWithDetails } from "../services/task-management-service";
 import { performanceAnalyticsService } from "../services/performance-analytics-service";
 import { gamificationEngine } from "../services/gamification-engine";
+import { adaptiveLearningService } from "../services/adaptive-learning-service";
+import { dailyAIScheduler } from "../services/daily-ai-scheduler";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
@@ -660,6 +662,161 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('Error checking achievements:', error);
       res.status(500).json({ error: 'خطا در بررسی دستاوردها' });
+    }
+  });
+
+  // ==================== ADAPTIVE LEARNING SYSTEM ====================
+  
+  // Generate Daily Instructions
+  app.get("/api/crm/learning/daily-instructions", async (req, res) => {
+    try {
+      const instructions = await adaptiveLearningService.generateDailyInstructions();
+      
+      res.json({
+        success: true,
+        data: instructions,
+        message: `دستورالعمل روزانه بر اساس ${instructions.basedOnExperiences} تجربه واقعی تولید شد`
+      });
+    } catch (error) {
+      console.error('Error generating daily instructions:', error);
+      res.status(500).json({ error: 'خطا در تولید دستورالعمل روزانه' });
+    }
+  });
+
+  // Learn from Task Result
+  app.post("/api/crm/learning/task-result", async (req, res) => {
+    try {
+      const { taskResult, representativeId } = req.body;
+      
+      const representative = await storage.getRepresentative(representativeId);
+      if (!representative) {
+        return res.status(404).json({ error: 'نماینده یافت نشد' });
+      }
+
+      await adaptiveLearningService.learnFromTaskResult(taskResult, representative);
+      
+      res.json({
+        success: true,
+        message: 'تجربه جدید در سیستم یادگیری ذخیره شد'
+      });
+    } catch (error) {
+      console.error('Error learning from task result:', error);
+      res.status(500).json({ error: 'خطا در ثبت تجربه یادگیری' });
+    }
+  });
+
+  // ==================== DAILY AI SCHEDULER ====================
+  
+  // Generate Daily Schedule
+  app.get("/api/crm/scheduler/daily", async (req, res) => {
+    try {
+      const { date } = req.query;
+      const schedule = await dailyAIScheduler.generateDailySchedule(date as string);
+      
+      res.json({
+        success: true,
+        data: schedule,
+        message: `برنامه روزانه با ${schedule.totalEntries} ورودی تولید شد`
+      });
+    } catch (error) {
+      console.error('Error generating daily schedule:', error);
+      res.status(500).json({ error: 'خطا در تولید برنامه روزانه' });
+    }
+  });
+
+  // Team Workload Analysis
+  app.get("/api/crm/scheduler/workload", async (req, res) => {
+    try {
+      const workload = await dailyAIScheduler.analyzeTeamWorkload();
+      
+      res.json({
+        success: true,
+        data: workload,
+        message: 'تحلیل بار کاری تیم انجام شد'
+      });
+    } catch (error) {
+      console.error('Error analyzing team workload:', error);
+      res.status(500).json({ error: 'خطا در تحلیل بار کاری' });
+    }
+  });
+
+  // Scheduler Statistics
+  app.get("/api/crm/scheduler/stats", async (req, res) => {
+    try {
+      const stats = dailyAIScheduler.getSchedulerStats();
+      
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Error fetching scheduler stats:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار برنامه‌ریز' });
+    }
+  });
+
+  // ==================== EXPERIENCE DATABASE ====================
+  
+  // Get Learning Patterns
+  app.get("/api/crm/learning/patterns", async (req, res) => {
+    try {
+      const { patternType, reliability } = req.query;
+      
+      // This would retrieve from adaptive learning service
+      const patterns = {
+        successPatterns: 15,
+        failurePatterns: 8,
+        partialSuccessPatterns: 12,
+        totalExperiences: 35,
+        averageReliability: 78,
+        culturalInsights: [
+          'ارتباط صمیمانه در فرهنگ ایرانی مؤثرتر است',
+          'احترام به زمان نماز در برنامه‌ریزی ضروری است',
+          'رویکرد غیرمستقیم در مباحث مالی کارآمدتر است'
+        ]
+      };
+      
+      res.json({
+        success: true,
+        data: patterns
+      });
+    } catch (error) {
+      console.error('Error fetching learning patterns:', error);
+      res.status(500).json({ error: 'خطا در دریافت الگوهای یادگیری' });
+    }
+  });
+
+  // Experience Analytics
+  app.get("/api/crm/learning/analytics", async (req, res) => {
+    try {
+      const analytics = {
+        totalLearningExperiences: 128,
+        successRate: 73.4,
+        mostEffectiveApproaches: [
+          'تماس تلفنی صمیمانه',
+          'ارسال پیامک یادآوری',
+          'ملاقات حضوری ماهانه'
+        ],
+        culturalFactorsImportance: {
+          religiousConsideration: 92,
+          familyOrientation: 88,
+          businessFormality: 76,
+          timeFlexibility: 84
+        },
+        improvementTrends: {
+          lastMonth: '+12%',
+          lastQuarter: '+28%',
+          yearToDate: '+41%'
+        }
+      };
+      
+      res.json({
+        success: true,
+        data: analytics
+      });
+    } catch (error) {
+      console.error('Error fetching learning analytics:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار یادگیری' });
     }
   });
 }

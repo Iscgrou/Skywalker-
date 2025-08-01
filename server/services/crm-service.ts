@@ -1,7 +1,7 @@
 // 🎯 MAIN CRM SERVICE - Orchestrates All CRM Operations
 import { nanoid } from 'nanoid';
 import { persianAIEngine } from './persian-ai-engine';
-import { crmAuthService } from './crm-auth-service';
+import { CrmAuthService } from './crm-auth-service';
 import { crmDataSyncService } from './crm-data-sync';
 import { storage } from '../storage';
 import type { 
@@ -15,6 +15,7 @@ import type {
   InsertRepresentativeLevel,
   InsertAiDecisionLog 
 } from '@shared/schema';
+import type { AIRepresentativeLevel } from './persian-ai-engine';
 
 export interface CrmDashboardData {
   totalRepresentatives: number;
@@ -86,9 +87,9 @@ export class CrmService {
   }
 
   // Representative Management - Enhanced with Persian AI
-  async getRepresentativeLevel(representativeId: number): Promise<RepresentativeLevel | null> {
+  async getRepresentativeLevel(representativeId: number): Promise<AIRepresentativeLevel | null> {
     try {
-      const representative = await storage.getRepresentativeById(representativeId);
+      const representative = await storage.getRepresentative(representativeId);
       if (!representative) return null;
 
       // Use Persian AI Engine for cultural analysis

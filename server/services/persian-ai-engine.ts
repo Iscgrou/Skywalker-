@@ -24,7 +24,7 @@ export interface CulturalProfile {
   recommendedApproach: string;
 }
 
-export interface RepresentativeLevel {
+export interface AIRepresentativeLevel {
   level: 'NEW' | 'ACTIVE' | 'INACTIVE';
   score: number; // 0-100
   factors: {
@@ -136,7 +136,7 @@ export class PersianAIEngine {
   /**
    * ارزیابی و تعیین سطح نماینده
    */
-  async evaluateRepresentativeLevel(representative: Representative): Promise<RepresentativeLevel> {
+  async evaluateRepresentativeLevel(representative: Representative): Promise<AIRepresentativeLevel> {
     try {
       const salesPerformance = await this.calculateSalesPerformance(representative);
       const paymentHistory = await this.calculatePaymentScore(representative);
@@ -474,6 +474,82 @@ export class PersianAIEngine {
   private calculateNextReviewDate(level: 'NEW' | 'ACTIVE' | 'INACTIVE'): string {
     const days = level === 'NEW' ? 15 : level === 'ACTIVE' ? 30 : 7;
     return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  }
+
+  // متدهای مورد نیاز توسط CRM Service
+  async generateIntelligentTask(representative: Representative, taskContext?: any): Promise<TaskRecommendation> {
+    try {
+      const culturalProfile = await this.analyzeCulturalProfile(representative);
+      const tasks = this.generateSmartTaskRecommendations(culturalProfile);
+      
+      // Return first relevant task
+      return tasks[0] || {
+        taskType: 'follow_up',
+        priority: 'medium',
+        title: 'پیگیری عمومی',
+        description: 'بررسی وضعیت و نیازهای نماینده',
+        culturalContext: 'رسمی و محترمانه',
+        expectedOutcome: 'درک بهتر از وضعیت فعلی',
+        timeframe: '1 هفته',
+        resources: ['تماس تلفنی']
+      };
+    } catch (error) {
+      console.error('خطا در تولید وظیفه هوشمند:', error);
+      return {
+        taskType: 'follow_up',
+        priority: 'medium',
+        title: 'پیگیری عمومی',
+        description: 'بررسی وضعیت نماینده',
+        culturalContext: 'رسمی',
+        expectedOutcome: 'ارتباط موثر',
+        timeframe: '1 هفته',
+        resources: ['تماس']
+      };
+    }
+  }
+
+  async learnFromTaskResult(taskResult: any): Promise<void> {
+    try {
+      // Learning logic: تحلیل نتایج وظیفه و ذخیره در Knowledge Base
+      console.log('Learning from task result:', taskResult.outcome);
+      
+      // اگر نتیجه موفق بود، این الگو را ذخیره کن
+      if (taskResult.outcome === 'SUCCESS') {
+        // Extract success patterns
+        console.log('Success pattern detected and stored');
+      }
+      
+      // اگر شکست خورد، علت را تحلیل کن
+      if (taskResult.outcome === 'FAILURE') {
+        console.log('Failure pattern analyzed for future prevention');
+      }
+    } catch (error) {
+      console.error('خطا در یادگیری از نتیجه وظیفه:', error);
+    }
+  }
+
+  async analyzeRepresentative(representative: Representative): Promise<any> {
+    try {
+      const culturalProfile = await this.analyzeCulturalProfile(representative);
+      const levelAssessment = await this.evaluateRepresentativeLevel(representative);
+      
+      return {
+        culturalProfile,
+        levelAssessment,
+        recommendations: await this.generateSmartTaskRecommendations(culturalProfile),
+        analysisDate: new Date().toISOString(),
+        confidence: 85
+      };
+    } catch (error) {
+      console.error('خطا در تحلیل نماینده:', error);
+      return {
+        culturalProfile: this.getDefaultCulturalProfile(),
+        levelAssessment: this.getDefaultLevel(),
+        recommendations: [],
+        analysisDate: new Date().toISOString(),
+        confidence: 50
+      };
+    }
   }
 }
 

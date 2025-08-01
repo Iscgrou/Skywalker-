@@ -23,6 +23,8 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
+import { AdaptiveLearningDashboard } from '@/components/adaptive-learning-dashboard';
+import { DailySchedulerDashboard } from '@/components/daily-scheduler-dashboard';
 
 interface CrmDashboardData {
   summary: {
@@ -216,9 +218,11 @@ export default function CrmDashboard() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">نمای کلی</TabsTrigger>
           <TabsTrigger value="representatives">نمایندگان</TabsTrigger>
+          <TabsTrigger value="learning">یادگیری تطبیقی</TabsTrigger>
+          <TabsTrigger value="scheduler">برنامه‌ریز روزانه</TabsTrigger>
           <TabsTrigger value="activity">فعالیت‌ها</TabsTrigger>
         </TabsList>
         
@@ -315,6 +319,14 @@ export default function CrmDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="learning" className="space-y-4">
+          <AdaptiveLearningDashboard />
+        </TabsContent>
+
+        <TabsContent value="scheduler" className="space-y-4">
+          <DailySchedulerDashboard />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
