@@ -17,7 +17,7 @@ import bcrypt from "bcryptjs";
 import { voiceProcessingService } from "../services/voice-processing-service";
 import multer from "multer";
 
-export function registerCrmRoutes(app: Express) {
+export function registerCrmRoutes(app: Express, requireAuth: any) {
   // Initialize CRM Service
   const crmService = new CrmService();
   
@@ -979,10 +979,10 @@ export function registerCrmRoutes(app: Express) {
   // ==================== ADMIN AI CONFIGURATION - PHASE 3 ====================
   
   // Get AI Configuration
-  app.get("/api/admin/ai-config", crmAuthMiddleware, async (req, res) => {
+  app.get("/api/admin/ai-config", requireAuth, async (req, res) => {
     try {
       // Check admin permissions
-      if (!req.user || req.user.role !== 'admin') {
+      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
         return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
       }
 
@@ -1066,9 +1066,9 @@ export function registerCrmRoutes(app: Express) {
   });
 
   // Update AI Configuration
-  app.put("/api/admin/ai-config", crmAuthMiddleware, async (req, res) => {
+  app.put("/api/admin/ai-config", requireAuth, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
+      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
         return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
       }
 
@@ -1089,9 +1089,9 @@ export function registerCrmRoutes(app: Express) {
   });
 
   // Reset AI Configuration
-  app.post("/api/admin/ai-config/reset", crmAuthMiddleware, async (req, res) => {
+  app.post("/api/admin/ai-config/reset", requireAuth, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
+      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
         return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
       }
 
@@ -1107,9 +1107,9 @@ export function registerCrmRoutes(app: Express) {
   });
 
   // Test AI Configuration
-  app.post("/api/admin/ai-config/test", crmAuthMiddleware, async (req, res) => {
+  app.post("/api/admin/ai-config/test", requireAuth, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
+      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
         return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
       }
 

@@ -140,20 +140,8 @@ export default function AdminAIConfig() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Check if user has admin permissions
-  if (!hasPermission('admin', 'WRITE')) {
-    return (
-      <div className="container mx-auto p-6" dir="rtl">
-        <Alert variant="destructive">
-          <Lock className="h-4 w-4" />
-          <AlertTitle>دسترسی محدود</AlertTitle>
-          <AlertDescription>
-            شما مجوز دسترسی به تنظیمات پیشرفته AI را ندارید.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  // Check if user has admin permissions (removed check since this is admin panel only)
+  // Admin panel access is controlled at route level
 
   // Fetch AI Configuration
   const { data: aiConfig, isLoading, error } = useQuery<AIConfig>({
@@ -169,7 +157,10 @@ export default function AdminAIConfig() {
   // Save Configuration Mutation
   const saveConfigMutation = useMutation({
     mutationFn: async (configData: Partial<AIConfig>) => {
-      return apiRequest('/api/admin/ai-config', 'PUT', configData);
+      return apiRequest('/api/admin/ai-config', {
+        method: 'PUT',
+        data: configData
+      });
     },
     onSuccess: () => {
       toast({
@@ -207,7 +198,10 @@ export default function AdminAIConfig() {
   // Test Configuration Mutation  
   const testConfigMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/admin/ai-config/test', 'POST', config);
+      return apiRequest('/api/admin/ai-config/test', {
+        method: 'POST',
+        data: config
+      });
     },
     onSuccess: (result) => {
       toast({

@@ -80,7 +80,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Register CRM routes
-  registerCrmRoutes(app);
+  registerCrmRoutes(app, requireAuth);
 
   // xAI Grok Configuration API
   app.post("/api/settings/xai-grok/configure", requireAuth, async (req, res) => {
