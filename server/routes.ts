@@ -54,10 +54,13 @@ const upload = multer({
   }
 });
 
-// Authentication middleware - BYPASSED FOR PHASE 3 TESTING
+// Authentication middleware
 function requireAuth(req: any, res: any, next: any) {
-  // PHASE 3: Allow all requests for payment synchronization testing
-  next();
+  if ((req.session as any)?.authenticated) {
+    next();
+  } else {
+    res.status(401).json({ error: "احراز هویت نشده" });
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -776,7 +779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // فاز ۳: Payment Synchronization API Routes
   
   // Get unallocated payments API
-  app.get("/api/payments/unallocated", async (req, res) => {
+  app.get("/api/payments/unallocated", requireAuth, async (req, res) => {
     try {
       const representativeId = req.query.representativeId ? parseInt(req.query.representativeId as string) : undefined;
       const unallocatedPayments = await storage.getUnallocatedPayments(representativeId);
@@ -789,7 +792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auto-allocate payments API
-  app.post("/api/payments/auto-allocate/:representativeId", async (req, res) => {
+  app.post("/api/payments/auto-allocate/:representativeId", requireAuth, async (req, res) => {
     try {
       const representativeId = parseInt(req.params.representativeId);
       const result = await storage.autoAllocatePayments(representativeId);
@@ -813,7 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual payment allocation API
-  app.post("/api/payments/allocate", async (req, res) => {
+  app.post("/api/payments/allocate", requireAuth, async (req, res) => {
     try {
       const { paymentId, invoiceId } = req.body;
       
@@ -842,7 +845,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Payment allocation summary API
-  app.get("/api/payments/allocation-summary/:representativeId", async (req, res) => {
+  app.get("/api/payments/allocation-summary/:representativeId", requireAuth, async (req, res) => {
     try {
       const representativeId = parseInt(req.params.representativeId);
       const summary = await storage.getPaymentAllocationSummary(representativeId);
@@ -855,7 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Financial reconciliation API
-  app.post("/api/reconcile/:representativeId", async (req, res) => {
+  app.post("/api/reconcile/:representativeId", requireAuth, async (req, res) => {
     try {
       const representativeId = parseInt(req.params.representativeId);
       const reconciliationResult = await storage.reconcileRepresentativeFinancials(representativeId);
