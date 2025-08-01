@@ -24,6 +24,7 @@ const navigation = [
   { name: "فاکتورها", href: "/invoices", icon: FileText },
   { name: "مدیریت فاکتورها", href: "/invoice-management", icon: Edit },
   { name: "پرداخت‌ها", href: "/payments", icon: CreditCard },
+  { name: "مدیریت پرداخت‌ها", href: "/payment-management", icon: CreditCard },
   { name: "همکاران فروش", href: "/sales-partners", icon: Handshake },
   { name: "گزارشات", href: "/reports", icon: ChartBar },
   { name: "دستیار هوشمند", href: "/ai-assistant", icon: Bot },

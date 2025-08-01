@@ -17,6 +17,7 @@ import Representatives from "@/pages/representatives";
 import RepresentativeDetails from "@/pages/representative-details";
 import Invoices from "@/pages/invoices";
 import InvoiceManagement from "@/pages/InvoiceManagement";
+import PaymentManagement from "@/pages/PaymentManagement";
 import Payments from "@/pages/payments";
 import SalesPartners from "@/pages/sales-partners";
 import Reports from "@/pages/reports";
@@ -131,6 +132,7 @@ function AuthenticatedRouter() {
         <Route path="/representatives/:code" component={RepresentativeDetails} />
         <Route path="/invoices" component={Invoices} />
         <Route path="/invoice-management" component={InvoiceManagement} />
+        <Route path="/payment-management" component={PaymentManagement} />
         <Route path="/payments" component={Payments} />
         <Route path="/sales-partners" component={SalesPartners} />
         <Route path="/reports" component={Reports} />
