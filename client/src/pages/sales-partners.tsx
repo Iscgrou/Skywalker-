@@ -97,7 +97,7 @@ export default function SalesPartners() {
 
   const createMutation = useMutation({
     mutationFn: async (data: SalesPartnerFormData) => {
-      const response = await apiRequest('POST', '/api/sales-partners', data);
+      const response = await apiRequest('/api/sales-partners', { method: 'POST', data });
       return response.json();
     },
     onSuccess: () => {

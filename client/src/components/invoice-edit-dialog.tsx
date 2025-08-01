@@ -111,7 +111,7 @@ export default function InvoiceEditDialog({
   // Edit mutation
   const editMutation = useMutation({
     mutationFn: async (editData: any) => {
-      const response = await apiRequest('POST', '/api/invoices/edit', editData);
+      const response = await apiRequest('/api/invoices/edit', { method: 'POST', data: editData });
       return response.json();
     },
     onSuccess: (data) => {

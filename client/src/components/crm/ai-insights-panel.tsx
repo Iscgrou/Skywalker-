@@ -78,7 +78,7 @@ export default function AIInsightsPanel({ representativeId, representativeName }
   const { data: profileData, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: [`/api/ai/profile/${representativeId}`],
     queryFn: async () => {
-      const response = await apiRequest('POST', `/api/ai/profile/${representativeId}`);
+      const response = await apiRequest(`/api/ai/profile/${representativeId}`, { method: 'POST' });
       return response.json();
     },
     enabled: false // Manual trigger
@@ -118,7 +118,7 @@ export default function AIInsightsPanel({ representativeId, representativeName }
   const { data: tasksData, isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
     queryKey: [`/api/ai/tasks/${representativeId}/generate`],
     queryFn: async () => {
-      const response = await apiRequest('POST', `/api/ai/tasks/${representativeId}/generate`);
+      const response = await apiRequest(`/api/ai/tasks/${representativeId}/generate`, { method: 'POST' });
       return response.json();
     },
     enabled: false // Manual trigger

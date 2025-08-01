@@ -58,7 +58,7 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/crm/auth/user"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("GET", "/api/crm/auth/user");
+        const response = await apiRequest("/api/crm/auth/user", { method: "GET" });
         return await response.json();
       } catch (error: any) {
         if (error.status === 401) {
@@ -72,7 +72,7 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      const response = await apiRequest("POST", "/api/crm/auth/login", credentials);
+      const response = await apiRequest("/api/crm/auth/login", { method: "POST", data: credentials });
       return await response.json();
     },
     onSuccess: (data) => {
@@ -104,7 +104,7 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/crm/auth/logout");
+      await apiRequest("/api/crm/auth/logout", { method: "POST" });
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/crm/auth/user"], null);

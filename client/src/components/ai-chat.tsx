@@ -32,7 +32,7 @@ export default function AiChat() {
 
   const questionMutation = useMutation({
     mutationFn: async (question: string) => {
-      const response = await apiRequest('POST', '/api/ai/question', { question });
+      const response = await apiRequest('/api/ai/question', { method: 'POST', data: { question } });
       return response.json();
     },
     onSuccess: (data) => {

@@ -70,7 +70,7 @@ export default function AiAssistant() {
 
   const questionMutation = useMutation({
     mutationFn: async (question: string) => {
-      const response = await apiRequest('POST', '/api/ai/question', { question });
+      const response = await apiRequest('/api/ai/question', { method: 'POST', data: { question } });
       return response.json();
     },
     onSuccess: (data) => {
@@ -102,7 +102,7 @@ export default function AiAssistant() {
 
   const financialAnalysisMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/ai/analyze-financial');
+      const response = await apiRequest('/api/ai/analyze-financial', { method: 'POST' });
       return response.json();
     },
     onSuccess: (data: FinancialAnalysis) => {

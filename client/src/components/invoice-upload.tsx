@@ -209,8 +209,9 @@ export default function InvoiceUpload() {
 
   const sendToTelegramMutation = useMutation({
     mutationFn: async (invoiceIds: number[]) => {
-      const response = await apiRequest('POST', '/api/invoices/send-telegram', {
-        invoiceIds
+      const response = await apiRequest('/api/invoices/send-telegram', {
+        method: 'POST',
+        data: { invoiceIds }
       });
       return response.json();
     },
