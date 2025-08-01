@@ -266,7 +266,7 @@ export class AdvancedCurrencyIntelligence {
       }
     };
 
-    let baseRec = baseRecommendations[context][risk];
+    let baseRec = baseRecommendations[context as keyof typeof baseRecommendations][risk as keyof typeof baseRecommendations.debt];
 
     // اضافه کردن توصیه‌های فرهنگی
     if (cultural.communicationStyle === 'traditional') {
