@@ -14,12 +14,13 @@ export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
   const crmService = new CrmService();
   
-  // CRM Authentication Middleware
+  // CRM Authentication Middleware - Fixed
   const crmAuthMiddleware = (req: any, res: any, next: any) => {
-    if ((req.session as any)?.crmAuthenticated) {
+    console.log('CRM Auth Check:', req.session?.crmAuthenticated);
+    if (req.session?.crmAuthenticated === true) {
       next();
     } else {
-      res.status(401).json({ error: 'احراز هویت نشده' });
+      res.status(401).json({ error: 'احراز هویت نشده - دسترسی غیرمجاز' });
     }
   };
   // ==================== REPRESENTATIVES ====================
@@ -48,23 +49,18 @@ export function registerCrmRoutes(app: Express) {
         conditions.push(eq(representatives.isActive, false));
       }
 
+      // Apply filters first
       if (conditions.length > 0) {
-        // Fix Drizzle query type issue
-        const finalQuery = db.select().from(representatives).where(and(...conditions));
-        const results = await finalQuery;
-        res.json(results);
-        return;
+        query = query.where(and(...conditions)) as any;
       }
       
-      // Add sorting
-      const results = await query;
-      res.json(results);
+      // Apply sorting
       if (sortBy === 'debt') {
-        query = query.orderBy(desc(representatives.totalDebt));
+        query = query.orderBy(desc(representatives.totalDebt)) as any;
       } else if (sortBy === 'sales') {
-        query = query.orderBy(desc(representatives.totalSales));
+        query = query.orderBy(desc(representatives.totalSales)) as any;
       } else {
-        query = query.orderBy(representatives.name);
+        query = query.orderBy(representatives.name) as any;
       }
       
       const reps = await query;
@@ -91,7 +87,7 @@ export function registerCrmRoutes(app: Express) {
 
   // ==================== CRM DASHBOARD ====================
   
-  app.get("/api/crm/dashboard", async (req, res) => {
+  app.get("/api/crm/dashboard", crmAuthMiddleware, async (req, res) => {
     try {
       const reps = await db.select().from(representatives);
       const responseData = reps.map((rep: any) => ({
@@ -391,28 +387,7 @@ export function registerCrmRoutes(app: Express) {
     }
   });
   
-  // Get all tasks with filters
-  app.get("/api/crm/tasks", crmAuthMiddleware, async (req, res) => {
-    try {
-      const { status, priority, representativeId } = req.query;
-      
-      const filters: any = {};
-      if (status) filters.status = status;
-      if (priority) filters.priority = priority;
-      if (representativeId) filters.representativeId = parseInt(representativeId as string);
-      
-      const tasks = await taskManagementService.getAllTasks(filters);
-      
-      res.json({
-        success: true,
-        data: tasks,
-        count: tasks.length
-      });
-    } catch (error) {
-      console.error('خطا در دریافت وظایف:', error);
-      res.status(500).json({ error: 'خطا در دریافت لیست وظایف' });
-    }
-  });
+  // Remove duplicate route - using /api/crm/tasks/list instead
 
   // Get tasks for specific representative
   app.get("/api/crm/representative/:id/tasks", crmAuthMiddleware, async (req, res) => {
