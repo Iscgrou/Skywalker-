@@ -15,7 +15,9 @@ import {
   insertRepresentativeSchema, 
   insertSalesPartnerSchema, 
   insertInvoiceSchema, 
-  insertPaymentSchema 
+  insertPaymentSchema,
+  // فاز ۱: Schema برای مدیریت دوره‌ای فاکتورها
+  insertInvoiceBatchSchema
 } from "@shared/schema";
 import { 
   parseUsageJsonData, 
@@ -385,16 +387,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invoice generation from JSON file
+  // فاز ۱: Enhanced invoice generation with batch management
   app.post("/api/invoices/generate", requireAuth, upload.single('usageFile'), async (req: MulterRequest, res) => {
     try {
-      console.log('JSON upload request received');
+      console.log('🚀 فاز ۱: JSON upload with batch management');
       console.log('File exists:', !!req.file);
       
       if (!req.file) {
         console.log('ERROR: No file uploaded');
         return res.status(400).json({ error: "فایل JSON ارسال نشده است" });
       }
+
+      // فاز ۱: دریافت پارامترهای batch از request body
+      const { batchName, periodStart, periodEnd, description } = req.body;
+      console.log('Batch params:', { batchName, periodStart, periodEnd, description });
 
       console.log('File details:', {
         originalname: req.file.originalname,
@@ -437,6 +443,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // فاز ۱: ایجاد batch جدید برای این آپلود
+      let currentBatch = null;
+      if (batchName && periodStart && periodEnd) {
+        console.log('🗂️ فاز ۱: ایجاد batch جدید...');
+        const batchCode = await storage.generateBatchCode(periodStart);
+        
+        currentBatch = await storage.createInvoiceBatch({
+          batchName,
+          batchCode,
+          periodStart,
+          periodEnd,
+          description: description || `آپلود فایل ${req.file.originalname}`,
+          status: 'processing',
+          uploadedBy: (req.session as any)?.user?.username || 'admin',
+          uploadedFileName: req.file.originalname
+        });
+        
+        console.log('✅ Batch ایجاد شد:', currentBatch.id, currentBatch.batchCode);
+      }
+
       console.log('🚀 شروع پردازش Sequential...');
       const sequentialResult = await processUsageDataSequential(valid, storage);
       const createdInvoices = [];
@@ -464,13 +490,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             usageDataLength: processedInvoice.usageData?.records?.length || 0
           });
           
+          // فاز ۱: شامل کردن batchId در فاکتور
           const invoice = await storage.createInvoice({
             representativeId: representative.id,
+            batchId: currentBatch ? currentBatch.id : null,
             amount: processedInvoice.amount.toString(),
             issueDate: processedInvoice.issueDate,
             dueDate: processedInvoice.dueDate,
             status: "unpaid",
-            usageData: processedInvoice.usageData
+            usageData: processedInvoice.usageData,
+            periodInfo: currentBatch ? {
+              batchName: currentBatch.batchName,
+              batchCode: currentBatch.batchCode,
+              periodStart: currentBatch.periodStart,
+              periodEnd: currentBatch.periodEnd
+            } : null
           });
           
           // Update representative financial data
@@ -500,6 +534,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🎉 پردازش کامل شد! ${createdInvoices.length} فاکتور ایجاد شد`);
 
+      // فاز ۱: تکمیل batch اگر ایجاد شده بود
+      if (currentBatch) {
+        console.log('🏁 فاز ۱: تکمیل batch...');
+        await storage.completeBatch(currentBatch.id);
+        console.log('✅ Batch تکمیل شد:', currentBatch.batchCode);
+      }
+
       res.json({
         success: true,
         created: createdInvoices.length,
@@ -507,7 +548,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invalid: invalid.length,
         invoices: createdInvoices,
         createdRepresentatives: newRepresentatives,
-        invalidRecords: invalid
+        invalidRecords: invalid,
+        // فاز ۱: اضافه کردن اطلاعات batch به پاسخ
+        batch: currentBatch ? {
+          id: currentBatch.id,
+          batchName: currentBatch.batchName,
+          batchCode: currentBatch.batchCode,
+          status: 'completed'
+        } : null
       });
     } catch (error) {
       console.error('❌ خطا در تولید فاکتور:', error);
@@ -663,6 +711,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "خطا در تخصیص پرداخت" });
+    }
+  });
+
+  // فاز ۱: Invoice Batches API - مدیریت دوره‌ای فاکتورها
+  app.get("/api/invoice-batches", requireAuth, async (req, res) => {
+    try {
+      const batches = await storage.getInvoiceBatches();
+      res.json(batches);
+    } catch (error) {
+      console.error('Error fetching invoice batches:', error);
+      res.status(500).json({ error: "خطا در دریافت دسته‌های فاکتور" });
+    }
+  });
+
+  app.get("/api/invoice-batches/:id", requireAuth, async (req, res) => {
+    try {
+      const batchId = parseInt(req.params.id);
+      const batch = await storage.getInvoiceBatch(batchId);
+      
+      if (!batch) {
+        return res.status(404).json({ error: "دسته فاکتور یافت نشد" });
+      }
+
+      // Get invoices for this batch
+      const invoices = await storage.getBatchInvoices(batchId);
+
+      res.json({
+        batch,
+        invoices,
+        summary: {
+          totalInvoices: invoices.length,
+          totalAmount: invoices.reduce((sum, inv) => sum + parseFloat(inv.amount), 0).toString()
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching batch details:', error);
+      res.status(500).json({ error: "خطا در دریافت جزئیات دسته فاکتور" });
+    }
+  });
+
+  app.post("/api/invoice-batches", requireAuth, async (req, res) => {
+    try {
+      const validatedData = insertInvoiceBatchSchema.parse(req.body);
+      
+      // Generate unique batch code if not provided
+      if (!validatedData.batchCode) {
+        validatedData.batchCode = await storage.generateBatchCode(validatedData.periodStart);
+      }
+
+      const batch = await storage.createInvoiceBatch(validatedData);
+      res.json(batch);
+    } catch (error) {
+      console.error('Error creating invoice batch:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
+      } else {
+        res.status(500).json({ error: "خطا در ایجاد دسته فاکتور" });
+      }
+    }
+  });
+
+  app.put("/api/invoice-batches/:id", requireAuth, async (req, res) => {
+    try {
+      const batchId = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const batch = await storage.updateInvoiceBatch(batchId, updateData);
+      res.json(batch);
+    } catch (error) {
+      console.error('Error updating invoice batch:', error);
+      res.status(500).json({ error: "خطا در بروزرسانی دسته فاکتور" });
+    }
+  });
+
+  app.post("/api/invoice-batches/:id/complete", requireAuth, async (req, res) => {
+    try {
+      const batchId = parseInt(req.params.id);
+      await storage.completeBatch(batchId);
+      
+      const updatedBatch = await storage.getInvoiceBatch(batchId);
+      res.json({ 
+        success: true, 
+        batch: updatedBatch,
+        message: "دسته فاکتور با موفقیت تکمیل شد"
+      });
+    } catch (error) {
+      console.error('Error completing batch:', error);
+      res.status(500).json({ error: "خطا در تکمیل دسته فاکتور" });
+    }
+  });
+
+  app.get("/api/invoices/with-batch-info", requireAuth, async (req, res) => {
+    try {
+      const invoicesWithBatch = await storage.getInvoicesWithBatchInfo();
+      res.json(invoicesWithBatch);
+    } catch (error) {
+      console.error('Error fetching invoices with batch info:', error);
+      res.status(500).json({ error: "خطا در دریافت فاکتورها با اطلاعات دسته" });
     }
   });
 

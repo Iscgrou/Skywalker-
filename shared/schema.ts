@@ -33,11 +33,29 @@ export const salesPartners = pgTable("sales_partners", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
-// Invoices (فاکتورها)
+// Invoice Batches (دسته‌های فاکتور) - فاز ۱: مدیریت دوره‌ای
+export const invoiceBatches = pgTable("invoice_batches", {
+  id: serial("id").primaryKey(),
+  batchName: text("batch_name").notNull(), // "هفته اول شهریور 1404"
+  batchCode: text("batch_code").notNull().unique(), // "BATCH-1404-06-W1"
+  periodStart: text("period_start").notNull(), // Persian date
+  periodEnd: text("period_end").notNull(), // Persian date
+  description: text("description"),
+  status: text("status").notNull().default("draft"), // draft, processing, completed, archived
+  totalInvoices: integer("total_invoices").default(0),
+  totalAmount: decimal("total_amount", { precision: 15, scale: 2 }).default("0"),
+  uploadedBy: text("uploaded_by").notNull(),
+  uploadedFileName: text("uploaded_file_name"),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at")
+});
+
+// Invoices (فاکتورها) - بهبود یافته با پشتیبانی دوره‌ای
 export const invoices = pgTable("invoices", {
   id: serial("id").primaryKey(),
   invoiceNumber: text("invoice_number").notNull().unique(),
   representativeId: integer("representative_id").notNull(),
+  batchId: integer("batch_id"), // ارتباط با دسته فاکتور - فاز ۱
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   issueDate: text("issue_date").notNull(), // Persian date: 1404/4/30
   dueDate: text("due_date"), // Persian date
@@ -45,6 +63,8 @@ export const invoices = pgTable("invoices", {
   usageData: json("usage_data"), // Raw JSON data from uploaded file
   sentToTelegram: boolean("sent_to_telegram").default(false),
   telegramSentAt: timestamp("telegram_sent_at"),
+  // فاز ۱: متادیتای دوره‌ای
+  periodInfo: json("period_info"), // اطلاعات دوره شامل period_start, period_end, batch_summary
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -359,10 +379,19 @@ export const salesPartnersRelations = relations(salesPartners, ({ many }) => ({
   representatives: many(representatives)
 }));
 
+// فاز ۱: Relations برای مدیریت دوره‌ای فاکتورها
+export const invoiceBatchesRelations = relations(invoiceBatches, ({ many }) => ({
+  invoices: many(invoices)
+}));
+
 export const invoicesRelations = relations(invoices, ({ one }) => ({
   representative: one(representatives, {
     fields: [invoices.representativeId],
     references: [representatives.id]
+  }),
+  batch: one(invoiceBatches, {
+    fields: [invoices.batchId],
+    references: [invoiceBatches.id]
   })
 }));
 
@@ -452,6 +481,15 @@ export const insertSalesPartnerSchema = createInsertSchema(salesPartners).omit({
   id: true,
   totalCommission: true,
   createdAt: true
+});
+
+// فاز ۱: Insert Schema برای مدیریت دوره‌ای
+export const insertInvoiceBatchSchema = createInsertSchema(invoiceBatches).omit({
+  id: true,
+  totalInvoices: true,
+  totalAmount: true,
+  createdAt: true,
+  completedAt: true
 });
 
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
@@ -563,6 +601,10 @@ export const insertCrmSystemEventSchema = createInsertSchema(crmSystemEvents).om
 // Types
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+
+// فاز ۱: Types برای مدیریت دوره‌ای فاکتورها
+export type InvoiceBatch = typeof invoiceBatches.$inferSelect;
+export type InsertInvoiceBatch = z.infer<typeof insertInvoiceBatchSchema>;
 
 export type Representative = typeof representatives.$inferSelect;
 export type InsertRepresentative = z.infer<typeof insertRepresentativeSchema>;

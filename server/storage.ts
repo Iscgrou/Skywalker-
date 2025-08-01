@@ -1,6 +1,6 @@
 import { 
   representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers, invoiceEdits,
-  financialTransactions, dataIntegrityConstraints,
+  financialTransactions, dataIntegrityConstraints, invoiceBatches,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
@@ -10,7 +10,9 @@ import {
   type AdminUser, type InsertAdminUser,
   type InvoiceEdit, type InsertInvoiceEdit,
   type FinancialTransaction, type InsertFinancialTransaction,
-  type DataIntegrityConstraint, type InsertDataIntegrityConstraint
+  type DataIntegrityConstraint, type InsertDataIntegrityConstraint,
+  // فاز ۱: Import برای مدیریت دوره‌ای فاکتورها
+  type InvoiceBatch, type InsertInvoiceBatch
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
@@ -59,13 +61,25 @@ export interface IStorage {
   createSalesPartner(partner: InsertSalesPartner): Promise<SalesPartner>;
   updateSalesPartner(id: number, partner: Partial<SalesPartner>): Promise<SalesPartner>;
 
-  // Invoices
+  // فاز ۱: Invoice Batches - مدیریت دوره‌ای فاکتورها
+  getInvoiceBatches(): Promise<InvoiceBatch[]>;
+  getInvoiceBatch(id: number): Promise<InvoiceBatch | undefined>;
+  getInvoiceBatchByCode(batchCode: string): Promise<InvoiceBatch | undefined>;
+  createInvoiceBatch(batch: InsertInvoiceBatch): Promise<InvoiceBatch>;
+  updateInvoiceBatch(id: number, batch: Partial<InvoiceBatch>): Promise<InvoiceBatch>;
+  completeBatch(batchId: number): Promise<void>;
+  getBatchInvoices(batchId: number): Promise<Invoice[]>;
+  generateBatchCode(periodStart: string): Promise<string>;
+
+  // Invoices - بهبود یافته با پشتیبانی دوره‌ای
   getInvoices(): Promise<Invoice[]>;
   getInvoicesByRepresentative(repId: number): Promise<Invoice[]>;
+  getInvoicesByBatch(batchId: number): Promise<Invoice[]>;
   getInvoicesForTelegram(): Promise<Invoice[]>; // Unsent invoices
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice>;
   markInvoicesAsSentToTelegram(invoiceIds: number[]): Promise<void>;
+  getInvoicesWithBatchInfo(): Promise<(Invoice & { batch?: InvoiceBatch })[]>;
 
   // Payments
   getPayments(): Promise<Payment[]>;
@@ -259,6 +273,198 @@ export class DatabaseStorage implements IStorage {
       .where(eq(salesPartners.id, id))
       .returning();
     return updated;
+  }
+
+  // فاز ۱: Implementation مدیریت دوره‌ای فاکتورها
+  async getInvoiceBatches(): Promise<InvoiceBatch[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(invoiceBatches).orderBy(desc(invoiceBatches.createdAt)),
+      'getInvoiceBatches'
+    );
+  }
+
+  async getInvoiceBatch(id: number): Promise<InvoiceBatch | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [batch] = await db.select().from(invoiceBatches).where(eq(invoiceBatches.id, id));
+        return batch || undefined;
+      },
+      'getInvoiceBatch'
+    );
+  }
+
+  async getInvoiceBatchByCode(batchCode: string): Promise<InvoiceBatch | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [batch] = await db.select().from(invoiceBatches).where(eq(invoiceBatches.batchCode, batchCode));
+        return batch || undefined;
+      },
+      'getInvoiceBatchByCode'
+    );
+  }
+
+  async createInvoiceBatch(batch: InsertInvoiceBatch): Promise<InvoiceBatch> {
+    return await withDatabaseRetry(
+      async () => {
+        const [newBatch] = await db
+          .insert(invoiceBatches)
+          .values(batch)
+          .returning();
+        
+        await this.createActivityLog({
+          type: "batch_created",
+          description: `دسته فاکتور جدید "${newBatch.batchName}" ایجاد شد`,
+          relatedId: newBatch.id,
+          metadata: {
+            batchCode: newBatch.batchCode,
+            periodStart: newBatch.periodStart,
+            periodEnd: newBatch.periodEnd
+          }
+        });
+
+        return newBatch;
+      },
+      'createInvoiceBatch'
+    );
+  }
+
+  async updateInvoiceBatch(id: number, batch: Partial<InvoiceBatch>): Promise<InvoiceBatch> {
+    return await withDatabaseRetry(
+      async () => {
+        const [updated] = await db
+          .update(invoiceBatches)
+          .set(batch)
+          .where(eq(invoiceBatches.id, id))
+          .returning();
+        return updated;
+      },
+      'updateInvoiceBatch'
+    );
+  }
+
+  async completeBatch(batchId: number): Promise<void> {
+    await withDatabaseRetry(
+      async () => {
+        // محاسبه آمار نهایی دسته
+        const batchStats = await db
+          .select({
+            totalInvoices: sql<number>`count(*)`,
+            totalAmount: sql<string>`sum(amount)`
+          })
+          .from(invoices)
+          .where(eq(invoices.batchId, batchId));
+
+        await db
+          .update(invoiceBatches)
+          .set({
+            status: 'completed',
+            totalInvoices: batchStats[0]?.totalInvoices || 0,
+            totalAmount: batchStats[0]?.totalAmount || "0",
+            completedAt: new Date()
+          })
+          .where(eq(invoiceBatches.id, batchId));
+
+        const batch = await this.getInvoiceBatch(batchId);
+        if (batch) {
+          await this.createActivityLog({
+            type: "batch_completed",
+            description: `دسته فاکتور "${batch.batchName}" تکمیل شد - ${batchStats[0]?.totalInvoices || 0} فاکتور`,
+            relatedId: batchId,
+            metadata: {
+              totalInvoices: batchStats[0]?.totalInvoices || 0,
+              totalAmount: batchStats[0]?.totalAmount || "0"
+            }
+          });
+        }
+      },
+      'completeBatch'
+    );
+  }
+
+  async getBatchInvoices(batchId: number): Promise<Invoice[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(invoices).where(eq(invoices.batchId, batchId)).orderBy(desc(invoices.createdAt)),
+      'getBatchInvoices'
+    );
+  }
+
+  async generateBatchCode(periodStart: string): Promise<string> {
+    // تولید کد منحصر به فرد برای دسته بر اساس تاریخ شروع دوره
+    const persianDate = periodStart.replace(/\//g, '-');
+    const timestamp = Date.now().toString().slice(-4);
+    return `BATCH-${persianDate}-${timestamp}`;
+  }
+
+  async getInvoicesByBatch(batchId: number): Promise<Invoice[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(invoices).where(eq(invoices.batchId, batchId)).orderBy(desc(invoices.createdAt)),
+      'getInvoicesByBatch'
+    );
+  }
+
+  async getInvoicesWithBatchInfo(): Promise<(Invoice & { batch?: InvoiceBatch })[]> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .select({
+            // Invoice fields
+            id: invoices.id,
+            invoiceNumber: invoices.invoiceNumber,
+            representativeId: invoices.representativeId,
+            batchId: invoices.batchId,
+            amount: invoices.amount,
+            issueDate: invoices.issueDate,
+            dueDate: invoices.dueDate,
+            status: invoices.status,
+            usageData: invoices.usageData,
+            sentToTelegram: invoices.sentToTelegram,
+            telegramSentAt: invoices.telegramSentAt,
+            periodInfo: invoices.periodInfo,
+            createdAt: invoices.createdAt,
+            // Batch fields (nullable)
+            batchName: invoiceBatches.batchName,
+            batchCode: invoiceBatches.batchCode,
+            batchStatus: invoiceBatches.status,
+            periodStart: invoiceBatches.periodStart,
+            periodEnd: invoiceBatches.periodEnd
+          })
+          .from(invoices)
+          .leftJoin(invoiceBatches, eq(invoices.batchId, invoiceBatches.id))
+          .orderBy(desc(invoices.createdAt));
+
+        return result.map(row => ({
+          id: row.id,
+          invoiceNumber: row.invoiceNumber,
+          representativeId: row.representativeId,
+          batchId: row.batchId,
+          amount: row.amount,
+          issueDate: row.issueDate,
+          dueDate: row.dueDate,
+          status: row.status,
+          usageData: row.usageData,
+          sentToTelegram: row.sentToTelegram,
+          telegramSentAt: row.telegramSentAt,
+          periodInfo: row.periodInfo,
+          createdAt: row.createdAt,
+          batch: row.batchName ? {
+            id: row.batchId!,
+            batchName: row.batchName,
+            batchCode: row.batchCode!,
+            periodStart: row.periodStart!,
+            periodEnd: row.periodEnd!,
+            description: null,
+            status: row.batchStatus!,
+            totalInvoices: null,
+            totalAmount: null,
+            uploadedBy: '',
+            uploadedFileName: null,
+            createdAt: null,
+            completedAt: null
+          } : undefined
+        }));
+      },
+      'getInvoicesWithBatchInfo'
+    );
   }
 
   async getInvoices(): Promise<any[]> {
