@@ -71,7 +71,7 @@ const sessionMiddleware = session({
   }
 });
 
-// Apply session middleware conditionally - skip for public portal routes
+// Apply session middleware for all non-portal routes
 app.use((req, res, next) => {
   const isPortalRoute = req.path.startsWith('/portal') || req.path.startsWith('/api/portal');
   
@@ -79,7 +79,7 @@ app.use((req, res, next) => {
     // Skip session middleware for portal routes to avoid authentication issues
     next();
   } else {
-    // Apply session middleware for admin routes
+    // Apply session middleware for admin and CRM routes
     sessionMiddleware(req, res, next);
   }
 });
