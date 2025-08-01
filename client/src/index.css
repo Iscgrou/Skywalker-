@@ -77,11 +77,11 @@
   --clay-rose: hsl(340, 40%, 45%);
   --clay-sage: hsl(85, 25%, 35%);
   
-  /* Minimal Dark Shadow Variables */
-  --clay-shadow-outer: 0 2px 8px rgba(0, 0, 0, 0.15);
-  --clay-shadow-inner: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-  --clay-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.15);
-  --clay-shadow-hover: 0 3px 10px rgba(0, 0, 0, 0.2);
+  /* Ultra-Minimal Dark Shadow Variables */
+  --clay-shadow-outer: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --clay-shadow-inner: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+  --clay-shadow-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  --clay-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.1);
   
   /* Dark mode MarFaNet colors */
   --marfanet-primary: var(--clay-lavender);
@@ -113,27 +113,27 @@
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(circle at 20% 80%, rgba(166, 139, 201, 0.02) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(139, 201, 166, 0.01) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(201, 166, 139, 0.01) 0%, transparent 50%);
+      radial-gradient(circle at 20% 80%, rgba(166, 139, 201, 0.005) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(139, 201, 166, 0.003) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(201, 166, 139, 0.003) 0%, transparent 50%);
     pointer-events: none;
     z-index: -1;
   }
 
   /* Claymorphism Utility Classes */
   .clay-card {
-    background: rgba(30, 30, 40, 0.65);
+    background: rgba(30, 30, 40, 0.7);
     border-radius: 20px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.01);
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     backdrop-filter: blur(10px);
   }
 
   .clay-card:hover {
     box-shadow: var(--clay-shadow-hover);
-    transform: translateY(-1px);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    transform: translateY(-0.5px);
+    border: 1px solid rgba(255, 255, 255, 0.015);
   }
 
   .clay-button {
@@ -167,27 +167,27 @@
   }
 
   .clay-input {
-    background: rgba(30, 30, 40, 0.65);
+    background: rgba(30, 30, 40, 0.7);
     border-radius: 16px;
     box-shadow: var(--clay-shadow-inner);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.01);
     transition: all 0.2s ease;
     color: rgba(220, 220, 240, 1);
   }
 
   .clay-input:focus {
-    box-shadow: var(--clay-shadow-inner), 0 0 0 1px rgba(166, 139, 201, 0.05);
+    box-shadow: var(--clay-shadow-inner), 0 0 0 1px rgba(166, 139, 201, 0.02);
     outline: none;
   }
 
   .clay-badge {
-    background: rgba(30, 30, 40, 0.65);
+    background: rgba(30, 30, 40, 0.7);
     border-radius: 12px;
     box-shadow: var(--clay-shadow-outer);
     font-weight: 600;
     font-size: 0.75rem;
     padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.01);
     backdrop-filter: blur(8px);
     color: rgba(200, 200, 220, 1);
   }
@@ -202,7 +202,7 @@
   .clay-progress-fill {
     background: linear-gradient(90deg, var(--clay-lavender) 0%, var(--clay-baby-blue) 100%);
     border-radius: 20px;
-    box-shadow: 0 2px 8px rgba(166, 139, 201, 0.3);
+    box-shadow: 0 1px 3px rgba(166, 139, 201, 0.1);
     transition: width 0.5s ease;
   }
 
@@ -210,7 +210,7 @@
     background: linear-gradient(135deg, var(--clay-lavender) 0%, var(--clay-baby-blue) 100%);
     border-radius: 24px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.01);
     color: white;
     overflow: hidden;
     position: relative;
@@ -223,31 +223,31 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
+    background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.005) 0%, transparent 50%);
     pointer-events: none;
   }
 
   .clay-alert {
-    background: rgba(30, 30, 40, 0.65);
+    background: rgba(30, 30, 40, 0.7);
     border-radius: 18px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.01);
     backdrop-filter: blur(12px);
   }
 
   .clay-nav-item {
-    background: rgba(30, 30, 40, 0.65);
+    background: rgba(30, 30, 40, 0.7);
     border-radius: 14px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.01);
     transition: all 0.2s ease;
     backdrop-filter: blur(15px);
   }
 
   .clay-nav-item:hover {
     box-shadow: var(--clay-shadow-hover);
-    transform: translateY(-1px);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    transform: translateY(-0.5px);
+    border: 1px solid rgba(255, 255, 255, 0.015);
   }
 
   .clay-nav-item.active {
