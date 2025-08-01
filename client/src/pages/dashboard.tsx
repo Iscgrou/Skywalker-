@@ -207,7 +207,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">دستیار هوشمند مالی</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">مبتنی بر Gemini AI</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">مبتنی بر xAI Grok</p>
                 </div>
               </CardTitle>
             </CardHeader>
