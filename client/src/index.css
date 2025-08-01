@@ -100,8 +100,24 @@
     @apply bg-background text-foreground font-sans antialiased;
     direction: rtl;
     font-family: 'Inter', 'Tahoma', 'Arial', sans-serif;
-    background: linear-gradient(135deg, hsl(285, 25%, 95%) 0%, hsl(295, 20%, 92%) 50%, hsl(275, 30%, 94%) 100%);
+    background: linear-gradient(135deg, hsl(260, 25%, 8%) 0%, hsl(270, 20%, 12%) 30%, hsl(280, 15%, 15%) 70%, hsl(265, 25%, 10%) 100%);
     min-height: 100vh;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(166, 139, 201, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(139, 201, 166, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(201, 166, 139, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: -1;
   }
 
   /* Claymorphism Utility Classes */
@@ -109,8 +125,9 @@
     background: var(--card);
     border-radius: 20px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    backdrop-filter: blur(10px);
   }
 
   .clay-card:hover {
@@ -168,7 +185,8 @@
     font-weight: 600;
     font-size: 0.75rem;
     padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
   }
 
   .clay-progress {
@@ -210,15 +228,17 @@
     background: var(--clay-sage);
     border-radius: 18px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
   }
 
   .clay-nav-item {
     background: var(--card);
     border-radius: 14px;
     box-shadow: var(--clay-shadow-outer);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     transition: all 0.2s ease;
+    backdrop-filter: blur(15px);
   }
 
   .clay-nav-item:hover {

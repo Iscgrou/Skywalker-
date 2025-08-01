@@ -102,7 +102,7 @@ export default function CrmDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
+      <div className="flex items-center justify-center min-h-screen">
         <ClayCard className="clay-pulse">
           <ClayCardContent className="flex flex-col items-center p-8">
             <div className="w-16 h-16 rounded-full clay-metric-card flex items-center justify-center text-2xl mb-4">
@@ -117,7 +117,7 @@ export default function CrmDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <ClayCard className="clay-alert">
           <ClayCardContent className="flex items-center gap-4 p-6">
             <AlertTriangle className="h-8 w-8 text-red-500" />
@@ -142,11 +142,15 @@ export default function CrmDashboard() {
       {/* Floating Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="clay-floating absolute top-20 left-10 w-32 h-32 rounded-full" 
-             style={{background: 'var(--clay-lavender)', opacity: 0.1}}></div>
+             style={{background: 'var(--clay-lavender)', opacity: 0.15, filter: 'blur(1px)'}}></div>
         <div className="clay-floating absolute top-40 right-20 w-24 h-24 rounded-full" 
-             style={{background: 'var(--clay-mint)', opacity: 0.1, animationDelay: '1s'}}></div>
+             style={{background: 'var(--clay-mint)', opacity: 0.12, animationDelay: '1s', filter: 'blur(1px)'}}></div>
         <div className="clay-floating absolute bottom-32 left-1/3 w-20 h-20 rounded-full" 
-             style={{background: 'var(--clay-baby-blue)', opacity: 0.1, animationDelay: '2s'}}></div>
+             style={{background: 'var(--clay-baby-blue)', opacity: 0.18, animationDelay: '2s', filter: 'blur(1px)'}}></div>
+        <div className="clay-floating absolute top-1/2 right-10 w-16 h-16 rounded-full" 
+             style={{background: 'var(--clay-peach)', opacity: 0.1, animationDelay: '0.5s', filter: 'blur(2px)'}}></div>
+        <div className="clay-floating absolute bottom-20 right-1/4 w-28 h-28 rounded-full" 
+             style={{background: 'var(--clay-rose)', opacity: 0.08, animationDelay: '1.5s', filter: 'blur(2px)'}}></div>
       </div>
 
       <div className="relative container mx-auto p-8 space-y-8">
@@ -158,10 +162,10 @@ export default function CrmDashboard() {
                 🧠
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                   داشبورد CRM هوشمند
                 </h1>
-                <p className="text-lg text-muted-foreground">
+                <p className="text-lg text-gray-300">
                   مدیریت نمایندگان با هوش مصنوعی فارسی
                 </p>
               </div>
@@ -284,8 +288,8 @@ export default function CrmDashboard() {
                   <Bot className="h-6 w-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">فضای کار هوشمند</h3>
-                  <p className="text-sm text-muted-foreground">دستیار AI با درک فرهنگی</p>
+                  <h3 className="font-semibold text-lg text-gray-200">فضای کار هوشمند</h3>
+                  <p className="text-sm text-gray-400">دستیار AI با درک فرهنگی</p>
                 </div>
                 <Link href="/crm/ai-workspace">
                   <ClayButton variant="accent" size="sm">
@@ -306,8 +310,8 @@ export default function CrmDashboard() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">تحلیل پیشرفته</h3>
-                  <p className="text-sm text-muted-foreground">آنالیز هوشمند و پیش‌بینی</p>
+                  <h3 className="font-semibold text-lg text-gray-200">تحلیل پیشرفته</h3>
+                  <p className="text-sm text-gray-400">آنالیز هوشمند و پیش‌بینی</p>
                 </div>
                 <Link href="/crm/advanced-analytics">
                   <ClayButton variant="secondary" size="sm">
@@ -328,8 +332,8 @@ export default function CrmDashboard() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg">تنظیمات AI</h3>
-                  <p className="text-sm text-muted-foreground">کنترل هوش مصنوعی</p>
+                  <h3 className="font-semibold text-lg text-gray-200">تنظیمات AI</h3>
+                  <p className="text-sm text-gray-400">کنترل هوش مصنوعی</p>
                 </div>
                 <Link href="/crm/admin/ai-config">
                   <ClayButton variant="primary" size="sm">
@@ -347,9 +351,9 @@ export default function CrmDashboard() {
           <Link href="/crm/representatives">
             <ClayCard className="clay-nav-item group cursor-pointer">
               <ClayCardContent className="p-6 text-center">
-                <Users className="h-8 w-8 mx-auto mb-3 text-purple-600 group-hover:text-white transition-colors" />
-                <h3 className="font-semibold group-hover:text-white">نمایندگان</h3>
-                <p className="text-sm text-muted-foreground group-hover:text-white/80">مدیریت نمایندگان</p>
+                <Users className="h-8 w-8 mx-auto mb-3 text-purple-400 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold text-gray-200 group-hover:text-white">نمایندگان</h3>
+                <p className="text-sm text-gray-400 group-hover:text-white/80">مدیریت نمایندگان</p>
               </ClayCardContent>
             </ClayCard>
           </Link>
@@ -357,9 +361,9 @@ export default function CrmDashboard() {
           <Link href="/crm/tasks">
             <ClayCard className="clay-nav-item group cursor-pointer">
               <ClayCardContent className="p-6 text-center">
-                <Target className="h-8 w-8 mx-auto mb-3 text-blue-600 group-hover:text-white transition-colors" />
-                <h3 className="font-semibold group-hover:text-white">وظایف</h3>
-                <p className="text-sm text-muted-foreground group-hover:text-white/80">مدیریت وظایف</p>
+                <Target className="h-8 w-8 mx-auto mb-3 text-blue-400 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold text-gray-200 group-hover:text-white">وظایف</h3>
+                <p className="text-sm text-gray-400 group-hover:text-white/80">مدیریت وظایف</p>
               </ClayCardContent>
             </ClayCard>
           </Link>
@@ -367,9 +371,9 @@ export default function CrmDashboard() {
           <Link href="/crm/analytics">
             <ClayCard className="clay-nav-item group cursor-pointer">
               <ClayCardContent className="p-6 text-center">
-                <BarChart3 className="h-8 w-8 mx-auto mb-3 text-green-600 group-hover:text-white transition-colors" />
-                <h3 className="font-semibold group-hover:text-white">تحلیل عملکرد</h3>
-                <p className="text-sm text-muted-foreground group-hover:text-white/80">آمار و گزارشات</p>
+                <BarChart3 className="h-8 w-8 mx-auto mb-3 text-green-400 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold text-gray-200 group-hover:text-white">تحلیل عملکرد</h3>
+                <p className="text-sm text-gray-400 group-hover:text-white/80">آمار و گزارشات</p>
               </ClayCardContent>
             </ClayCard>
           </Link>
@@ -377,9 +381,9 @@ export default function CrmDashboard() {
           <Link href="/crm/notifications">
             <ClayCard className="clay-nav-item group cursor-pointer">
               <ClayCardContent className="p-6 text-center">
-                <Bell className="h-8 w-8 mx-auto mb-3 text-orange-600 group-hover:text-white transition-colors" />
-                <h3 className="font-semibold group-hover:text-white">اعلانات</h3>
-                <p className="text-sm text-muted-foreground group-hover:text-white/80">پیام‌ها و هشدارها</p>
+                <Bell className="h-8 w-8 mx-auto mb-3 text-orange-400 group-hover:text-white transition-colors" />
+                <h3 className="font-semibold text-gray-200 group-hover:text-white">اعلانات</h3>
+                <p className="text-sm text-gray-400 group-hover:text-white/80">پیام‌ها و هشدارها</p>
               </ClayCardContent>
             </ClayCard>
           </Link>
@@ -388,19 +392,19 @@ export default function CrmDashboard() {
         {/* Performance Overview */}
         <ClayCard className="clay-floating">
           <ClayCardHeader>
-            <ClayCardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-purple-600" />
+            <ClayCardTitle className="flex items-center gap-2 text-gray-200">
+              <Award className="h-5 w-5 text-purple-400" />
               عملکرد کلی سیستم
             </ClayCardTitle>
-            <ClayCardDescription>
+            <ClayCardDescription className="text-gray-400">
               آخرین وضعیت نمایندگان و فعالیت‌های هوشمند
             </ClayCardDescription>
           </ClayCardHeader>
           <ClayCardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">پیشرفت کلی</span>
-                <span className="text-sm text-muted-foreground">87%</span>
+                <span className="text-sm font-medium text-gray-200">پیشرفت کلی</span>
+                <span className="text-sm text-gray-400">87%</span>
               </div>
               <div className="clay-progress h-3">
                 <div className="clay-progress-fill h-full" style={{width: '87%'}}></div>
@@ -408,20 +412,20 @@ export default function CrmDashboard() {
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">156</div>
-                  <div className="text-xs text-muted-foreground">تعامل AI</div>
+                  <div className="text-2xl font-bold text-purple-400">156</div>
+                  <div className="text-xs text-gray-400">تعامل AI</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">94%</div>
-                  <div className="text-xs text-muted-foreground">دقت پیش‌بینی</div>
+                  <div className="text-2xl font-bold text-green-400">94%</div>
+                  <div className="text-xs text-gray-400">دقت پیش‌بینی</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">23</div>
-                  <div className="text-xs text-muted-foreground">وظیفه هوشمند</div>
+                  <div className="text-2xl font-bold text-blue-400">23</div>
+                  <div className="text-xs text-gray-400">وظیفه هوشمند</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">91%</div>
-                  <div className="text-xs text-muted-foreground">رضایت کاربر</div>
+                  <div className="text-2xl font-bold text-orange-400">91%</div>
+                  <div className="text-xs text-gray-400">رضایت کاربر</div>
                 </div>
               </div>
             </div>
@@ -432,11 +436,11 @@ export default function CrmDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ClayCard>
             <ClayCardHeader>
-              <ClayCardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-blue-600" />
+              <ClayCardTitle className="flex items-center gap-2 text-gray-200">
+                <Brain className="h-5 w-5 text-blue-400" />
                 یادگیری انطباقی
               </ClayCardTitle>
-              <ClayCardDescription>
+              <ClayCardDescription className="text-gray-400">
                 سیستم یادگیری هوشمند و بهینه‌سازی خودکار
               </ClayCardDescription>
             </ClayCardHeader>
@@ -447,11 +451,11 @@ export default function CrmDashboard() {
 
           <ClayCard>
             <ClayCardHeader>
-              <ClayCardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-green-600" />
+              <ClayCardTitle className="flex items-center gap-2 text-gray-200">
+                <Clock className="h-5 w-5 text-green-400" />
                 برنامه‌ریز روزانه
               </ClayCardTitle>
-              <ClayCardDescription>
+              <ClayCardDescription className="text-gray-400">
                 زمان‌بندی هوشمند و مدیریت وظایف خودکار
               </ClayCardDescription>
             </ClayCardHeader>
@@ -465,9 +469,9 @@ export default function CrmDashboard() {
         <div className="text-center py-8">
           <ClayCard className="clay-floating inline-block">
             <ClayCardContent className="px-6 py-3">
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center gap-2 text-gray-400">
                 <span>ساخته شده با</span>
-                <Heart className="h-4 w-4 text-red-500 clay-pulse" />
+                <Heart className="h-4 w-4 text-red-400 clay-pulse" />
                 <span>برای مدیریت بهتر نمایندگان</span>
               </div>
             </ClayCardContent>
