@@ -194,7 +194,7 @@ class VoiceProcessingService {
       console.error('❌ Failed to save processed content:', error);
       return {
         success: false,
-        message: `خطا در ذخیره محتوا: ${error.message}`
+        message: `خطا در ذخیره محتوا: ${error instanceof Error ? error.message : String(error)}`
       };
     }
   }
@@ -237,17 +237,14 @@ class VoiceProcessingService {
     `;
 
     try {
-      const analysis = await xaiGrokEngine.analyzeCulturalProfile({
-        name: context.existingData?.name || 'نماینده',
-        text: prompt
-      });
+      const analysis = await xaiGrokEngine.analyzeCulturalProfile(prompt);
 
       return {
-        communicationStyle: this.extractCommunicationStyle(analysis),
-        emotionalTone: this.extractEmotionalTone(analysis),
-        culturalMarkers: this.extractCulturalMarkers(analysis),
-        recommendedApproach: this.extractRecommendedApproach(analysis),
-        sensitivityLevel: this.extractSensitivityLevel(analysis)
+        communicationStyle: analysis?.communicationStyle || 'formal',
+        emotionalTone: analysis?.emotionalState || 'neutral',
+        culturalMarkers: analysis?.culturalMarkers || [],
+        recommendedApproach: analysis?.suggestedApproach || 'standard',
+        sensitivityLevel: analysis?.confidenceLevel ? (analysis.confidenceLevel > 0.8 ? 'high' : 'medium') : 'medium'
       };
     } catch (error) {
       console.warn('Cultural analysis fallback used:', error);
@@ -272,10 +269,7 @@ class VoiceProcessingService {
     `;
 
     try {
-      const response = await xaiGrokEngine.generateInsights(prompt, {
-        urgencyLevel: context.urgencyLevel,
-        representativeId: context.representativeId
-      });
+      const response = await xaiGrokEngine.processText(prompt);
 
       return this.parseInsights(response);
     } catch (error) {

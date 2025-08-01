@@ -33,6 +33,7 @@ import RepresentativesList from "@/pages/representatives-list";
 import CrmTasks from "@/pages/crm-tasks";
 import CrmAnalytics from "@/pages/crm-analytics";
 import CrmNotifications from "@/pages/crm-notifications";
+import PerformanceAnalytics from "@/pages/performance-analytics";
 import UnifiedAuth from "@/pages/unified-auth";
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,7 @@ function AuthenticatedRouter() {
           <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
           <Route path="/crm/tasks" component={CrmTasks} />
           <Route path="/crm/analytics" component={CrmAnalytics} />
+          <Route path="/crm/performance-analytics" component={PerformanceAnalytics} />
           <Route path="/crm/notifications" component={CrmNotifications} />
           <Route path="/crm/*" component={NotFound} />
         </Switch>

@@ -148,9 +148,9 @@ export function registerCrmRoutes(app: Express) {
             {
               type: parseFloat(rep.totalDebt || "0") > 50000 ? 'warning' as const : 'info' as const,
               title: 'وضعیت مالی',
-              description: `میزان بدهی: ${debtAmount.toLocaleString('fa-IR')} ریال`,
+              description: `میزان بدهی: ${parseFloat(rep.totalDebt || "0").toLocaleString('fa-IR')} ریال`,
               confidence: 90,
-              actionRequired: debtAmount > 50000
+              actionRequired: parseFloat(rep.totalDebt || "0") > 50000
             }
           ],
           nextActions: [
