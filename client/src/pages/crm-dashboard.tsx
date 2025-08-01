@@ -19,7 +19,8 @@ import {
   Activity,
   Settings,
   Bell,
-  LogOut
+  LogOut,
+  BarChart3
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -67,6 +68,16 @@ interface ActivityItem {
 export default function CrmDashboard() {
   const [, setLocation] = useLocation();
   const [showFinancialReport, setShowFinancialReport] = useState(false);
+
+  const { toast } = useToast();
+
+  const handleFinancialReportClick = () => {
+    setShowFinancialReport(true);
+    toast({
+      title: "گزارش مالی",
+      description: "در حال تولید گزارش جامع مالی...",
+    });
+  };
   const { user, logoutMutation } = useCrmAuth();
   
   const { data: dashboardData, isLoading, error } = useQuery<CrmDashboardData>({
@@ -185,7 +196,7 @@ export default function CrmDashboard() {
               variant="outline" 
               size="sm" 
               className="w-full gap-2"
-              onClick={() => setShowFinancialReport(true)}
+              onClick={handleFinancialReportClick}
             >
               <TrendingUp className="h-4 w-4" />
               گزارش مالی

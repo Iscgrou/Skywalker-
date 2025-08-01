@@ -28,6 +28,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { Link } from 'wouter';
+import { CurrencyFormatter } from '@/lib/currency-formatter';
 
 interface PerformanceMetrics {
   representativeId: number;
@@ -120,7 +121,7 @@ export function PerformanceAnalyticsPanel() {
   };
 
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('fa-IR').format(amount) + ' ریال';
+    return CurrencyFormatter.formatForCRM(amount);
   };
 
   const getRiskLevelBadge = (level: string) => {

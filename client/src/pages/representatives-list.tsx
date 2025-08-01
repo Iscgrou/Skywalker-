@@ -18,6 +18,7 @@ import {
   Eye,
   Brain
 } from 'lucide-react';
+import { CurrencyFormatter } from '@/lib/currency-formatter';
 
 interface Representative {
   id: number;
@@ -186,12 +187,12 @@ export default function RepresentativesList() {
 
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span>بدهی: {rep.debtAmount.toLocaleString('fa-IR')} ریال</span>
+                <span>بدهی: {CurrencyFormatter.formatForCRM(rep.debtAmount)}</span>
               </div>
 
               <div className="flex items-center gap-2 text-sm">
                 <Activity className="h-4 w-4 text-muted-foreground" />
-                <span>فروش: {rep.salesAmount.toLocaleString('fa-IR')} ریال</span>
+                <span>فروش: {CurrencyFormatter.formatForCRM(rep.salesAmount)}</span>
               </div>
 
               <div className="flex gap-2 pt-3">

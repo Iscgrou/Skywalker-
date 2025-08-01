@@ -35,6 +35,7 @@ import { apiRequest } from '@/lib/queryClient';
 import AIInsightsPanel from '@/components/crm/ai-insights-panel';
 import VoiceBiographyPanel from '@/components/crm/voice-biography-panel';
 import VoiceTaskCreator from '@/components/crm/voice-task-creator';
+import VoiceRecorder from '@/components/crm/voice-recorder';
 import { CurrencyFormatter } from '@/lib/currency-formatter';
 
 interface RepresentativeProfile {
@@ -401,7 +402,7 @@ export default function RepresentativeProfile() {
                 
                 {hasPermission('representative_profiles', 'UPDATE') && (
                   <VoiceRecorder
-                    onTranscriptionComplete={(text) => {
+                    onTranscriptionComplete={(text: string) => {
                       console.log('Biography update via voice:', text);
                       toast({
                         title: "بیوگرافی بروزرسانی شد",
