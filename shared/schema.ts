@@ -84,6 +84,27 @@ export const crmRepresentativeLevels = pgTable("crm_representative_levels", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// CRM Cultural Profiles (پروفایل‌های فرهنگی)
+export const crmCulturalProfiles = pgTable("crm_cultural_profiles", {
+  id: serial("id").primaryKey(),
+  representativeId: integer("representative_id").notNull().unique(),
+  communicationStyle: text("communication_style").notNull(),
+  culturalFactors: json("cultural_factors").notNull(),
+  personalityTraits: json("personality_traits").notNull(),
+  motivationFactors: json("motivation_factors").notNull(),
+  recommendedApproach: text("recommended_approach").notNull(),
+  confidence: decimal("confidence", { precision: 5, scale: 2 }).default("0"),
+  lastAnalyzedAt: timestamp("last_analyzed_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+
+
+
+
+
+
 
 
 // Admin Users (کاربران ادمین)

@@ -592,6 +592,21 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  // CRM Enhanced Methods
+  async getRepresentativeById(representativeId: number): Promise<Representative | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [representative] = await db
+          .select()
+          .from(representatives)
+          .where(eq(representatives.id, representativeId));
+        
+        return representative || undefined;
+      },
+      'getRepresentativeById'
+    );
+  }
+
   // Data Reset Functions
   async getDataCounts(): Promise<{
     representatives: number;

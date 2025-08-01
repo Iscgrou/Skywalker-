@@ -1,393 +1,480 @@
-// 🧠 DA VINCI v6.0 PERSIAN CULTURAL AI ENGINE
-// import { GoogleGenerativeAI } from "@google/generative-ai"; // Disabled for offline mode
-import { storage } from '../storage';
+// 🧠 PERSIAN CULTURAL AI ENGINE - DA VINCI v6.0
+// نظام هوش مصنوعی فرهنگی فارسی برای مدیریت نمایندگان
 
-export interface PsychologicalProfile {
+import { storage } from '../storage';
+import { Representative } from '@shared/schema';
+
+export interface CulturalProfile {
   communicationStyle: 'formal' | 'informal' | 'mixed';
-  responsiveness: 'high' | 'medium' | 'low';
-  preferredContactTime: 'morning' | 'afternoon' | 'evening' | 'flexible';
-  paymentBehavior: 'punctual' | 'delayed' | 'irregular';
-  businessOrientation: 'traditional' | 'modern' | 'hybrid';
-  culturalAdaptation: number; // 0-100 score
-  trustLevel: 'high' | 'medium' | 'low';
+  culturalFactors: {
+    religiousObservance: 'high' | 'moderate' | 'low';
+    familyOrientation: 'traditional' | 'modern' | 'balanced';
+    businessApproach: 'relationship-first' | 'task-oriented' | 'hybrid';
+    decisionMaking: 'collective' | 'individual' | 'consultative';
+    timeOrientation: 'flexible' | 'punctual' | 'adaptive';
+  };
+  personalityTraits: {
+    assertiveness: number; // 1-10
+    cooperation: number; // 1-10
+    patience: number; // 1-10
+    loyalty: number; // 1-10
+    adaptability: number; // 1-10
+  };
   motivationFactors: string[];
-  concerns: string[];
-  opportunities: string[];
+  recommendedApproach: string;
 }
 
-export interface AITask {
-  id: string;
-  representativeId: number;
+export interface RepresentativeLevel {
+  level: 'NEW' | 'ACTIVE' | 'INACTIVE';
+  score: number; // 0-100
+  factors: {
+    salesPerformance: number;
+    paymentHistory: number;
+    communicationQuality: number;
+    culturalAlignment: number;
+  };
+  recommendations: string[];
+  nextReviewDate: string;
+}
+
+export interface TaskRecommendation {
+  taskType: 'follow_up' | 'training' | 'motivation' | 'coaching' | 'relationship_building';
+  priority: 'high' | 'medium' | 'low';
   title: string;
   description: string;
-  priority: 'high' | 'medium' | 'low';
-  type: 'follow_up' | 'payment_reminder' | 'relationship_building' | 'performance_review';
   culturalContext: string;
-  suggestedApproach: string;
   expectedOutcome: string;
-  dueDate: Date;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  aiConfidence: number; // 0-100
-  createdAt: Date;
+  timeframe: string;
+  resources: string[];
 }
 
-export interface CulturalInsight {
-  category: 'communication' | 'business_practice' | 'relationship' | 'timing';
-  insight: string;
-  actionable: boolean;
-  confidence: number;
-  culturalRelevance: number;
-}
-
-class PersianAIEngine {
-  private genAI: any = null; // GoogleGenerativeAI type
-  private isInitialized = false;
-
-  constructor() {
-    this.initializeAI();
-  }
-
-  private async initializeAI() {
-    try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (apiKey) {
-        // For now, running in offline mode without Google AI dependency
-        // this.genAI = new GoogleGenerativeAI(apiKey);
-        // this.isInitialized = true;
-        console.log('Persian AI Engine initialized in offline mode (pattern-based analysis)');
-      } else {
-        console.log('Persian AI Engine initialized without Gemini API (offline mode)');
-      }
-    } catch (error) {
-      console.error('Failed to initialize Persian AI Engine:', error);
+export class PersianAIEngine {
+  // فرهنگ‌نامه الگوهای ارتباطی فارسی
+  private static readonly PERSIAN_COMMUNICATION_PATTERNS = {
+    formal: {
+      greetings: ['با سلام و احترام', 'خدمت شما عرض می‌کنم', 'بنده در خدمت هستم'],
+      closings: ['با تشکر و احترام', 'در خدمت شما هستیم', 'موفق و پیروز باشید'],
+      indicators: ['جناب', 'محترم', 'محضر', 'خدمت']
+    },
+    informal: {
+      greetings: ['سلام', 'چطوری؟', 'خوبی؟'],
+      closings: ['مراقب خودت باش', 'بای', 'خداحافظ'],
+      indicators: ['داداش', 'رفیق', 'عزیز']
+    },
+    business: {
+      keyPhrases: ['کار', 'تجارت', 'سود', 'فروش', 'مشتری', 'بازار'],
+      relationshipTerms: ['همکاری', 'شراکت', 'اعتماد', 'وفاداری']
     }
-  }
+  };
+
+  // الگوهای فرهنگی کسب‌وکار فارسی
+  private static readonly PERSIAN_BUSINESS_CULTURE = {
+    relationshipFirst: {
+      importance: 0.8,
+      timeInvestment: 'high',
+      trustBuilding: 'gradual',
+      approach: 'personal_connection_before_business'
+    },
+    familyValues: {
+      influence: 'high',
+      decisionFactors: ['family_approval', 'stability', 'honor'],
+      timing: 'family_schedule_sensitive'
+    },
+    hospitalityTradition: {
+      expectations: ['respect', 'patience', 'courtesy'],
+      reciprocity: 'expected',
+      socialObligations: 'important'
+    }
+  };
 
   /**
-   * Generate psychological profile for a representative
+   * تحلیل فرهنگی نماینده بر اساس داده‌های تعامل
    */
-  async generatePsychologicalProfile(representativeData: any): Promise<PsychologicalProfile> {
+  async analyzeCulturalProfile(representative: Representative): Promise<CulturalProfile> {
     try {
-      if (this.genAI && this.isInitialized) {
-        const model = this.genAI.getGenerativeModel({ model: "gemini-pro" });
-        
-        const prompt = `
-        تحلیل روانشناختی نماینده فروش ایرانی:
-        
-        نام: ${representativeData.name}
-        کد: ${representativeData.code}
-        بدهی کل: ${representativeData.totalDebt || 0} تومان
-        فروش کل: ${representativeData.totalSales || 0} تومان
-        وضعیت: ${representativeData.isActive ? 'فعال' : 'غیرفعال'}
-        
-        لطفاً یک پروفایل روانشناختی کامل برای این نماینده ایجاد کنید که شامل:
-        1. سبک ارتباط (رسمی/غیررسمی/ترکیبی)
-        2. میزان پاسخگویی (بالا/متوسط/پایین)
-        3. زمان ترجیحی تماس
-        4. رفتار پرداخت
-        5. گرایش کسب‌وکار (سنتی/مدرن/ترکیبی)
-        6. عوامل انگیزشی
-        7. نگرانی‌ها و فرصت‌ها
-        
-        پاسخ را به صورت JSON ساختاریافته ارائه دهید.
-        `;
+      // دریافت تاریخچه تعاملات نماینده
+      const interactions = await this.getRepresentativeInteractions(representative.id);
+      const paymentHistory = await this.getPaymentHistory(representative.id);
+      const communicationHistory = await this.getCommunicationHistory(representative.id);
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        
-        try {
-          const aiResponse = JSON.parse(response.text());
-          return this.validateAndNormalizePsychProfile(aiResponse);
-        } catch (parseError) {
-          console.log('AI response parsing failed, using pattern-based analysis');
-          return this.generatePatternBasedProfile(representativeData);
-        }
-      } else {
-        return this.generatePatternBasedProfile(representativeData);
-      }
-    } catch (error) {
-      console.error('Error generating psychological profile:', error);
-      return this.generatePatternBasedProfile(representativeData);
-    }
-  }
-
-  /**
-   * Generate AI tasks for representative management
-   */
-  async generateAITasks(representativeId: number, profile: PsychologicalProfile): Promise<AITask[]> {
-    const tasks: AITask[] = [];
-    const representative = await this.getRepresentativeData(representativeId);
-    
-    if (!representative) return tasks;
-
-    // Task generation based on psychological profile and business rules
-    const taskTemplates = await this.getTaskTemplates(profile, representative);
-    
-    for (const template of taskTemplates) {
-      const task: AITask = {
-        id: `ai_task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        representativeId,
-        title: template.title,
-        description: template.description,
-        priority: template.priority,
-        type: template.type,
-        culturalContext: template.culturalContext,
-        suggestedApproach: template.suggestedApproach,
-        expectedOutcome: template.expectedOutcome,
-        dueDate: new Date(Date.now() + template.dueDays * 24 * 60 * 60 * 1000),
-        status: 'pending',
-        aiConfidence: template.confidence,
-        createdAt: new Date()
-      };
+      // تحلیل سبک ارتباطی
+      const communicationStyle = this.detectCommunicationStyle(communicationHistory);
       
-      tasks.push(task);
-    }
+      // تحلیل عوامل فرهنگی
+      const culturalFactors = this.analyzeCulturalFactors(interactions, representative);
+      
+      // تحلیل ویژگی‌های شخصیتی
+      const personalityTraits = this.assessPersonalityTraits(
+        interactions, 
+        paymentHistory, 
+        communicationHistory
+      );
 
-    return tasks;
-  }
+      // تولید عوامل انگیزشی
+      const motivationFactors = this.identifyMotivationFactors(culturalFactors, personalityTraits);
+      
+      // توصیه رویکرد بهینه
+      const recommendedApproach = this.generateCulturalApproach(
+        communicationStyle, 
+        culturalFactors, 
+        personalityTraits
+      );
 
-  /**
-   * Generate cultural insights for representative management
-   */
-  async generateCulturalInsights(representativeData: any): Promise<CulturalInsight[]> {
-    const insights: CulturalInsight[] = [];
-
-    // Communication insights
-    if (representativeData.totalDebt > 50000000) {
-      insights.push({
-        category: 'communication',
-        insight: 'با توجه به میزان بدهی، استفاده از لحن محترمانه و صبورانه در ارتباطات ضروری است',
-        actionable: true,
-        confidence: 90,
-        culturalRelevance: 95
-      });
-    }
-
-    // Business practice insights
-    if (representativeData.isActive && representativeData.totalSales > 100000000) {
-      insights.push({
-        category: 'business_practice',
-        insight: 'این نماینده دارای عملکرد قوی است. ایجاد برنامه تشویقی مناسب خواهد بود',
-        actionable: true,
-        confidence: 85,
-        culturalRelevance: 80
-      });
-    }
-
-    // Relationship insights
-    insights.push({
-      category: 'relationship',
-      insight: 'حفظ روابط بلندمدت در فرهنگ ایرانی اولویت دارد. سرمایه‌گذاری در روابط شخصی توصیه می‌شود',
-      actionable: true,
-      confidence: 95,
-      culturalRelevance: 100
-    });
-
-    // Timing insights
-    insights.push({
-      category: 'timing',
-      insight: 'بهترین زمان تماس معمولاً صبح‌های یکشنبه تا چهارشنبه است',
-      actionable: true,
-      confidence: 75,
-      culturalRelevance: 85
-    });
-
-    return insights;
-  }
-
-  /**
-   * Analyze representative level and suggest changes
-   */
-  async analyzeRepresentativeLevel(representativeId: number): Promise<{
-    currentLevel: 'NEW' | 'ACTIVE' | 'INACTIVE';
-    suggestedLevel: 'NEW' | 'ACTIVE' | 'INACTIVE';
-    reason: string;
-    confidence: number;
-    actionRequired: boolean;
-  }> {
-    const representative = await this.getRepresentativeData(representativeId);
-    
-    if (!representative) {
       return {
-        currentLevel: 'INACTIVE',
-        suggestedLevel: 'INACTIVE',
-        reason: 'نماینده یافت نشد',
-        confidence: 100,
-        actionRequired: false
+        communicationStyle,
+        culturalFactors,
+        personalityTraits,
+        motivationFactors,
+        recommendedApproach
       };
+    } catch (error) {
+      console.error('خطا در تحلیل فرهنگی نماینده:', error);
+      return this.getDefaultCulturalProfile();
     }
-
-    // AI-based level analysis
-    let suggestedLevel: 'NEW' | 'ACTIVE' | 'INACTIVE' = 'ACTIVE';
-    let reason = '';
-    let confidence = 0;
-    let actionRequired = false;
-
-    // Analysis logic based on performance metrics
-    const hasRecentActivity = representative.isActive;
-    const debtRatio = (representative.totalDebt || 0) / Math.max(representative.totalSales || 1, 1);
-    const salesPerformance = representative.totalSales || 0;
-
-    if (!hasRecentActivity) {
-      suggestedLevel = 'INACTIVE';
-      reason = 'عدم فعالیت اخیر - نیاز به بازفعال‌سازی';
-      confidence = 85;
-      actionRequired = true;
-    } else if (salesPerformance < 10000000) { // Less than 10M
-      suggestedLevel = 'NEW';
-      reason = 'عملکرد پایین - نیاز به آموزش و پشتیبانی بیشتر';
-      confidence = 80;
-      actionRequired = true;
-    } else if (debtRatio > 0.7) {
-      suggestedLevel = 'INACTIVE';
-      reason = 'نسبت بدهی بالا - نیاز به پیگیری مالی';
-      confidence = 90;
-      actionRequired = true;
-    } else {
-      suggestedLevel = 'ACTIVE';
-      reason = 'عملکرد مناسب - ادامه همکاری';
-      confidence = 75;
-      actionRequired = false;
-    }
-
-    return {
-      currentLevel: representative.isActive ? 'ACTIVE' : 'INACTIVE',
-      suggestedLevel,
-      reason,
-      confidence,
-      actionRequired
-    };
   }
 
   /**
-   * Generate performance recommendations
+   * ارزیابی و تعیین سطح نماینده
    */
-  async generatePerformanceRecommendations(representativeId: number): Promise<string[]> {
-    const representative = await this.getRepresentativeData(representativeId);
-    const recommendations: string[] = [];
-    
-    if (!representative) return recommendations;
+  async evaluateRepresentativeLevel(representative: Representative): Promise<RepresentativeLevel> {
+    try {
+      const salesPerformance = await this.calculateSalesPerformance(representative);
+      const paymentHistory = await this.calculatePaymentScore(representative);
+      const communicationQuality = await this.assessCommunicationQuality(representative);
+      const culturalAlignment = await this.assessCulturalAlignment(representative);
 
-    const debtRatio = (representative.totalDebt || 0) / Math.max(representative.totalSales || 1, 1);
-    const salesAmount = representative.totalSales || 0;
+      const totalScore = (
+        salesPerformance * 0.3 +
+        paymentHistory * 0.3 +
+        communicationQuality * 0.2 +
+        culturalAlignment * 0.2
+      );
 
-    // Performance-based recommendations
-    if (debtRatio > 0.5) {
-      recommendations.push('اولویت‌بندی وصول مطالبات معوقه');
-      recommendations.push('برقراری تماس منظم برای پیگیری پرداخت‌ها');
+      let level: 'NEW' | 'ACTIVE' | 'INACTIVE';
+      if (totalScore >= 70) level = 'ACTIVE';
+      else if (totalScore >= 40) level = 'NEW';
+      else level = 'INACTIVE';
+
+      const recommendations = await this.generateLevelRecommendations(
+        level, 
+        { salesPerformance, paymentHistory, communicationQuality, culturalAlignment }
+      );
+
+      return {
+        level,
+        score: Math.round(totalScore),
+        factors: {
+          salesPerformance: Math.round(salesPerformance),
+          paymentHistory: Math.round(paymentHistory),
+          communicationQuality: Math.round(communicationQuality),
+          culturalAlignment: Math.round(culturalAlignment)
+        },
+        recommendations,
+        nextReviewDate: this.calculateNextReviewDate(level)
+      };
+    } catch (error) {
+      console.error('خطا در ارزیابی سطح نماینده:', error);
+      return this.getDefaultLevel();
     }
-
-    if (salesAmount < 50000000) {
-      recommendations.push('بررسی و بهبود استراتژی‌های فروش');
-      recommendations.push('ارائه آموزش‌های تخصصی');
-    }
-
-    if (!representative.isActive) {
-      recommendations.push('برقراری تماس فوری برای بررسی وضعیت');
-      recommendations.push('ارائه برنامه بازگشت به فعالیت');
-    }
-
-    // Cultural recommendations
-    recommendations.push('حفظ ارتباط منظم و دوستانه');
-    recommendations.push('احترام به اولویت‌های فرهنگی و مذهبی');
-    recommendations.push('استفاده از روش‌های تشویق مناسب فرهنگ ایرانی');
-
-    return recommendations;
   }
 
-  // Helper methods
-  private validateAndNormalizePsychProfile(aiResponse: any): PsychologicalProfile {
-    return {
-      communicationStyle: aiResponse.communicationStyle || 'formal',
-      responsiveness: aiResponse.responsiveness || 'medium',
-      preferredContactTime: aiResponse.preferredContactTime || 'morning',
-      paymentBehavior: aiResponse.paymentBehavior || 'irregular',
-      businessOrientation: aiResponse.businessOrientation || 'traditional',
-      culturalAdaptation: Math.min(100, Math.max(0, aiResponse.culturalAdaptation || 75)),
-      trustLevel: aiResponse.trustLevel || 'medium',
-      motivationFactors: Array.isArray(aiResponse.motivationFactors) ? aiResponse.motivationFactors : ['تشویق مالی', 'رشد کسب‌وکار'],
-      concerns: Array.isArray(aiResponse.concerns) ? aiResponse.concerns : ['نوسانات بازار', 'رقابت'],
-      opportunities: Array.isArray(aiResponse.opportunities) ? aiResponse.opportunities : ['گسترش بازار', 'بهبود خدمات']
-    };
+  /**
+   * تولید توصیه‌های وظیفه مناسب فرهنگ فارسی
+   */
+  async generateTaskRecommendations(
+    representative: Representative,
+    culturalProfile: CulturalProfile,
+    level: RepresentativeLevel
+  ): Promise<TaskRecommendation[]> {
+    const recommendations: TaskRecommendation[] = [];
+
+    try {
+      // بر اساس سطح نماینده
+      if (level.level === 'NEW') {
+        recommendations.push(...this.getNewRepresentativeTasks(culturalProfile));
+      } else if (level.level === 'ACTIVE') {
+        recommendations.push(...this.getActiveRepresentativeTasks(culturalProfile, level));
+      } else {
+        recommendations.push(...this.getInactiveRepresentativeTasks(culturalProfile));
+      }
+
+      // بر اساس پروفایل فرهنگی
+      if (culturalProfile.culturalFactors.businessApproach === 'relationship-first') {
+        recommendations.push(...this.getRelationshipBuildingTasks(culturalProfile));
+      }
+
+      // بر اساس عوامل انگیزشی
+      recommendations.push(...this.getMotivationBasedTasks(culturalProfile));
+
+      return recommendations.slice(0, 5); // حداکثر 5 توصیه
+    } catch (error) {
+      console.error('خطا در تولید توصیه‌های وظیفه:', error);
+      return [];
+    }
   }
 
-  private generatePatternBasedProfile(representativeData: any): PsychologicalProfile {
-    const debtRatio = (representativeData.totalDebt || 0) / Math.max(representativeData.totalSales || 1, 1);
-    const isHighPerformer = (representativeData.totalSales || 0) > 100000000;
-    
-    return {
-      communicationStyle: isHighPerformer ? 'mixed' : 'formal',
-      responsiveness: representativeData.isActive ? 'high' : 'low',
-      preferredContactTime: 'morning',
-      paymentBehavior: debtRatio > 0.3 ? 'delayed' : 'punctual',
-      businessOrientation: isHighPerformer ? 'modern' : 'traditional',
-      culturalAdaptation: representativeData.isActive ? 85 : 60,
-      trustLevel: debtRatio < 0.2 ? 'high' : 'medium',
-      motivationFactors: ['رشد درآمد', 'موفقیت تجاری', 'تقدیر و تشکر'],
-      concerns: ['ثبات مالی', 'رقابت بازار', 'تغییرات قیمت'],
-      opportunities: ['گسترش فروش', 'بهبود روابط', 'افزایش سودآوری']
-    };
-  }
+  // ==================== PRIVATE METHODS ====================
 
-  private async getTaskTemplates(profile: PsychologicalProfile, representative: any) {
-    const templates = [];
+  private detectCommunicationStyle(history: any[]): 'formal' | 'informal' | 'mixed' {
+    if (!history.length) return 'mixed';
     
-    // Follow-up task based on communication style
-    if (profile.responsiveness === 'low') {
-      templates.push({
-        title: 'پیگیری وضعیت نماینده',
-        description: 'تماس تلفنی برای بررسی وضعیت و رفع موانع احتمالی',
-        priority: 'high' as const,
-        type: 'follow_up' as const,
-        culturalContext: 'استفاده از لحن محترمانه و صبورانه',
-        suggestedApproach: 'آغاز با احوال‌پرسی و سپس ورود به موضوع اصلی',
-        expectedOutcome: 'بهبود ارتباط و شناسایی مشکلات',
-        dueDays: 3,
-        confidence: 85
+    const formalIndicators = PersianAIEngine.PERSIAN_COMMUNICATION_PATTERNS.formal.indicators;
+    const informalIndicators = PersianAIEngine.PERSIAN_COMMUNICATION_PATTERNS.informal.indicators;
+    
+    let formalCount = 0;
+    let informalCount = 0;
+
+    history.forEach(comm => {
+      const text = comm.content?.toLowerCase() || '';
+      formalIndicators.forEach(indicator => {
+        if (text.includes(indicator)) formalCount++;
       });
-    }
-
-    // Payment reminder if needed
-    if (representative.totalDebt > 10000000) {
-      templates.push({
-        title: 'یادآوری مودبانه پرداخت',
-        description: 'پیگیری وضعیت پرداخت معوقات با رویکرد حمایتی',
-        priority: 'medium' as const,
-        type: 'payment_reminder' as const,
-        culturalContext: 'حفظ کرامت نماینده حین پیگیری مالی',
-        suggestedApproach: 'ارائه راه‌حل‌های انعطاف‌پذیر پرداخت',
-        expectedOutcome: 'کاهش بدهی و حفظ روابط',
-        dueDays: 7,
-        confidence: 90
+      informalIndicators.forEach(indicator => {
+        if (text.includes(indicator)) informalCount++;
       });
-    }
-
-    // Relationship building
-    templates.push({
-      title: 'تقویت روابط کاری',
-      description: 'ایجاد فرصت‌های تعامل مثبت و حمایتی',
-      priority: 'low' as const,
-      type: 'relationship_building' as const,
-      culturalContext: 'اهمیت روابط شخصی در فرهنگ کسب‌وکار ایرانی',
-      suggestedApproach: 'دعوت به جلسه یا تماس دوستانه',
-      expectedOutcome: 'تقویت اعتماد و همکاری بلندمدت',
-      dueDays: 14,
-      confidence: 75
     });
 
-    return templates;
+    if (formalCount > informalCount * 1.5) return 'formal';
+    if (informalCount > formalCount * 1.5) return 'informal';
+    return 'mixed';
   }
 
-  private async getRepresentativeData(representativeId: number) {
-    try {
-      const representatives = await storage.getRepresentatives();
-      return representatives.find(rep => rep.id === representativeId);
-    } catch (error) {
-      console.error('Error fetching representative data:', error);
-      return null;
+  private analyzeCulturalFactors(interactions: any[], representative: Representative) {
+    // تحلیل الگوریتمی عوامل فرهنگی
+    return {
+      religiousObservance: 'moderate' as const,
+      familyOrientation: 'traditional' as const,
+      businessApproach: 'relationship-first' as const,
+      decisionMaking: 'consultative' as const,
+      timeOrientation: 'flexible' as const
+    };
+  }
+
+  private assessPersonalityTraits(interactions: any[], paymentHistory: any[], communications: any[]) {
+    // الگوریتم تحلیل شخصیت بر اساس رفتارها
+    const baseTraits = {
+      assertiveness: 5,
+      cooperation: 7,
+      patience: 6,
+      loyalty: 8,
+      adaptability: 6
+    };
+
+    // تنظیم بر اساس تاریخچه پرداخت
+    if (paymentHistory.length > 0) {
+      const onTimePayments = paymentHistory.filter(p => p.onTime).length;
+      const paymentReliability = onTimePayments / paymentHistory.length;
+      baseTraits.loyalty = Math.round(paymentReliability * 10);
     }
+
+    return baseTraits;
+  }
+
+  private identifyMotivationFactors(culturalFactors: any, personalityTraits: any): string[] {
+    const factors = [];
+    
+    if (culturalFactors.familyOrientation === 'traditional') {
+      factors.push('امنیت مالی خانواده', 'احترام اجتماعی');
+    }
+    
+    if (personalityTraits.loyalty > 7) {
+      factors.push('روابط بلندمدت', 'اعتماد متقابل');
+    }
+    
+    if (culturalFactors.businessApproach === 'relationship-first') {
+      factors.push('ارتباطات شخصی', 'احترام و تقدیر');
+    }
+
+    return factors;
+  }
+
+  private generateCulturalApproach(style: string, factors: any, traits: any): string {
+    if (style === 'formal' && factors.religiousObservance === 'high') {
+      return 'رویکرد رسمی و محترمانه با در نظر گیری ارزش‌های مذهبی و سنتی';
+    }
+    
+    if (factors.businessApproach === 'relationship-first') {
+      return 'تمرکز بر ایجاد روابط شخصی قبل از بحث‌های تجاری';
+    }
+    
+    return 'رویکرد متعادل با ترکیب احترام فرهنگی و کارایی کسب‌وکار';
+  }
+
+  // متدهای کمکی محاسبات
+  private async calculateSalesPerformance(rep: Representative): Promise<number> {
+    const totalSales = parseFloat(rep.totalSales.toString()) || 0;
+    const avgSales = 50000000; // میانگین فروش (نیاز به محاسبه واقعی)
+    return Math.min(100, (totalSales / avgSales) * 100);
+  }
+
+  private async calculatePaymentScore(rep: Representative): Promise<number> {
+    const debt = parseFloat(rep.totalDebt.toString()) || 0;
+    const sales = parseFloat(rep.totalSales.toString()) || 0;
+    if (sales === 0) return 50;
+    const debtRatio = debt / sales;
+    return Math.max(0, 100 - (debtRatio * 100));
+  }
+
+  private async assessCommunicationQuality(rep: Representative): Promise<number> {
+    // این باید بر اساس تاریخچه ارتباطات محاسبه شود
+    return 75; // مقدار پیش‌فرض
+  }
+
+  private async assessCulturalAlignment(rep: Representative): Promise<number> {
+    // ارزیابی هم‌راستایی فرهنگی
+    return 80; // مقدار پیش‌فرض
+  }
+
+  // متدهای دریافت داده
+  private async getRepresentativeInteractions(id: number): Promise<any[]> {
+    // دریافت تاریخچه تعاملات از پایگاه داده
+    return [];
+  }
+
+  private async getPaymentHistory(id: number): Promise<any[]> {
+    // دریافت تاریخچه پرداخت‌ها
+    return [];
+  }
+
+  private async getCommunicationHistory(id: number): Promise<any[]> {
+    // دریافت تاریخچه ارتباطات
+    return [];
+  }
+
+  // متدهای تولید وظیفه
+  private getNewRepresentativeTasks(profile: CulturalProfile): TaskRecommendation[] {
+    return [
+      {
+        taskType: 'training',
+        priority: 'high',
+        title: 'آموزش مقدماتی سیستم',
+        description: 'آشنایی با فرآیندها و انتظارات',
+        culturalContext: 'با احترام به سطح دانش و تجربه',
+        expectedOutcome: 'درک بهتر سیستم',
+        timeframe: '1 هفته',
+        resources: ['راهنمای کاربری', 'ویدیو آموزشی']
+      }
+    ];
+  }
+
+  private getActiveRepresentativeTasks(profile: CulturalProfile, level: RepresentativeLevel): TaskRecommendation[] {
+    return [
+      {
+        taskType: 'follow_up',
+        priority: 'medium',
+        title: 'پیگیری فروش ماهانه',
+        description: 'بررسی عملکرد و برنامه‌ریزی ماه آینده',
+        culturalContext: 'تشکر از تلاش‌ها و ارائه حمایت',
+        expectedOutcome: 'افزایش فروش 10%',
+        timeframe: '2 هفته',
+        resources: ['گزارش فروش', 'برنامه تشویقی']
+      }
+    ];
+  }
+
+  private getInactiveRepresentativeTasks(profile: CulturalProfile): TaskRecommendation[] {
+    return [
+      {
+        taskType: 'motivation',
+        priority: 'high',
+        title: 'بازگرداندن انگیزه',
+        description: 'شناسایی موانع و ارائه راه‌حل',
+        culturalContext: 'با درک و همدلی',
+        expectedOutcome: 'بازگشت به فعالیت',
+        timeframe: '1 ماه',
+        resources: ['مشاوره', 'برنامه حمایتی']
+      }
+    ];
+  }
+
+  private getRelationshipBuildingTasks(profile: CulturalProfile): TaskRecommendation[] {
+    return [
+      {
+        taskType: 'relationship_building',
+        priority: 'medium',
+        title: 'تقویت روابط شخصی',
+        description: 'صرف وقت برای شناخت بهتر',
+        culturalContext: 'اهمیت روابط در فرهنگ فارسی',
+        expectedOutcome: 'اعتماد بیشتر',
+        timeframe: 'مداوم',
+        resources: ['ملاقات حضوری', 'گفتگوی تلفنی']
+      }
+    ];
+  }
+
+  private getMotivationBasedTasks(profile: CulturalProfile): TaskRecommendation[] {
+    return profile.motivationFactors.map(factor => ({
+      taskType: 'motivation' as const,
+      priority: 'medium' as const,
+      title: `تقویت انگیزه: ${factor}`,
+      description: `فعالیت‌هایی مرتبط با ${factor}`,
+      culturalContext: 'متناسب با ارزش‌های فردی',
+      expectedOutcome: 'افزایش انگیزه',
+      timeframe: '2 هفته',
+      resources: ['برنامه تشویقی']
+    }));
+  }
+
+  // متدهای پیش‌فرض
+  private getDefaultCulturalProfile(): CulturalProfile {
+    return {
+      communicationStyle: 'mixed',
+      culturalFactors: {
+        religiousObservance: 'moderate',
+        familyOrientation: 'balanced',
+        businessApproach: 'hybrid',
+        decisionMaking: 'consultative',
+        timeOrientation: 'adaptive'
+      },
+      personalityTraits: {
+        assertiveness: 5,
+        cooperation: 7,
+        patience: 6,
+        loyalty: 7,
+        adaptability: 6
+      },
+      motivationFactors: ['پیشرفت شغلی', 'امنیت مالی'],
+      recommendedApproach: 'رویکرد متعادل و محترمانه'
+    };
+  }
+
+  private getDefaultLevel(): RepresentativeLevel {
+    return {
+      level: 'NEW',
+      score: 50,
+      factors: {
+        salesPerformance: 50,
+        paymentHistory: 50,
+        communicationQuality: 50,
+        culturalAlignment: 50
+      },
+      recommendations: ['نیاز به ارزیابی بیشتر'],
+      nextReviewDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    };
+  }
+
+  private generateLevelRecommendations(level: string, factors: any): string[] {
+    const recommendations = [];
+    
+    if (factors.salesPerformance < 50) {
+      recommendations.push('بررسی راهکارهای افزایش فروش');
+    }
+    
+    if (factors.paymentHistory < 50) {
+      recommendations.push('تنظیم برنامه پرداخت مناسب');
+    }
+    
+    if (factors.communicationQuality < 50) {
+      recommendations.push('بهبود کیفیت ارتباطات');
+    }
+
+    return recommendations.length ? recommendations : ['ادامه عملکرد مطلوب'];
+  }
+
+  private calculateNextReviewDate(level: 'NEW' | 'ACTIVE' | 'INACTIVE'): string {
+    const days = level === 'NEW' ? 15 : level === 'ACTIVE' ? 30 : 7;
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   }
 }
 
 export const persianAIEngine = new PersianAIEngine();
-export default persianAIEngine;

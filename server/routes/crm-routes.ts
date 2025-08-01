@@ -5,8 +5,20 @@ import { db } from "../db";
 import { xaiGrokEngine } from "../services/xai-grok-engine";
 import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
 import { representatives } from "@shared/schema";
+import { CrmService } from "../services/crm-service";
 
 export function registerCrmRoutes(app: Express) {
+  // Initialize CRM Service
+  const crmService = new CrmService();
+  
+  // CRM Authentication Middleware
+  const crmAuthMiddleware = (req: any, res: any, next: any) => {
+    if ((req.session as any)?.crmAuthenticated) {
+      next();
+    } else {
+      res.status(401).json({ error: 'احراز هویت نشده' });
+    }
+  };
   // ==================== REPRESENTATIVES ====================
   
   // Get all representatives with filters
@@ -246,6 +258,56 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching representative analysis:', error);
       res.status(500).json({ error: 'خطا در تحلیل نماینده' });
+    }
+  });
+
+  // ==================== PERSIAN AI ENGINE ENDPOINTS ====================
+  
+  // Persian AI Analysis
+  app.get("/api/crm/representative/:id/analysis", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      const analysis = await crmService.generateIntelligentTasks(representativeId);
+      
+      res.json({
+        success: true,
+        data: analysis
+      });
+    } catch (error) {
+      console.error('خطا در تحلیل نماینده:', error);
+      res.status(500).json({ error: 'خطا در تحلیل هوشمند نماینده' });
+    }
+  });
+
+  // Cultural Profile
+  app.get("/api/crm/representative/:id/cultural-profile", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      const culturalProfile = await crmService.analyzeCulturalProfile(representativeId);
+      
+      res.json({
+        success: true,
+        data: culturalProfile
+      });
+    } catch (error) {
+      console.error('خطا در پروفایل فرهنگی:', error);
+      res.status(500).json({ error: 'خطا در دریافت پروفایل فرهنگی' });
+    }
+  });
+
+  // Representative Level Assessment
+  app.get("/api/crm/representative/:id/level", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.id);
+      const level = await crmService.getRepresentativeLevel(representativeId);
+      
+      res.json({
+        success: true,
+        data: level
+      });
+    } catch (error) {
+      console.error('خطا در ارزیابی سطح:', error);
+      res.status(500).json({ error: 'خطا در ارزیابی سطح نماینده' });
     }
   });
 }

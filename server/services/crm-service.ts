@@ -85,14 +85,61 @@ export class CrmService {
     }
   }
 
-  // Representative Management
+  // Representative Management - Enhanced with Persian AI
   async getRepresentativeLevel(representativeId: number): Promise<RepresentativeLevel | null> {
     try {
-      // This would be a proper database query in real implementation
-      return null; // Simplified for now
+      const representative = await storage.getRepresentativeById(representativeId);
+      if (!representative) return null;
+
+      // Use Persian AI Engine for cultural analysis
+      const aiLevel = await persianAIEngine.evaluateRepresentativeLevel(representative);
+      return aiLevel;
     } catch (error) {
       console.error('Failed to get representative level:', error);
       return null;
+    }
+  }
+
+  // Persian Cultural Analysis
+  async analyzeCulturalProfile(representativeId: number) {
+    try {
+      const representative = await storage.getRepresentativeById(representativeId);
+      if (!representative) {
+        throw new Error('نماینده یافت نشد');
+      }
+
+      const culturalProfile = await persianAIEngine.analyzeCulturalProfile(representative);
+      return culturalProfile;
+    } catch (error) {
+      console.error('خطا در تحلیل فرهنگی:', error);
+      throw error;
+    }
+  }
+
+  // AI Task Generation
+  async generateIntelligentTasks(representativeId: number) {
+    try {
+      const representative = await storage.getRepresentativeById(representativeId);
+      if (!representative) {
+        throw new Error('نماینده یافت نشد');
+      }
+
+      const culturalProfile = await persianAIEngine.analyzeCulturalProfile(representative);
+      const level = await persianAIEngine.evaluateRepresentativeLevel(representative);
+      const taskRecommendations = await persianAIEngine.generateTaskRecommendations(
+        representative, 
+        culturalProfile, 
+        level
+      );
+
+      return {
+        culturalProfile,
+        level,
+        taskRecommendations
+      };
+    } catch (error) {
+      console.error('خطا در تولید وظایف هوشمند:', error);
+      throw error;
     }
   }
 
