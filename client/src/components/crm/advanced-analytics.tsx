@@ -119,8 +119,7 @@ export default function AdvancedAnalytics() {
     mutationFn: async (reportConfig: any) => {
       return apiRequest('/api/crm/advanced-analytics/schedule', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        data: {
           reportType: reportConfig.type,
           frequency: reportConfig.frequency,
           recipients: reportConfig.recipients.filter((r: string) => r.trim()),
@@ -129,7 +128,7 @@ export default function AdvancedAnalytics() {
             includePredictions: reportConfig.includePredictions,
             timeRange
           }
-        })
+        }
       });
     },
     onSuccess: () => {
