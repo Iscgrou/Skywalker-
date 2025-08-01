@@ -1024,27 +1024,18 @@ export class DatabaseStorage implements IStorage {
           throw new Error(`Invoice ${invoiceId} not found`);
         }
 
-        // Calculate debt difference
-        const debtDifference = editedAmount - originalAmount;
-        
-        // Update representative's total debt
-        await db
-          .update(representatives)
-          .set({
-            totalDebt: sql`${representatives.totalDebt} + ${debtDifference}`,
-            updatedAt: new Date()
-          })
-          .where(eq(representatives.id, invoice.representativeId));
+        // FIX: Instead of adding difference, recalculate total debt from all invoices
+        await this.updateRepresentativeFinancials(invoice.representativeId);
 
         await this.createActivityLog({
           type: "debt_updated",
-          description: `بدهی نماینده به دلیل ویرایش فاکتور ${invoiceId} بروزرسانی شد`,
+          description: `بدهی نماینده به دلیل ویرایش فاکتور ${invoiceId} بروزرسانی شد (محاسبه مجدد)`,
           relatedId: invoice.representativeId,
           metadata: {
             invoiceId: invoiceId,
             originalAmount: originalAmount,
             editedAmount: editedAmount,
-            debtDifference: debtDifference
+            method: "recalculated_from_invoices"
           }
         });
       },
@@ -1391,20 +1382,15 @@ export class DatabaseStorage implements IStorage {
             })
             .where(eq(invoices.id, editData.invoiceId));
 
-          // Update representative debt
-          const debtDifference = editData.editedAmount - editData.originalAmount;
-          await db.update(representatives)
-            .set({
-              totalDebt: sql`${representatives.totalDebt} + ${debtDifference}`,
-              updatedAt: new Date()
-            })
-            .where(eq(representatives.id, invoice.representativeId));
+          // FIX: Update representative debt using correct calculation
+          // Instead of adding difference, recalculate total debt from all invoices
+          await this.updateRepresentativeFinancials(invoice.representativeId);
 
-          // Complete transaction
-          const currentDebt = representative.totalDebt ? parseFloat(representative.totalDebt.toString()) : 0;
+          // Complete transaction (get updated debt after recalculation)
+          const updatedRep = await this.getRepresentative(invoice.representativeId);
           await this.updateTransactionStatus(transactionId, 'COMPLETED', {
             invoiceAmount: editData.editedAmount,
-            newRepresentativeDebt: (currentDebt + debtDifference).toString(),
+            newRepresentativeDebt: updatedRep?.totalDebt || '0',
             editId: createdEdit.id
           });
 
@@ -1418,7 +1404,7 @@ export class DatabaseStorage implements IStorage {
               editId: createdEdit.id,
               originalAmount: editData.originalAmount,
               editedAmount: editData.editedAmount,
-              debtChange: debtDifference
+              method: "recalculated_debt_from_invoices"
             }
           });
 
