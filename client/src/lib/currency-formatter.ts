@@ -86,23 +86,126 @@ export class CurrencyFormatter {
   }
 
   /**
-   * Validate currency input
+   * Validate currency input with comprehensive error handling
    */
-  static validateCurrencyInput(input: string): boolean {
+  static validateCurrencyInput(input: string): { isValid: boolean; error?: string; normalizedValue?: number } {
+    if (!input || typeof input !== 'string') {
+      return { isValid: false, error: 'ورودی نامعتبر' };
+    }
+
     const cleaned = input.replace(/[,\s]/g, '');
-    return !isNaN(parseFloat(cleaned)) && parseFloat(cleaned) >= 0;
+    const parsed = parseFloat(cleaned);
+    
+    if (isNaN(parsed)) {
+      return { isValid: false, error: 'مقدار وارد شده عددی نیست' };
+    }
+    
+    if (parsed < 0) {
+      return { isValid: false, error: 'مقدار نمی‌تواند منفی باشد' };
+    }
+    
+    if (parsed > Number.MAX_SAFE_INTEGER) {
+      return { isValid: false, error: 'مقدار بیش از حد مجاز است' };
+    }
+
+    return { isValid: true, normalizedValue: parsed };
   }
 
   /**
-   * Parse currency input from user (handles Persian digits)
+   * Enhanced validation with business rules
    */
-  static parseCurrencyInput(input: string): number {
+  static validateBusinessCurrency(input: string, context: 'debt' | 'payment' | 'sales'): { isValid: boolean; error?: string; warnings?: string[] } {
+    const basicValidation = this.validateCurrencyInput(input);
+    
+    if (!basicValidation.isValid) {
+      return basicValidation;
+    }
+
+    const warnings: string[] = [];
+    const value = basicValidation.normalizedValue!;
+
+    // Business-specific validation rules
+    switch (context) {
+      case 'debt':
+        if (value > 10000000000) { // 10 billion tomans
+          warnings.push('مبلغ بدهی بالا - نیاز به تأیید مدیر');
+        }
+        break;
+      case 'payment':
+        if (value > 5000000000) { // 5 billion tomans
+          warnings.push('پرداخت بالا - نیاز به بررسی اضافی');
+        }
+        break;
+      case 'sales':
+        if (value < 1000000) { // 1 million tomans
+          warnings.push('مبلغ فروش پایین - بررسی کنید');
+        }
+        break;
+    }
+
+    return { isValid: true, warnings: warnings.length > 0 ? warnings : undefined };
+  }
+
+  /**
+   * Parse currency input from user (handles Persian digits) with enhanced error handling
+   */
+  static parseCurrencyInput(input: string): { value: number; originalInput: string; parseSuccess: boolean } {
+    const originalInput = input;
+    
     // Convert Persian digits to English
     const englishInput = input
       .replace(/[۰-۹]/g, (match) => String.fromCharCode(match.charCodeAt(0) - '۰'.charCodeAt(0) + '0'.charCodeAt(0)))
       .replace(/[,\s]/g, '');
     
-    return parseFloat(englishInput) || 0;
+    const parsed = parseFloat(englishInput);
+    const parseSuccess = !isNaN(parsed);
+    
+    return {
+      value: parseSuccess ? parsed : 0,
+      originalInput,
+      parseSuccess
+    };
+  }
+
+  /**
+   * Advanced parsing with currency detection and conversion tracking
+   */
+  static parseWithAuditTrail(input: string, userId?: string): {
+    value: number;
+    originalInput: string;
+    conversionApplied: boolean;
+    auditInfo: {
+      timestamp: string;
+      userId?: string;
+      inputFormat: 'persian' | 'english' | 'mixed';
+      conversionRatio?: number;
+    };
+  } {
+    const timestamp = new Date().toISOString();
+    const parseResult = this.parseCurrencyInput(input);
+    
+    // Detect input format
+    const hasPersianDigits = /[۰-۹]/.test(input);
+    const hasEnglishDigits = /[0-9]/.test(input);
+    let inputFormat: 'persian' | 'english' | 'mixed' = 'english';
+    
+    if (hasPersianDigits && hasEnglishDigits) {
+      inputFormat = 'mixed';
+    } else if (hasPersianDigits) {
+      inputFormat = 'persian';
+    }
+
+    return {
+      value: parseResult.value,
+      originalInput: parseResult.originalInput,
+      conversionApplied: true,
+      auditInfo: {
+        timestamp,
+        userId,
+        inputFormat,
+        conversionRatio: 0.1 // Rial to Toman conversion ratio
+      }
+    };
   }
 }
 

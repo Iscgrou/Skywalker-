@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { apiRequest } from '@/lib/queryClient';
 import { toPersianDigits } from '@/lib/persian-date';
+import { CurrencyFormatter } from '@/lib/currency-formatter';
 
 interface CrmTask {
   id: string;
