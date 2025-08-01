@@ -127,30 +127,6 @@ export default function PublicPortal() {
       return [usageData];
     }
 
-    // Handle simple manual edit format: {editedRecords: 6, totalAmount: 1500000, reason: "..."}
-    if (usageData.editedRecords && usageData.totalAmount && usageData.reason) {
-      console.log('Manual edit format detected');
-      return [{
-        admin_username: 'مدیر سیستم',
-        event_timestamp: new Date().toLocaleString('fa-IR'),
-        event_type: 'MANUAL_EDIT',
-        description: `${usageData.reason} (${usageData.editedRecords} رکورد ویرایش شده)`,
-        amount: usageData.totalAmount
-      }];
-    }
-
-    // Handle simple summary format: {totalAmount: ..., period_start: ..., period_end: ...}
-    if (usageData.totalAmount && !usageData.records) {
-      console.log('Simple summary format detected');
-      return [{
-        admin_username: usageData.admin_username || 'سیستم',
-        event_timestamp: usageData.period_start || usageData.period_end || '-',
-        event_type: 'SUMMARY',
-        description: `خلاصه مصرف دوره (${usageData.period_start || ''} تا ${usageData.period_end || ''})`,
-        amount: usageData.totalAmount
-      }];
-    }
-
     // Try to find array properties within the object
     const arrayProperties = Object.entries(usageData).find(([key, value]) => Array.isArray(value));
     if (arrayProperties && arrayProperties[1]) {
@@ -170,12 +146,12 @@ export default function PublicPortal() {
             description: (value as any).description || (value as any).desc || `${key}: ${JSON.stringify(value)}`,
             amount: (value as any).amount || (value as any).price || 0
           });
-        } else if (key !== 'admin_username' && key !== 'records' && key !== 'editedRecords' && key !== 'totalAmount' && key !== 'reason') {
+        } else if (key !== 'admin_username' && key !== 'records') {
           records.push({
             admin_username: usageData.admin_username || key,
             event_timestamp: '-',
-            event_type: 'DATA',
-            description: `${key}: ${String(value || '')}`,
+            event_type: 'CREATE',
+            description: String(value || ''),
             amount: typeof value === 'number' ? value : 0
           });
         }
