@@ -10,7 +10,11 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +59,7 @@ interface Invoice {
   status: string;
   sentToTelegram: boolean;
   telegramSentAt: string | null;
+  telegramSendCount?: number;
   createdAt: string;
   // Additional fields from join
   representativeName?: string;
@@ -68,6 +73,10 @@ export default function Invoices() {
   const [telegramFilter, setTelegramFilter] = useState<string>("all");
   const [selectedInvoices, setSelectedInvoices] = useState<number[]>([]);
   const [isSendDialogOpen, setIsSendDialogOpen] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(30);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -122,13 +131,25 @@ export default function Invoices() {
     return matchesSearch && matchesStatus && matchesTelegram;
   }) || [];
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  const resetToFirstPage = () => {
+    setCurrentPage(1);
+    setSelectedInvoices([]);
+  };
+
   const handleSelectAll = () => {
-    const allInvoiceIds = filteredInvoices.map(inv => inv.id);
+    const currentPageInvoiceIds = paginatedInvoices.map(inv => inv.id);
       
-    if (selectedInvoices.length === allInvoiceIds.length) {
-      setSelectedInvoices([]);
+    if (currentPageInvoiceIds.every(id => selectedInvoices.includes(id))) {
+      setSelectedInvoices(prev => prev.filter(id => !currentPageInvoiceIds.includes(id)));
     } else {
-      setSelectedInvoices(allInvoiceIds);
+      setSelectedInvoices(prev => Array.from(new Set([...prev, ...currentPageInvoiceIds])));
     }
   };
 
@@ -348,12 +369,18 @@ export default function Invoices() {
               <Input
                 placeholder="جستجو بر اساس شماره فاکتور، نماینده..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  resetToFirstPage();
+                }}
                 className="pr-10"
               />
             </div>
             
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(value) => {
+              setStatusFilter(value);
+              resetToFirstPage();
+            }}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="وضعیت فاکتور" />
               </SelectTrigger>
@@ -365,7 +392,10 @@ export default function Invoices() {
               </SelectContent>
             </Select>
 
-            <Select value={telegramFilter} onValueChange={setTelegramFilter}>
+            <Select value={telegramFilter} onValueChange={(value) => {
+              setTelegramFilter(value);
+              resetToFirstPage();
+            }}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="وضعیت تلگرام" />
               </SelectTrigger>
@@ -385,7 +415,7 @@ export default function Invoices() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center">
               <FileText className="w-5 h-5 ml-2" />
-              فاکتورها ({toPersianDigits(filteredInvoices.length.toString())})
+              فاکتورها ({toPersianDigits(filteredInvoices.length.toString())} - صفحه {toPersianDigits(currentPage.toString())} از {toPersianDigits(totalPages.toString())})
             </CardTitle>
             <div className="flex items-center space-x-4 space-x-reverse">
               <div className="flex items-center space-x-2 space-x-reverse">
@@ -397,7 +427,7 @@ export default function Invoices() {
                   onCheckedChange={handleSelectAll}
                 />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  انتخاب همه فاکتورها
+                  انتخاب همه ({toPersianDigits(paginatedInvoices.length.toString())})
                 </span>
               </div>
               
