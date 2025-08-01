@@ -197,6 +197,21 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// CRM Users (کاربران CRM)
+export const crmUsers = pgTable("crm_users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  fullName: text("full_name"),
+  email: text("email"),
+  role: text("role").default("CRM_MANAGER"), // "CRM_MANAGER", "CRM_OPERATOR", "CRM_VIEWER"
+  permissions: json("permissions").default(["VIEW_REPRESENTATIVES", "MANAGE_TASKS", "VIEW_ANALYTICS"]),
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // ==================== CRM INTELLIGENT SYSTEM ====================
 
 // CRM Representative Levels (سطح‌بندی نمایندگان)
@@ -543,6 +558,13 @@ export const insertSettingSchema = createInsertSchema(settings).omit({
   updatedAt: true
 });
 
+export const insertCrmUserSchema = createInsertSchema(crmUsers).omit({
+  id: true,
+  lastLoginAt: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 // CRM Insert Schemas
 export const insertRepresentativeLevelSchema = createInsertSchema(representativeLevels).omit({
   id: true,
@@ -632,6 +654,9 @@ export type InsertDataIntegrityConstraint = z.infer<typeof insertDataIntegrityCo
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
+
+export type CrmUser = typeof crmUsers.$inferSelect;
+export type InsertCrmUser = z.infer<typeof insertCrmUserSchema>;
 
 // CRM Types
 export type RepresentativeLevel = typeof representativeLevels.$inferSelect;

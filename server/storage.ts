@@ -1,6 +1,6 @@
 import { 
   representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers, invoiceEdits,
-  financialTransactions, dataIntegrityConstraints, invoiceBatches,
+  financialTransactions, dataIntegrityConstraints, invoiceBatches, crmUsers,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
@@ -11,8 +11,10 @@ import {
   type InvoiceEdit, type InsertInvoiceEdit,
   type FinancialTransaction, type InsertFinancialTransaction,
   type DataIntegrityConstraint, type InsertDataIntegrityConstraint,
-  // فاز ۱: Import برای مدیریت دوره‌ای فاکتورها
-  type InvoiceBatch, type InsertInvoiceBatch
+  // فاز ۱: Import برای مدیریت دوره‌ای فաکتورها
+  type InvoiceBatch, type InsertInvoiceBatch,
+  // CRM Users Import
+  type CrmUser, type InsertCrmUser
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
@@ -103,6 +105,12 @@ export interface IStorage {
   createAdminUser(user: InsertAdminUser): Promise<AdminUser>;
   updateAdminUserLogin(id: number): Promise<void>;
   initializeDefaultAdminUser(username: string, password: string): Promise<void>;
+
+  // CRM Users (Authentication)
+  getCrmUser(username: string): Promise<CrmUser | undefined>;
+  createCrmUser(user: InsertCrmUser): Promise<CrmUser>;
+  updateCrmUserLogin(id: number): Promise<void>;
+  initializeDefaultCrmUser(username: string, password: string): Promise<void>;
 
   // Data Reset Functions (Admin Only)
   getDataCounts(): Promise<{
@@ -807,6 +815,60 @@ export class DatabaseStorage implements IStorage {
         }
       },
       'initializeDefaultAdminUser'
+    );
+  }
+
+  // CRM Users (Authentication) Implementation
+  async getCrmUser(username: string): Promise<CrmUser | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [user] = await db.select().from(crmUsers).where(eq(crmUsers.username, username));
+        return user || undefined;
+      },
+      'getCrmUser'
+    );
+  }
+
+  async createCrmUser(user: InsertCrmUser): Promise<CrmUser> {
+    return await withDatabaseRetry(
+      async () => {
+        const [newUser] = await db.insert(crmUsers).values(user).returning();
+        return newUser;
+      },
+      'createCrmUser'
+    );
+  }
+
+  async updateCrmUserLogin(id: number): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        await db
+          .update(crmUsers)
+          .set({ lastLoginAt: new Date() })
+          .where(eq(crmUsers.id, id));
+      },
+      'updateCrmUserLogin'
+    );
+  }
+
+  async initializeDefaultCrmUser(username: string, password: string): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const existingUser = await this.getCrmUser(username);
+        if (!existingUser) {
+          const passwordHash = await bcrypt.hash(password, 10);
+          await this.createCrmUser({
+            username,
+            passwordHash,
+            fullName: 'مدیر CRM',
+            role: 'CRM_MANAGER',
+            permissions: ['VIEW_REPRESENTATIVES', 'MANAGE_TASKS', 'VIEW_ANALYTICS'],
+            isActive: true
+          });
+          console.log(`Default CRM user created: ${username}`);
+        }
+      },
+      'initializeDefaultCrmUser'
     );
   }
 

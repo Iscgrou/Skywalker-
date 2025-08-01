@@ -72,6 +72,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error("Failed to initialize default admin user:", error);
   }
 
+  // Initialize default CRM user
+  try {
+    await storage.initializeDefaultCrmUser("crm", "8679");
+  } catch (error) {
+    console.error("Failed to initialize default CRM user:", error);
+  }
+
   // Register CRM routes
   registerCrmRoutes(app);
 

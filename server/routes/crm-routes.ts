@@ -13,6 +13,7 @@ import { adaptiveLearningService } from "../services/adaptive-learning-service";
 import { dailyAIScheduler } from "../services/daily-ai-scheduler";
 import { intelligentReportingService } from "../services/intelligent-reporting-service";
 import { advancedExportService } from "../services/advanced-export-service";
+import bcrypt from "bcryptjs";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
@@ -133,31 +134,50 @@ export function registerCrmRoutes(app: Express) {
     try {
       const { username, password } = req.body;
       
-      if (username === 'crm' && password === '8679') {
-        const sessionId = `crm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Set CRM session
-        (req.session as any).crmAuthenticated = true;
-        (req.session as any).crmSessionId = sessionId;
-        (req.session as any).crmUser = {
-          username: 'crm',
-          role: 'CRM',
-          panelType: 'CRM_PANEL'
-        };
-        
-        res.json({
-          success: true,
-          message: 'ورود موفقیت‌آمیز به پنل CRM',
-          user: {
-            username: 'crm',
-            role: 'CRM',
-            panelType: 'CRM_PANEL',
-            permissions: []
-          }
-        });
-      } else {
-        res.status(401).json({ error: 'نام کاربری یا رمز عبور اشتباه است' });
+      if (!username || !password) {
+        return res.status(400).json({ error: "نام کاربری و رمز عبور الزامی است" });
       }
+
+      // Get CRM user from database (proper database authentication)
+      const crmUser = await storage.getCrmUser(username);
+      
+      if (!crmUser || !crmUser.isActive) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Verify password using bcrypt
+      const isPasswordValid = await bcrypt.compare(password, crmUser.passwordHash);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Update last login time
+      await storage.updateCrmUserLogin(crmUser.id);
+      
+      // Set CRM session
+      (req.session as any).crmAuthenticated = true;
+      (req.session as any).crmUser = {
+        id: crmUser.id,
+        username: crmUser.username,
+        fullName: crmUser.fullName,
+        role: crmUser.role,
+        panelType: 'CRM_PANEL',
+        permissions: crmUser.permissions || []
+      };
+      
+      res.json({
+        success: true,
+        message: 'ورود موفقیت‌آمیز به پنل CRM',
+        user: {
+          id: crmUser.id,
+          username: crmUser.username,
+          fullName: crmUser.fullName,
+          role: crmUser.role,
+          panelType: 'CRM_PANEL',
+          permissions: crmUser.permissions || []
+        }
+      });
     } catch (error) {
       console.error('CRM Login error:', error);
       res.status(500).json({ error: 'خطا در فرآیند ورود' });
