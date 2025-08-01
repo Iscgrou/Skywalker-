@@ -88,7 +88,7 @@ export interface IStorage {
   getPayments(): Promise<Payment[]>;
   getPaymentsByRepresentative(repId: number): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
-  allocatePaymentToInvoice(paymentId: number, invoiceId: number): Promise<void>;
+  allocatePaymentToInvoice(paymentId: number, invoiceId: number): Promise<Payment>;
 
   // Activity Logs
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;

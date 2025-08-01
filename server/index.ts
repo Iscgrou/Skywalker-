@@ -4,6 +4,8 @@ import connectPgSimple from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { checkDatabaseHealth, closeDatabaseConnection, pool } from "./db";
+import { performanceMonitoringMiddleware } from "./middleware/performance";
+import { compressionMiddleware } from "./middleware/compression";
 
 const app = express();
 
@@ -83,6 +85,12 @@ app.use((req, res, next) => {
     sessionMiddleware(req, res, next);
   }
 });
+
+// Performance monitoring middleware
+app.use(performanceMonitoringMiddleware);
+
+// Response compression middleware  
+app.use(compressionMiddleware);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));

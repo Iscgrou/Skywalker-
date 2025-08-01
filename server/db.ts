@@ -23,12 +23,19 @@ export const pool = new Pool({
   idleTimeoutMillis: 30000, // 30 second idle timeout
 });
 
-// Enhanced database instance with better error handling
+// Enhanced database instance with better error handling and performance monitoring
 export const db = drizzle({ 
   client: pool, 
   schema,
   logger: process.env.NODE_ENV === 'development' 
 });
+
+// Performance monitoring for slow queries
+export function logSlowQuery(queryName: string, duration: number) {
+  if (duration > 100) {
+    console.warn(`⚠️ Slow query: ${queryName} - ${duration}ms`);
+  }
+}
 
 // Connection health check function
 export async function checkDatabaseHealth(): Promise<boolean> {
