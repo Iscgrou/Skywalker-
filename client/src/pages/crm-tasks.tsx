@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   Timer
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { apiRequest } from '@/lib/queryClient';
@@ -72,7 +73,8 @@ export default function CrmTasks() {
   });
 
   const { data: taskStats } = useQuery<TaskStats>({
-    queryKey: ['/api/crm/tasks/stats']
+    queryKey: ['/api/crm/tasks/stats'],
+    refetchInterval: 30000
   });
 
   const generateTaskMutation = useMutation({

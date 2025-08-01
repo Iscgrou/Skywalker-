@@ -25,6 +25,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
+import { useToast } from '@/hooks/use-toast';
 import { AdaptiveLearningDashboard } from '@/components/adaptive-learning-dashboard';
 import { DailySchedulerDashboard } from '@/components/daily-scheduler-dashboard';
 import { CurrencyFormatter } from '@/lib/currency-formatter';
@@ -234,16 +235,16 @@ export default function CrmDashboard() {
               توصیه‌های جدید
             </p>
             <div className="grid grid-cols-2 gap-2">
-              <Link href="/crm/analytics">
+              <Link href="/crm/ai-workspace">
                 <Button variant="outline" size="sm" className="w-full gap-2">
-                  <Brain className="h-4 w-4" />
-                  تحلیل هوشمند
+                  <Bot className="h-4 w-4" />
+                  میز کار AI
                 </Button>
               </Link>
-              <Link href="/crm/performance-analytics">
+              <Link href="/crm/advanced-analytics">
                 <Button variant="outline" size="sm" className="w-full gap-2">
                   <BarChart3 className="h-4 w-4" />
-                  تحلیل عملکرد
+                  تحلیل پیشرفته
                 </Button>
               </Link>
             </div>

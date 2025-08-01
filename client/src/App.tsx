@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, lazy } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -96,6 +96,9 @@ function AuthenticatedRouter() {
           <Route path="/crm/tasks" component={CrmTasks} />
           <Route path="/crm/analytics" component={CrmAnalytics} />
           <Route path="/crm/performance-analytics" component={PerformanceAnalytics} />
+          <Route path="/crm/ai-workspace" component={lazy(() => import('./components/crm/dynamic-ai-workspace'))} />
+          <Route path="/crm/admin/ai-config" component={lazy(() => import('./components/crm/admin-ai-config'))} />
+          <Route path="/crm/advanced-analytics" component={lazy(() => import('./components/crm/advanced-analytics'))} />
           <Route path="/crm/notifications" component={CrmNotifications} />
           <Route path="/crm/*" component={NotFound} />
         </Switch>
