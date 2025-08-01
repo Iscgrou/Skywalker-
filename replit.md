@@ -1,87 +1,7 @@
 # Financial Management System - MarFaNet
 
 ## Overview
-MarFaNet is a comprehensive financial management system designed for managing invoices, payments, and sales representatives. It includes advanced features such as AI analysis, Telegram integration for notifications, and bulk invoice processing. The system aims to streamline financial operations for businesses, providing detailed tracking of debts, payments, and commissions. Its core capabilities include efficient invoice generation, representative financial oversight, and automated reporting, supporting both administrative and public-facing portals.
-
-**🔥 LATEST UPDATE (August 1, 2025)**: ✅ **Phase 3 COMPLETED: Intelligent Reporting & Analytics System** - Advanced analytics and executive reporting with Persian cultural intelligence fully operational:
-- ✅ **Intelligent Reporting Service**: Executive reports, ROI analysis, and forecasting with 58-70ms response times
-- ✅ **5 New API Endpoints**: Dashboard summary, executive reports, ROI analysis, forecasting, and export functionality  
-- ✅ **Executive Dashboard**: Key metrics analysis, trend tracking, and system health assessment
-- ✅ **ROI Analysis Engine**: Representative performance evaluation with personalized recommendations
-- ✅ **Cultural Intelligence Integration**: Persian business insights embedded in all reporting features
-- ✅ **Export Capabilities**: Multi-format report export (JSON, CSV, PDF, Excel)
-- ✅ **Real-time Analytics**: Live data processing from 207 active representatives
-- ✅ **Performance Forecasting**: Predictive analytics for revenue, tasks, and debt collection metrics
-
-**Previous Achievement**: ✅ **Phase 2 COMPLETED: Adaptive Learning System** - Intelligent CRM with reality-based learning capabilities fully operational and ready for daily use:
-- ✅ **Adaptive Learning Service**: Pattern recognition algorithms implemented with real experience analysis
-- ✅ **Daily AI Scheduler**: Automated daily task generation based on historical performance data  
-- ✅ **Experience Database**: Comprehensive learning from past interactions with cultural intelligence
-- ✅ **API Integration**: 8 new endpoints for adaptive learning, daily scheduling, and experience analytics
-- ✅ **Frontend Components**: Full dashboard integration with adaptive learning and daily scheduler tabs
-- ✅ **Persian Cultural AI**: Advanced pattern recognition for Iranian business culture and relationship management
-- ✅ **Intelligent Workload Analysis**: Team capacity planning with cultural considerations and optimization suggestions
-- ✅ **Reality-Based Instructions**: Daily operational guidance generated from actual representative performance data
-
-**Previous Achievement**: ✅ **سیستم آماده Production** - Successfully completed Phases 1-4 with Performance Optimization and ready for Production Deployment:
-- ✅ Full migration from Gemini to xAI Grok API throughout the entire system
-- ✅ Session management and authentication system completely fixed and operational
-- ✅ Dashboard data loading and display working perfectly
-- ✅ Admin panel (mgr/8679) authentication and access control functioning
-- ✅ xAI Grok configuration interface in admin settings panel
-- ✅ Pattern-based fallback for offline AI capabilities
-- ✅ CRM panel (crm/8679) maintaining separate authentication system
-- ✅ **Phase 1-2 Complete**: Persian Cultural AI Engine + Task Management System operational
-- ✅ **Phase 3 COMPLETED**: Payment Synchronization System with automatic allocation algorithms fully operational
-  - ✅ Auto-allocation API: Payments automatically allocated to invoices using FIFO strategy
-  - ✅ Payment allocation summary API: Real-time tracking of allocated/unallocated payments
-  - ✅ Financial reconciliation API: Automatic debt calculation and balance synchronization
-  - ✅ Unallocated payments detection: Real-time identification of pending payments
-  - ✅ Payment-Invoice matching: Intelligent allocation based on representative and amount
-  - ✅ Activity logging: Complete audit trail for all payment allocation operations
-  - ✅ Database integrity: Representative financial data automatically updated post-allocation
-- ✅ **Phase 3 Complete**: Performance Analytics System with advanced metrics, reporting, and AI insights verified through atomic testing
-- ✅ **Phase 4 Complete**: Gamification Engine with XP system, achievements, leaderboards, daily challenges, and Persian motivational framework
-- ✅ All API endpoints functional and tested: Analytics, Gamification, XP Awards, Achievement checking, Leaderboards
-- ✅ Frontend components built with comprehensive Persian UI for both analytics and gamification dashboards
-- ✅ Real-time achievement system working with automatic XP rewards and level progression
-- ✅ Atomic testing completed successfully with challenge-oriented approach confirming system stability
-- ✅ **CRITICAL BUG FIXES RESOLVED**: Missing API endpoint implementations discovered and fixed
-- ✅ **Task Management Service**: Complete functional implementation with real database operations
-- ✅ **API Endpoints Verified**: `/api/crm/tasks/generate`, `/api/crm/tasks/list`, `/api/crm/analysis/cultural-profile` all operational
-- ✅ **Database Schema Issues**: Field mapping conflicts resolved, service instances properly exported
-- ✅ **xAI Grok Integration**: Full operational implementation with Persian cultural context analysis
-- ✅ **ATOMIC TESTING COMPLETED**: 15-phase comprehensive testing protocol executed successfully
-- ✅ **Performance Validation**: 25-200ms response times, concurrent load handling verified
-- ✅ **Security Hardening**: Authentication middleware, SQL injection protection, error handling improved
-- ✅ **Clock Architecture Verified**: Hour/Minute/Second Hand components synchronized and operational
-- ✅ **Persian Cultural AI**: Cultural profiling, XP calculation, intelligent task generation fully functional
-- ✅ **Database Integrity**: 13 tasks created, 207 representatives managed, real-time operations confirmed
-- ✅ **Development Standards**: LSP errors resolved, TypeScript compilation clean, code quality maintained
-- ✅ **SENIOR DEVELOPER INTEGRATION ANALYSIS COMPLETED**: Deep architectural analysis with challenge-oriented approach
-- ✅ **Authentication Architecture Validated**: Dual-panel system with perfect session isolation 
-- ✅ **Route Architecture Verified**: Admin (`/api/auth/login`) and CRM (`/api/crm/auth/login`) endpoints operational
-- ✅ **Cross-System Data Integrity**: Financial data consistency maintained across admin and CRM panels
-- ✅ **React State Management**: setState during render warning resolved in UnifiedAuth component
-- ✅ **Backend Coupling Analysis**: All technical couplings verified as properly connected with no flaws
-- ✅ **Admin Panel Deep Testing**: All core functionalities tested and operational under load
-- ✅ **Philosophy & Architecture Alignment**: Clock mechanism perfectly synchronized across all three hands
-- ✅ **PRODUCTION READY STATUS**: React warnings resolved, system fully optimized for end-user deployment
-- ✅ **Final System Validation**: Authentication (100%), Database integrity (207 representatives), AI engine operational, Performance optimized (155ms avg response)
-- ✅ **Security Hardened**: Session isolation perfect, cross-panel access blocked, production-grade security implemented
-- ✅ **Deployment Ready**: All components validated, zero critical errors, ready for immediate production use
-- ✅ **Performance Optimization Complete**: Database connection pooling, response compression, performance monitoring implemented
-- ✅ **Integration Testing Complete**: Frontend-backend connectivity verified, authentication system operational, all Phase 3 APIs functional
-- ✅ **Production Ready Status**: System fully optimized with 25-250ms response times, memory monitoring, and automatic compression
-- ✅ **CRITICAL BUG FIXED**: Invoice edit debt calculation bug completely resolved - proper recalculation from invoices implemented
-- ✅ **Data Integrity Restored**: Fixed 6.66M Toman discrepancy in representative debt calculations, system now mathematically accurate
-- ✅ **Financial System Validation**: All representative debts now correctly match invoice totals, production-ready financial accuracy achieved
-
-**Clock Mechanism Architecture** - The system operates on a synchronized clock mechanism where:
-- Hour Hand (Financial Management): Atomic invoice editing and financial transactions
-- Minute Hand (Representative Management): Financial reconciliation and debt management  
-- Second Hand (Monitoring & Automation): Transaction monitoring and audit trails
-- All components work in perfect synchronization maintaining data integrity
+MarFaNet is a comprehensive financial management system designed for managing invoices, payments, and sales representatives. It streamlines financial operations by providing detailed tracking of debts, payments, and commissions, with features like efficient invoice generation, representative financial oversight, and automated reporting. The system supports both administrative and public-facing portals and includes advanced capabilities such as AI analysis, Telegram integration for notifications, and bulk invoice processing. Its ambition is to be a production-ready system for financial management with integrated intelligent reporting, analytics, and gamification, optimized for performance and security.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -107,43 +27,29 @@ The application features a modern full-stack architecture with distinct client a
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL with Drizzle ORM (Extended with CRM Intelligence Tables)
-- **Database Provider**: Neon serverless PostgreSQL
-- **File Processing**: Multer for handling JSON file uploads
-- **External Integrations**: Google Gemini AI, Telegram Bot API, Persian Cultural AI System
-- **CRM AI Engine**: Persian Cultural Intelligence for representative management with psychological profiling
+- **Database**: PostgreSQL with Drizzle ORM
 - **Core Features**:
     - **Invoice Management**: Bulk JSON upload processing, automatic calculation, Persian date handling, and Telegram notifications.
     - **Representative Portal**: Public access via unique public IDs, displaying invoices and usage data.
-    - **AI Assistant**: Google Gemini integration for financial analysis.
     - **Financial Tracking**: Comprehensive debt, payment, and commission tracking.
-    - **CRM Intelligence System**: 
-      - Persian Cultural AI for representative psychological profiling
-      - Intelligent task generation and management
-      - Representative level classification (NEW/ACTIVE/INACTIVE)
-      - Performance analytics and team reporting
-      - AI Knowledge Base with learning capabilities
-    - **Dual Authentication System**: 
-      - Admin panel (mgr/8679) with full financial access
-      - CRM panel (crm/8679) with restricted access to debt amounts and profiles only
-      - Role-based access control and data segmentation
-    - **Clock Mechanism Architecture**: Extended with CRM integration - "Hour Hand" (Financial Management), "Minute Hand" (Representative Management + CRM), and "Second Hand" (Automation & Monitoring + AI Decision Logging).
-    - **Data Reset System**: Selective data deletion with referential integrity preservation, admin authentication, and activity logging.
-    - **JSON Processing**: Support for PHPMyAdmin export formats, advanced parsing, and sequential processing of large data files.
-    - **Persian AI Engine**: Complete psychological profiling, cultural adaptation, automated task generation, and intelligent representative level management.
-    - **Real-time CRM Synchronization**: Bi-directional data sync between financial and CRM systems with role-based access control.
+    - **CRM Intelligence System**: Persian Cultural AI for representative psychological profiling, intelligent task generation, representative level classification, performance analytics, and an AI Knowledge Base with learning capabilities.
+    - **Dual Authentication System**: Admin panel with full financial access and CRM panel with restricted access, featuring role-based access control and data segmentation.
+    - **Clock Mechanism Architecture**: A synchronized system with "Hour Hand" (Financial Management), "Minute Hand" (Representative Management + CRM), and "Second Hand" (Automation & Monitoring + AI Decision Logging).
+    - **Data Reset System**: Selective data deletion with referential integrity preservation and activity logging.
+    - **JSON Processing**: Support for various PHPMyAdmin export formats with intelligent detection and dynamic data extraction.
+    - **Reporting & Analytics**: Intelligent reporting service for executive reports, ROI analysis, forecasting, and multi-format export (PDF, Excel, CSV, PowerPoint, JSON). Includes scheduled reports system for automated delivery.
+    - **Gamification Engine**: XP system, achievements, leaderboards, and daily challenges.
 
 ### System Design Choices
-- **Data Flow**: Defined flows for invoice processing (JSON upload, validation, calculation, notification), payment allocation (recording, allocation, debt calculation), and AI analysis (data aggregation, Gemini processing, insight display).
-- **Security**: Conditional security headers for admin vs. portal routes, session middleware optimization, and robust authentication for admin panel.
-- **Error Handling & Stability**: Enhanced database connection pooling, retry logic with exponential backoff, graceful error recovery, process monitoring, and graceful shutdown procedures.
-- **Performance**: Optimized for large file processing with extended timeouts, memory optimization (garbage collection), and batch processing for database operations.
-- **Multi-Format JSON Architecture**: Adaptive processing capable of handling various PHPMyAdmin export formats with intelligent format detection and dynamic data extraction.
+- **Data Flow**: Defined flows for invoice processing, payment allocation, and AI analysis.
+- **Security**: Conditional security headers, session middleware optimization, and robust authentication.
+- **Error Handling & Stability**: Enhanced database connection pooling, retry logic, graceful error recovery, process monitoring, and graceful shutdown.
+- **Performance**: Optimized for large file processing with extended timeouts, memory optimization, and batch processing.
+- **Multi-Format JSON Architecture**: Adaptive processing for various JSON formats.
 
 ## External Dependencies
-
 - **Neon Database**: PostgreSQL hosting with serverless architecture.
-- **Google Gemini API**: For AI analysis and financial insights.
+- **xAI Grok API**: For AI analysis and financial insights.
 - **Telegram Bot API**: For automated notifications and messaging.
 - **Drizzle ORM**: Type-safe database operations with PostgreSQL.
 - **TanStack Query**: For server state management and caching.

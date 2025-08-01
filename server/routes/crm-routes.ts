@@ -12,6 +12,7 @@ import { gamificationEngine } from "../services/gamification-engine";
 import { adaptiveLearningService } from "../services/adaptive-learning-service";
 import { dailyAIScheduler } from "../services/daily-ai-scheduler";
 import { intelligentReportingService } from "../services/intelligent-reporting-service";
+import { advancedExportService } from "../services/advanced-export-service";
 
 export function registerCrmRoutes(app: Express) {
   // Initialize CRM Service
@@ -978,6 +979,127 @@ export function registerCrmRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching dashboard summary:', error);
       res.status(500).json({ error: 'خطا در دریافت خلاصه گزارش‌ها' });
+    }
+  });
+
+  // ==================== ADVANCED EXPORT SYSTEM ====================
+  
+  // Generate Advanced Export
+  app.post("/api/crm/exports/generate", async (req, res) => {
+    try {
+      const exportRequest = req.body;
+      
+      // Validation
+      if (!exportRequest.reportId || !exportRequest.format) {
+        return res.status(400).json({ error: 'reportId و format الزامی هستند' });
+      }
+      
+      const exportResult = await advancedExportService.generateAdvancedExport(exportRequest);
+      
+      res.json({
+        success: true,
+        data: exportResult,
+        message: `Export ${exportRequest.format} با موفقیت تولید شد`
+      });
+    } catch (error) {
+      console.error('Error generating export:', error);
+      res.status(500).json({ error: 'خطا در تولید export' });
+    }
+  });
+
+  // Download Export File
+  app.get("/api/exports/download/:exportId", async (req, res) => {
+    try {
+      const { exportId } = req.params;
+      const exportResult = advancedExportService.getExportById(exportId);
+      
+      if (!exportResult) {
+        return res.status(404).json({ error: 'Export یافت نشد' });
+      }
+      
+      // در نسخه واقعی، فایل را serve کنیم
+      res.json({
+        success: true,
+        data: exportResult,
+        message: 'فایل آماده دانلود است'
+      });
+    } catch (error) {
+      console.error('Error downloading export:', error);
+      res.status(500).json({ error: 'خطا در دانلود export' });
+    }
+  });
+
+  // Export History
+  app.get("/api/crm/exports/history", async (req, res) => {
+    try {
+      const { limit = 10 } = req.query;
+      const history = advancedExportService.getExportHistory(Number(limit));
+      
+      res.json({
+        success: true,
+        data: history,
+        total: history.length
+      });
+    } catch (error) {
+      console.error('Error fetching export history:', error);
+      res.status(500).json({ error: 'خطا در دریافت تاریخچه exports' });
+    }
+  });
+
+  // Schedule Report
+  app.post("/api/crm/exports/schedule", async (req, res) => {
+    try {
+      const scheduleData = req.body;
+      
+      const scheduledReport = await advancedExportService.scheduleReport(scheduleData);
+      
+      res.json({
+        success: true,
+        data: scheduledReport,
+        message: 'گزارش برنامه‌ریزی شده با موفقیت ثبت شد'
+      });
+    } catch (error) {
+      console.error('Error scheduling report:', error);
+      res.status(500).json({ error: 'خطا در برنامه‌ریزی گزارش' });
+    }
+  });
+
+  // Export Status and Stats
+  app.get("/api/crm/exports/stats", async (req, res) => {
+    try {
+      const history = advancedExportService.getExportHistory(50);
+      
+      const stats = {
+        totalExports: history.length,
+        todayExports: history.filter(e => 
+          e.generatedAt.toDateString() === new Date().toDateString()
+        ).length,
+        formatBreakdown: {
+          PDF: history.filter(e => e.metadata.format === 'PDF').length,
+          EXCEL: history.filter(e => e.metadata.format === 'EXCEL').length,
+          CSV: history.filter(e => e.metadata.format === 'CSV').length,
+          JSON: history.filter(e => e.metadata.format === 'JSON').length
+        },
+        averageProcessingTime: history.length > 0 
+          ? Math.round(history.reduce((sum, e) => sum + e.metadata.processingTime, 0) / history.length)
+          : 0,
+        totalFileSize: history.reduce((sum, e) => sum + e.fileSize, 0),
+        recentExports: history.slice(0, 5).map(e => ({
+          id: e.exportId,
+          format: e.metadata.format,
+          fileName: e.fileName,
+          generatedAt: e.generatedAt,
+          fileSize: e.fileSize
+        }))
+      };
+      
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Error fetching export stats:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار exports' });
     }
   });
 
