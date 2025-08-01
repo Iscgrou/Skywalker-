@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useState, useEffect, lazy } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -35,6 +35,11 @@ import CrmAnalytics from "@/pages/crm-analytics";
 import CrmNotifications from "@/pages/crm-notifications";
 import PerformanceAnalytics from "@/pages/performance-analytics";
 import UnifiedAuth from "@/pages/unified-auth";
+
+// Lazy load CRM components with proper Suspense fallback
+const DynamicAIWorkspace = lazy(() => import('./components/crm/dynamic-ai-workspace'));
+const AdminAIConfig = lazy(() => import('./components/crm/admin-ai-config'));
+const AdvancedAnalytics = lazy(() => import('./components/crm/advanced-analytics'));
 
 // CRM Protected Routes Component
 function CrmProtectedRoutes() {
@@ -74,9 +79,48 @@ function CrmProtectedRoutes() {
       <Route path="/crm/tasks" component={CrmTasks} />
       <Route path="/crm/analytics" component={CrmAnalytics} />
       <Route path="/crm/performance-analytics" component={PerformanceAnalytics} />
-      <Route path="/crm/ai-workspace" component={lazy(() => import('./components/crm/dynamic-ai-workspace').then(module => ({ default: module.default })))} />
-      <Route path="/crm/admin/ai-config" component={lazy(() => import('./components/crm/admin-ai-config').then(module => ({ default: module.default })))} />
-      <Route path="/crm/advanced-analytics" component={lazy(() => import('./components/crm/advanced-analytics').then(module => ({ default: module.default })))} />
+      <Route path="/crm/ai-workspace">
+        {() => (
+          <Suspense fallback={
+            <div className="min-h-screen clay-background relative flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                <p className="text-white">در حال بارگذاری فضای کار AI...</p>
+              </div>
+            </div>
+          }>
+            <DynamicAIWorkspace />
+          </Suspense>
+        )}
+      </Route>
+      <Route path="/crm/admin/ai-config">
+        {() => (
+          <Suspense fallback={
+            <div className="min-h-screen clay-background relative flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                <p className="text-white">در حال بارگذاری تنظیمات AI...</p>
+              </div>
+            </div>
+          }>
+            <AdminAIConfig />
+          </Suspense>
+        )}
+      </Route>
+      <Route path="/crm/advanced-analytics">
+        {() => (
+          <Suspense fallback={
+            <div className="min-h-screen clay-background relative flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                <p className="text-white">در حال بارگذاری تحلیل پیشرفته...</p>
+              </div>
+            </div>
+          }>
+            <AdvancedAnalytics />
+          </Suspense>
+        )}
+      </Route>
       <Route path="/crm/notifications" component={CrmNotifications} />
       <Route path="/crm/*" component={NotFound} />
     </Switch>

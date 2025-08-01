@@ -1,9 +1,9 @@
 // 🔧 ADMIN AI CONFIGURATION PANEL - DA VINCI v9.0 Phase 3
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card as BaseCard, CardContent as BaseCardContent, CardDescription as BaseCardDescription, CardHeader as BaseCardHeader, CardTitle as BaseCardTitle } from '@/components/ui/card';
+import { Button as BaseButton } from '@/components/ui/button';
+import { Badge as BaseBadge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,6 +43,48 @@ import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { apiRequest } from '@/lib/queryClient';
 import { CurrencyFormatter } from '@/lib/currency-formatter';
 import { toPersianDigits } from '@/lib/persian-date';
+
+// Claymorphism components
+const ClayCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`clay-card ${className}`}>{children}</div>
+);
+const ClayCardHeader = ({ children }: { children: React.ReactNode }) => (
+  <div className="p-6 pb-0">{children}</div>
+);
+const ClayCardTitle = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <h3 className={`text-xl font-semibold ${className}`}>{children}</h3>
+);
+const ClayCardContent = ({ children }: { children: React.ReactNode }) => (
+  <div className="p-6">{children}</div>
+);
+const ClayButton = ({ children, variant = "primary", size = "default", onClick, disabled = false, className = "" }: {
+  children: React.ReactNode;
+  variant?: "primary" | "secondary" | "ghost";
+  size?: "default" | "sm" | "lg";
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+}) => {
+  const variants = {
+    primary: "clay-button-primary",
+    secondary: "clay-button-secondary", 
+    ghost: "clay-button-ghost"
+  };
+  const sizes = {
+    default: "px-4 py-2",
+    sm: "px-3 py-1 text-sm",
+    lg: "px-6 py-3 text-lg"
+  };
+  return (
+    <button 
+      className={`${variants[variant]} ${sizes[size]} ${className} transition-all duration-200`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+};
 
 interface AIConfig {
   general: GeneralConfig;
