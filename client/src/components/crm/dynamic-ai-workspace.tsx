@@ -123,13 +123,12 @@ export default function DynamicAIWorkspace() {
     mutationFn: async (message: string) => {
       const response = await apiRequest('/api/crm/ai-workspace/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        data: { 
           message, 
           context: selectedContext,
           mode: workspaceMode,
           culturalContext: 'persian'
-        })
+        }
       });
       return response;
     },
@@ -182,8 +181,7 @@ export default function DynamicAIWorkspace() {
     mutationFn: async (mode: string) => {
       return apiRequest('/api/crm/ai-workspace/mode', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode })
+        data: { mode }
       });
     },
     onSuccess: () => {
