@@ -17,55 +17,67 @@ import {
   Target,
   Activity,
   Settings,
-  Bell
+  Bell,
+  LogOut
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
+import { useCrmAuth } from '@/hooks/use-crm-auth';
 
 interface CrmDashboardData {
-  totalRepresentatives: number;
-  activeRepresentatives: number;
-  pendingTasks: number;
-  completedTasksToday: number;
-  aiInsights: AIInsight[];
-  recentActivity: ActivityItem[];
-  performanceAlerts: PerformanceAlert[];
+  summary: {
+    totalRepresentatives: number;
+    activeRepresentatives: number;
+    totalDebt: number;
+    totalSales: number;
+    pendingTasks: number;
+    completedTasksToday: number;
+    aiInsights: AIInsight[];
+    recentActivities: ActivityItem[];
+  };
+  representatives: Representative[];
+}
+
+interface Representative {
+  id: number;
+  code: string;
+  name: string;
+  debtAmount: number;
+  totalSales: number;
+  isActive: boolean;
 }
 
 interface AIInsight {
-  type: 'success' | 'warning' | 'info';
+  id: string;
+  type: 'improvement' | 'alert' | 'info';
   title: string;
-  description: string;
-  confidence: number;
-  actionRequired: boolean;
 }
 
 interface ActivityItem {
   id: string;
-  type: 'task_assigned' | 'task_completed' | 'level_changed' | 'ai_decision';
+  type: 'task_completed' | 'level_change';
   description: string;
-  timestamp: Date;
-  representativeName?: string;
-}
-
-interface PerformanceAlert {
-  representativeId: number;
-  representativeName: string;
-  alertType: 'poor_performance' | 'overdue_tasks' | 'inactive' | 'improvement_needed';
-  severity: 'low' | 'medium' | 'high' | 'urgent';
-  description: string;
-  recommendedAction: string;
 }
 
 export default function CrmDashboard() {
+  const [, setLocation] = useLocation();
+  const { user, logoutMutation } = useCrmAuth();
+  
   const { data: dashboardData, isLoading, error } = useQuery<CrmDashboardData>({
     queryKey: ['/api/crm/dashboard'],
     refetchInterval: 30000 // Auto-refresh every 30 seconds
   });
 
-  const { data: representatives } = useQuery({
-    queryKey: ['/api/crm/representatives']
-  });
+  // Check authentication
+  if (!user) {
+    setLocation('/auth');
+    return null;
+  }
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+    setLocation('/auth');
+  };
 
   if (isLoading) {
     return (
@@ -90,6 +102,10 @@ export default function CrmDashboard() {
     );
   }
 
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('fa-IR').format(num);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6" dir="rtl">
       {/* Header */}
@@ -101,11 +117,16 @@ export default function CrmDashboard() {
           <p className="text-gray-600 dark:text-gray-300">
             مدیریت نمایندگان با هوش مصنوعی فارسی
           </p>
+          <div className="mt-2">
+            <Badge variant="outline">
+              کاربر: {user.username} | نقش: {user.role}
+            </Badge>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Settings className="h-4 w-4 ml-2" />
-            تنظیمات
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 ml-2" />
+            خروج
           </Button>
           <Button size="sm">
             <Brain className="h-4 w-4 ml-2" />
@@ -122,9 +143,9 @@ export default function CrmDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.totalRepresentatives || 0}</div>
+            <div className="text-2xl font-bold">{dashboardData?.summary?.totalRepresentatives || 0}</div>
             <p className="text-xs text-muted-foreground mb-3">
-              {dashboardData?.activeRepresentatives || 0} نماینده فعال
+              {dashboardData?.summary?.activeRepresentatives || 0} نماینده فعال
             </p>
             <Link href="/crm/representatives">
               <Button variant="outline" size="sm" className="w-full gap-2">
@@ -137,13 +158,32 @@ export default function CrmDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">کل بدهی</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {formatNumber(dashboardData?.summary?.totalDebt || 0)} ریال
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              کل فروش: {formatNumber(dashboardData?.summary?.totalSales || 0)} ریال
+            </p>
+            <Button variant="outline" size="sm" className="w-full gap-2">
+              <TrendingUp className="h-4 w-4" />
+              گزارش مالی
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">وظایف در انتظار</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.pendingTasks || 0}</div>
+            <div className="text-2xl font-bold">{dashboardData?.summary?.pendingTasks || 0}</div>
             <p className="text-xs text-muted-foreground mb-3">
-              {dashboardData?.completedTasksToday || 0} انجام شده امروز
+              {dashboardData?.summary?.completedTasksToday || 0} تکمیل شده امروز
             </p>
             <Link href="/crm/tasks">
               <Button variant="outline" size="sm" className="w-full gap-2">
@@ -160,7 +200,7 @@ export default function CrmDashboard() {
             <Brain className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.aiInsights?.length || 0}</div>
+            <div className="text-2xl font-bold">{dashboardData?.summary?.aiInsights?.length || 0}</div>
             <p className="text-xs text-muted-foreground mb-3">
               توصیه‌های جدید
             </p>
@@ -172,231 +212,130 @@ export default function CrmDashboard() {
             </Link>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">هشدارهای عملکرد</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData?.performanceAlerts?.length || 0}</div>
-            <p className="text-xs text-muted-foreground mb-3">
-              نیاز به بررسی
-            </p>
-            <Link href="/crm/notifications">
-              <Button variant="outline" size="sm" className="w-full gap-2">
-                <Bell className="h-4 w-4" />
-                مشاهده اعلان‌ها
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">نمای کلی</TabsTrigger>
-          <TabsTrigger value="ai-insights">بینش‌های AI</TabsTrigger>
-          <TabsTrigger value="performance">عملکرد تیم</TabsTrigger>
+          <TabsTrigger value="representatives">نمایندگان</TabsTrigger>
           <TabsTrigger value="activity">فعالیت‌ها</TabsTrigger>
         </TabsList>
-
+        
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Performance Alerts */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  هشدارهای عملکرد
-                </CardTitle>
-                <CardDescription>
-                  نمایندگانی که نیاز به توجه دارند
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {dashboardData?.performanceAlerts?.map((alert) => (
-                  <div key={alert.representativeId} className="border rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium">{alert.representativeName}</h4>
-                      <Badge 
-                        variant={
-                          alert.severity === 'urgent' ? 'destructive' :
-                          alert.severity === 'high' ? 'secondary' : 'outline'
-                        }
-                      >
-                        {alert.severity === 'urgent' ? 'فوری' : 
-                         alert.severity === 'high' ? 'بالا' : 
-                         alert.severity === 'medium' ? 'متوسط' : 'پایین'}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {alert.description}
-                    </p>
-                    <p className="text-sm font-medium">
-                      📋 {alert.recommendedAction}
-                    </p>
-                  </div>
-                )) || (
-                  <p className="text-center text-muted-foreground py-4">
-                    هیچ هشداری وجود ندارد
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  فعالیت‌های اخیر
-                </CardTitle>
-                <CardDescription>
-                  آخرین تغییرات و عملیات
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {dashboardData?.recentActivity?.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 border-b pb-2 last:border-b-0">
-                    <div className="mt-1">
-                      {activity.type === 'task_assigned' && <Target className="h-4 w-4 text-blue-500" />}
-                      {activity.type === 'task_completed' && <CheckCircle className="h-4 w-4 text-green-500" />}
-                      {activity.type === 'level_changed' && <TrendingUp className="h-4 w-4 text-orange-500" />}
-                      {activity.type === 'ai_decision' && <Brain className="h-4 w-4 text-purple-500" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm">{activity.description}</p>
-                      {activity.representativeName && (
-                        <p className="text-xs text-muted-foreground">
-                          نماینده: {activity.representativeName}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(activity.timestamp).toLocaleString('fa-IR')}
-                      </p>
-                    </div>
-                  </div>
-                )) || (
-                  <p className="text-center text-muted-foreground py-4">
-                    فعالیتی ثبت نشده است
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="ai-insights" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {dashboardData?.aiInsights?.map((insight, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Brain className="h-5 w-5" />
-                      {insight.title}
+            {/* Performance Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>عملکرد کلی</CardTitle>
+                <CardDescription>آمار عملکرد سیستم</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">نمایندگان فعال</span>
+                    <span className="font-bold text-green-600">
+                      {Math.round(((dashboardData?.summary?.activeRepresentatives || 0) / (dashboardData?.summary?.totalRepresentatives || 1)) * 100)}%
                     </span>
-                    <Badge variant={insight.type === 'success' ? 'default' : insight.type === 'warning' ? 'secondary' : 'outline'}>
-                      {insight.confidence}% اطمینان
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {insight.description}
-                  </p>
-                  <Progress value={insight.confidence} className="mb-3" />
-                  {insight.actionRequired && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        این بینش نیاز به اقدام دارد
-                      </AlertDescription>
-                    </Alert>
+                  </div>
+                  <Progress 
+                    value={((dashboardData?.summary?.activeRepresentatives || 0) / (dashboardData?.summary?.totalRepresentatives || 1)) * 100} 
+                  />
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">نرخ تکمیل وظایف</span>
+                    <span className="font-bold text-blue-600">
+                      {Math.round(((dashboardData?.summary?.completedTasksToday || 0) / (dashboardData?.summary?.pendingTasks || 1)) * 100)}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={((dashboardData?.summary?.completedTasksToday || 0) / (dashboardData?.summary?.pendingTasks || 1)) * 100} 
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* AI Insights */}
+            <Card>
+              <CardHeader>
+                <CardTitle>بینش‌های AI</CardTitle>
+                <CardDescription>تحلیل‌های هوش مصنوعی</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {dashboardData?.summary?.aiInsights?.map((insight) => (
+                    <div key={insight.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <Brain className="h-5 w-5 text-blue-500" />
+                      <div>
+                        <h4 className="font-medium">{insight.title}</h4>
+                        <Badge variant={insight.type === 'alert' ? 'destructive' : 'default'}>
+                          {insight.type}
+                        </Badge>
+                      </div>
+                    </div>
+                  )) || (
+                    <p className="text-muted-foreground text-center py-4">
+                      در حال تحلیل داده‌ها...
+                    </p>
                   )}
-                </CardContent>
-              </Card>
-            )) || (
-              <Card className="col-span-2">
-                <CardContent className="text-center py-8">
-                  <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    دستیار هوشمند در حال تحلیل داده‌ها است...
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
-        <TabsContent value="performance" className="space-y-4">
+        <TabsContent value="representatives" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>عملکرد کلی تیم</CardTitle>
-              <CardDescription>
-                نمای کلی از عملکرد نمایندگان
-              </CardDescription>
+              <CardTitle>نمایندگان برتر</CardTitle>
+              <CardDescription>نمایندگان با بیشترین فعالیت</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {Math.round(((dashboardData?.activeRepresentatives || 0) / (dashboardData?.totalRepresentatives || 1)) * 100)}%
+              <div className="space-y-3">
+                {dashboardData?.representatives?.slice(0, 5).map((rep) => (
+                  <div key={rep.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <h4 className="font-medium">{rep.name}</h4>
+                        <p className="text-sm text-muted-foreground">کد: {rep.code}</p>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-red-600">
+                        {formatNumber(rep.debtAmount)} ریال
+                      </div>
+                      <p className="text-xs text-muted-foreground">بدهی</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">نمایندگان فعال</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {Math.round(((dashboardData?.completedTasksToday || 0) / (dashboardData?.pendingTasks || 1)) * 100)}%
-                  </div>
-                  <p className="text-sm text-muted-foreground">نرخ تکمیل وظایف</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {dashboardData?.aiInsights?.reduce((avg, insight) => avg + insight.confidence, 0) / (dashboardData?.aiInsights?.length || 1) || 0}%
-                  </div>
-                  <p className="text-sm text-muted-foreground">دقت AI</p>
-                </div>
+                )) || (
+                  <p className="text-muted-foreground text-center py-4">
+                    در حال بارگذاری نمایندگان...
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="activity">
+        <TabsContent value="activity" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>گزارش کامل فعالیت‌ها</CardTitle>
-              <CardDescription>
-                تمام فعالیت‌های سیستم CRM
-              </CardDescription>
+              <CardTitle>فعالیت‌های اخیر</CardTitle>
+              <CardDescription>آخرین تغییرات سیستم</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {dashboardData?.recentActivity?.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {activity.type === 'task_assigned' && <Target className="h-5 w-5 text-blue-500" />}
-                      {activity.type === 'task_completed' && <CheckCircle className="h-5 w-5 text-green-500" />}
-                      {activity.type === 'level_changed' && <TrendingUp className="h-5 w-5 text-orange-500" />}
-                      {activity.type === 'ai_decision' && <Brain className="h-5 w-5 text-purple-500" />}
-                      <div>
-                        <p className="font-medium">{activity.description}</p>
-                        {activity.representativeName && (
-                          <p className="text-sm text-muted-foreground">
-                            نماینده: {activity.representativeName}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(activity.timestamp).toLocaleString('fa-IR')}
+              <div className="space-y-3">
+                {dashboardData?.summary?.recentActivities?.map((activity) => (
+                  <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                    {activity.type === 'task_completed' && <CheckCircle className="h-5 w-5 text-green-500" />}
+                    {activity.type === 'level_change' && <TrendingUp className="h-5 w-5 text-blue-500" />}
+                    <div>
+                      <p className="font-medium">{activity.description}</p>
                     </div>
                   </div>
                 )) || (
-                  <p className="text-center text-muted-foreground py-8">
-                    فعالیتی برای نمایش وجود ندارد
+                  <p className="text-muted-foreground text-center py-4">
+                    هیچ فعالیت جدیدی وجود ندارد
                   </p>
                 )}
               </div>
