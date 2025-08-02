@@ -94,8 +94,8 @@ export default function UnifiedAuth() {
               title: "ورود موفق",
               description: "به پنل ادمین خوش آمدید",
             });
-            // SHERLOCK v3.0 FIX: Force page navigation
-            window.location.href = targetRedirect;
+            // SHERLOCK v3.0 FIX: Navigate to dashboard after successful login
+            setTimeout(() => setLocation(targetRedirect), 1000);
           },
           onError: (error: any) => {
             console.error('Admin login error:', error);
@@ -115,8 +115,8 @@ export default function UnifiedAuth() {
               title: "ورود موفق",
               description: "به پنل CRM خوش آمدید",
             });
-            // SHERLOCK v3.0 FIX: Force page navigation
-            window.location.href = targetRedirect;
+            // SHERLOCK v3.0 FIX: Navigate to CRM after successful login
+            setTimeout(() => setLocation(targetRedirect), 1000);
           },
           onError: (error: any) => {
             console.error('CRM login error:', error);
@@ -138,16 +138,17 @@ export default function UnifiedAuth() {
     }
   };
 
-  // SHERLOCK v3.0 FIX: Auto-redirect already authenticated users
+  // SHERLOCK v3.0 FIX: Auto-redirect already authenticated users (PREVENT INFINITE LOOP)
   useEffect(() => {
-    if (adminAuth.isAuthenticated) {
-      console.log('Admin already authenticated, forcing redirect to dashboard');
-      window.location.href = '/dashboard';
-    } else if (crmAuth.user) {
-      console.log('CRM user already authenticated, forcing redirect to CRM');
-      window.location.href = '/crm';
+    // Only redirect if we're on the main login page, not already on a dashboard
+    if (location === '/' && adminAuth.isAuthenticated) {
+      console.log('Admin already authenticated, redirecting to dashboard');
+      setLocation('/dashboard');
+    } else if (location === '/' && crmAuth.user) {
+      console.log('CRM user already authenticated, redirecting to CRM');
+      setLocation('/crm');
     }
-  }, [adminAuth.isAuthenticated, crmAuth.user]);
+  }, [adminAuth.isAuthenticated, crmAuth.user, location, setLocation]);
 
   return (
     <div className="min-h-screen clay-background relative">
