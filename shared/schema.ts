@@ -740,6 +740,118 @@ export const aiTestResults = pgTable("ai_test_results", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// ==================== ZOD SCHEMAS & TYPES FOR DA VINCI v1.0 ====================
+
+// CRM Settings Schemas
+export const insertCrmSettingSchema = createInsertSchema(crmSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertSupportStaffSchema = createInsertSchema(supportStaff).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  hiredAt: true
+});
+
+export const insertAiKnowledgeSchema = createInsertSchema(aiKnowledgeDatabase).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastUsedAt: true
+});
+
+export const insertOfferIncentiveSchema = createInsertSchema(offersIncentives).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  budgetUsed: true,
+  timesOffered: true,
+  timesAccepted: true,
+  acceptanceRate: true
+});
+
+export const insertManagerTaskSchema = createInsertSchema(managerTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  totalExecutions: true,
+  successfulExecutions: true,
+  lastExecutionDate: true,
+  averageCompletionTime: true
+});
+
+export const insertManagerTaskExecutionSchema = createInsertSchema(managerTaskExecutions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertAiTestResultSchema = createInsertSchema(aiTestResults).omit({
+  id: true,
+  createdAt: true
+});
+
+// TypeScript Types
+export type CrmSetting = typeof crmSettings.$inferSelect;
+export type InsertCrmSetting = z.infer<typeof insertCrmSettingSchema>;
+
+export type SupportStaff = typeof supportStaff.$inferSelect;
+export type InsertSupportStaff = z.infer<typeof insertSupportStaffSchema>;
+
+export type AiKnowledge = typeof aiKnowledgeDatabase.$inferSelect;
+export type InsertAiKnowledge = z.infer<typeof insertAiKnowledgeSchema>;
+
+export type OfferIncentive = typeof offersIncentives.$inferSelect;
+export type InsertOfferIncentive = z.infer<typeof insertOfferIncentiveSchema>;
+
+export type ManagerTask = typeof managerTasks.$inferSelect;
+export type InsertManagerTask = z.infer<typeof insertManagerTaskSchema>;
+
+export type ManagerTaskExecution = typeof managerTaskExecutions.$inferSelect;
+export type InsertManagerTaskExecution = z.infer<typeof insertManagerTaskExecutionSchema>;
+
+export type AiTestResult = typeof aiTestResults.$inferSelect;
+export type InsertAiTestResult = z.infer<typeof insertAiTestResultSchema>;
+
+// API Response Types for Frontend
+export interface SettingsApiResponse {
+  success: boolean;
+  message: string;
+  data?: any;
+  debugLogs?: any[];
+  testResults?: any;
+}
+
+export interface XaiTestResponse {
+  success: boolean;
+  model: string;
+  responseTime: number;
+  response: string;
+  debugInfo: {
+    requestPayload: any;
+    responseHeaders: any;
+    networkLatency: number;
+  };
+  error?: string;
+}
+
+export interface ManagerWorkspaceTask {
+  id: string;
+  title: string;
+  description: string;
+  assignedStaff?: {
+    id: number;
+    name: string;
+  };
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ONE_TIME';
+  dailyTarget?: number;
+  createdAt: string;
+}
+
 // Relations
 export const representativesRelations = relations(representatives, ({ one, many }) => ({
   salesPartner: one(salesPartners, {
