@@ -371,6 +371,173 @@ export function registerSettingsRoutes(app: Express) {
     }
   });
 
+  // Test AI Performance with behavior configuration
+  app.post('/api/crm/settings/test-ai-performance', crmAuthMiddleware, async (req, res) => {
+    try {
+      const { apiKey, behaviorConfig, testScenario } = req.body;
+      
+      if (!apiKey || !testScenario) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'کلید API و سناریو تست الزامی هستند' 
+        });
+      }
+
+      const startTime = Date.now();
+      
+      // Build behavior-specific system prompt
+      let systemPrompt = 'شما یک دستیار هوشمند مالی و CRM هستید که به فارسی پاسخ می‌دهید.';
+      
+      switch (behaviorConfig.communicationStyle) {
+        case 'friendly':
+          systemPrompt += ' لحن شما باید دوستانه و صمیمانه باشد.';
+          break;
+        case 'questioning':
+          systemPrompt += ' سوالات تحلیلی بپرسید و عمق مسائل را بررسی کنید.';
+          break;
+        case 'strict':
+          systemPrompt += ' رویکرد جدی و سخت‌گیرانه داشته باشید.';
+          break;
+        case 'educational':
+          systemPrompt += ' نقش مربی داشته باشید و آموزش دهید.';
+          break;
+        default:
+          systemPrompt += ' لحن محترمانه و حرفه‌ای داشته باشید.';
+      }
+      
+      if (behaviorConfig.responseLength === 'short') {
+        systemPrompt += ' پاسخ‌های کوتاه و مختصر بدهید.';
+      } else if (behaviorConfig.responseLength === 'detailed') {
+        systemPrompt += ' پاسخ‌های کامل و تفصیلی ارائه دهید.';
+      }
+
+      systemPrompt += ` سطح حساسیت فرهنگی شما ${(behaviorConfig.culturalSensitivity * 100).toFixed(0)}% است.`;
+
+      // Prepare test request
+      const testRequest = {
+        model: "grok-beta",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user", 
+            content: `سناریو: ${testScenario.scenario}\n\nزمینه:\n${Object.entries(testScenario.context).map(([key, value]) => `- ${key}: ${value}`).join('\n')}\n\nلطفاً راهکار مناسب ارائه دهید.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: behaviorConfig.responseLength === 'short' ? 200 : behaviorConfig.responseLength === 'detailed' ? 800 : 400
+      };
+
+      // Make API call to xAI Grok
+      const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testRequest)
+      });
+
+      const responseTime = Date.now() - startTime;
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('xAI API Error:', errorData);
+        
+        // Save test result to database
+        await settingsStorage.createAiTestResult({
+          testId: `performance-test-${Date.now()}`,
+          testType: 'AI_PERFORMANCE_TEST',
+          testParameters: { behaviorConfig, testScenario },
+          testCompleted: new Date(),
+          testDuration: responseTime,
+          testStatus: 'FAILED',
+          errorMessage: `API Error: ${response.status} - ${errorData}`,
+          initiatedBy: 'CRM_MANAGER'
+        });
+
+        return res.json({ 
+          success: false, 
+          error: `خطا در API (${response.status}): ${errorData}`,
+          responseTime
+        });
+      }
+
+      const data = await response.json();
+      
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        await settingsStorage.createAiTestResult({
+          testId: `performance-test-${Date.now()}`,
+          testType: 'AI_PERFORMANCE_TEST',
+          testParameters: { behaviorConfig, testScenario },
+          testCompleted: new Date(),
+          testDuration: responseTime,
+          testStatus: 'FAILED',
+          errorMessage: 'پاسخ نامعتبر از API',
+          initiatedBy: 'CRM_MANAGER'
+        });
+
+        return res.json({ 
+          success: false, 
+          error: 'پاسخ نامعتبر از API',
+          responseTime
+        });
+      }
+
+      const aiResponse = data.choices[0].message.content;
+      
+      // Simple analysis
+      const analysis = {
+        tone: behaviorConfig.communicationStyle === 'friendly' ? 'دوستانه' : 
+              behaviorConfig.communicationStyle === 'strict' ? 'جدی' : 'مناسب',
+        responseLength: aiResponse.length,
+        hasPersonalization: aiResponse.includes('آقای محمدی') || aiResponse.includes('محمدی'),
+        hasSolution: aiResponse.includes('راهکار') || aiResponse.includes('پیشنهاد') || aiResponse.includes('حل')
+      };
+
+      // Save successful test result
+      await settingsStorage.createAiTestResult({
+        testId: `performance-test-${Date.now()}`,
+        testType: 'AI_PERFORMANCE_TEST',
+        testParameters: { behaviorConfig, testScenario },
+        testCompleted: new Date(),
+        testDuration: responseTime,
+        testStatus: 'SUCCESS',
+        responseData: { response: aiResponse, analysis },
+        initiatedBy: 'CRM_MANAGER'
+      });
+
+      res.json({ 
+        success: true, 
+        response: aiResponse,
+        analysis,
+        responseTime,
+        quality: analysis.hasPersonalization && analysis.hasSolution ? 'عالی' : 'خوب'
+      });
+
+    } catch (error: any) {
+      console.error('AI Performance test error:', error);
+      
+      await settingsStorage.createAiTestResult({
+        testId: `performance-test-${Date.now()}`,
+        testType: 'AI_PERFORMANCE_TEST',
+        testParameters: req.body,
+        testCompleted: new Date(),
+        testDuration: 0,
+        testStatus: 'ERROR',
+        errorMessage: error.message,
+        initiatedBy: 'CRM_MANAGER'
+      });
+
+      res.status(500).json({ 
+        success: false, 
+        error: 'خطا در تست عملکرد هوش مصنوعی' 
+      });
+    }
+  });
+
   // ==================== AI TEST RESULTS ROUTES ====================
 
   // Get AI test results

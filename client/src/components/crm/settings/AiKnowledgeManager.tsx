@@ -57,6 +57,7 @@ export function AiKnowledgeManager() {
   });
 
   const [showNewEntryForm, setShowNewEntryForm] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('ALL');
 
@@ -79,6 +80,37 @@ export function AiKnowledgeManager() {
 
   const handleDeleteEntry = (entryId: number) => {
     setKnowledgeEntries(knowledgeEntries.filter(entry => entry.id !== entryId));
+  };
+
+  const handleEditEntry = (entry: any) => {
+    setEditingEntry(entry);
+    setNewEntry({
+      title: entry.title,
+      content: entry.content,
+      category: entry.category,
+      tags: entry.tags.join(', ')
+    });
+    setShowNewEntryForm(true);
+  };
+
+  const handleUpdateEntry = () => {
+    if (!newEntry.title.trim() || !newEntry.content.trim() || !editingEntry) return;
+    
+    const updatedEntry = {
+      ...(editingEntry as any),
+      title: newEntry.title,
+      content: newEntry.content,
+      category: newEntry.category,
+      tags: newEntry.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+    };
+    
+    setKnowledgeEntries(knowledgeEntries.map(entry => 
+      entry.id === (editingEntry as any).id ? updatedEntry : entry
+    ));
+    
+    setNewEntry({ title: '', content: '', category: 'CUSTOMER_BEHAVIOR', tags: '' });
+    setEditingEntry(null);
+    setShowNewEntryForm(false);
   };
 
   const getCategoryText = (category: string) => {
@@ -159,7 +191,7 @@ export function AiKnowledgeManager() {
         <Card className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200 dark:border-orange-800">
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-              {Object.keys(knowledgeEntries.reduce((acc, entry) => { acc[entry.category] = true; return acc; }, {})).length}
+              {Object.keys(knowledgeEntries.reduce((acc: any, entry) => { acc[entry.category] = true; return acc; }, {})).length}
             </div>
             <div className="text-sm text-orange-600 dark:text-orange-400">
               دسته‌بندی
@@ -209,7 +241,7 @@ export function AiKnowledgeManager() {
         <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900 dark:text-white">
-              افزودن دانش جدید
+              {editingEntry ? 'ویرایش دانش' : 'افزودن دانش جدید'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -260,12 +292,19 @@ export function AiKnowledgeManager() {
             </div>
             
             <div className="flex gap-3">
-              <Button onClick={handleCreateEntry} className="bg-green-600 hover:bg-green-700">
-                افزودن به دیتابیس
+              <Button 
+                onClick={editingEntry ? handleUpdateEntry : handleCreateEntry} 
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {editingEntry ? 'بروزرسانی دانش' : 'افزودن به دیتابیس'}
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => setShowNewEntryForm(false)}
+                onClick={() => {
+                  setShowNewEntryForm(false);
+                  setEditingEntry(null);
+                  setNewEntry({ title: '', content: '', category: 'CUSTOMER_BEHAVIOR', tags: '' });
+                }}
                 className="border-gray-300 dark:border-gray-600"
               >
                 انصراف
@@ -331,6 +370,7 @@ export function AiKnowledgeManager() {
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => handleEditEntry(entry)}
                     className="border-blue-300 text-blue-600 hover:bg-blue-50"
                   >
                     <Edit className="w-4 h-4 ml-1" />

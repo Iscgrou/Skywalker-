@@ -70,6 +70,7 @@ export function OffersManagement() {
   });
 
   const [showNewOfferForm, setShowNewOfferForm] = useState(false);
+  const [editingOffer, setEditingOffer] = useState(null);
 
   const handleCreateOffer = () => {
     if (!newOffer.title.trim() || !newOffer.description.trim()) return;
@@ -103,6 +104,42 @@ export function OffersManagement() {
 
   const handleDeleteOffer = (offerId: number) => {
     setOffers(offers.filter(offer => offer.id !== offerId));
+  };
+
+  const handleEditOffer = (offer: any) => {
+    setEditingOffer(offer);
+    setNewOffer({
+      title: offer.title,
+      description: offer.description,
+      type: offer.type,
+      discountPercentage: offer.discountPercentage,
+      targetGroup: offer.targetGroup,
+      startDate: offer.startDate,
+      endDate: offer.endDate
+    });
+    setShowNewOfferForm(true);
+  };
+
+  const handleUpdateOffer = () => {
+    if (!newOffer.title.trim() || !newOffer.description.trim() || !editingOffer) return;
+    
+    setOffers(offers.map(offer => 
+      offer.id === (editingOffer as any).id 
+        ? { ...offer, ...newOffer }
+        : offer
+    ));
+    
+    setNewOffer({ 
+      title: '', 
+      description: '', 
+      type: 'SEASONAL_DISCOUNT', 
+      discountPercentage: 0, 
+      targetGroup: 'ALL_CUSTOMERS',
+      startDate: '',
+      endDate: ''
+    });
+    setEditingOffer(null);
+    setShowNewOfferForm(false);
   };
 
   const getOfferTypeText = (type: string) => {
@@ -218,7 +255,7 @@ export function OffersManagement() {
         <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900 dark:text-white">
-              ایجاد آفر جدید
+              {editingOffer ? 'ویرایش آفر' : 'ایجاد آفر جدید'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -315,12 +352,27 @@ export function OffersManagement() {
             </div>
             
             <div className="flex gap-3">
-              <Button onClick={handleCreateOffer} className="bg-green-600 hover:bg-green-700">
-                ایجاد آفر
+              <Button 
+                onClick={editingOffer ? handleUpdateOffer : handleCreateOffer} 
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {editingOffer ? 'بروزرسانی آفر' : 'ایجاد آفر'}
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => setShowNewOfferForm(false)}
+                onClick={() => {
+                  setShowNewOfferForm(false);
+                  setEditingOffer(null);
+                  setNewOffer({ 
+                    title: '', 
+                    description: '', 
+                    type: 'SEASONAL_DISCOUNT', 
+                    discountPercentage: 0, 
+                    targetGroup: 'ALL_CUSTOMERS',
+                    startDate: '',
+                    endDate: ''
+                  });
+                }}
                 className="border-gray-300 dark:border-gray-600"
               >
                 انصراف
@@ -449,6 +501,7 @@ export function OffersManagement() {
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => handleEditOffer(offer)}
                     className="border-blue-300 text-blue-600 hover:bg-blue-50"
                   >
                     <Edit className="w-4 h-4 ml-1" />

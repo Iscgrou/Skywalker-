@@ -41,6 +41,7 @@ export function SupportStaffManagement() {
   ]);
 
   const [showNewStaffForm, setShowNewStaffForm] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
   const [newStaff, setNewStaff] = useState({
     name: '',
     email: '',
@@ -69,6 +70,32 @@ export function SupportStaffManagement() {
     setStaffMembers(staffMembers.map(staff => 
       staff.id === staffId ? { ...staff, isActive: !staff.isActive } : staff
     ));
+  };
+
+  const handleEditStaff = (staff: any) => {
+    setEditingStaff(staff);
+    setNewStaff({
+      name: staff.name,
+      email: staff.email,
+      phone: staff.phone || '',
+      role: staff.role,
+      department: staff.department
+    });
+    setShowNewStaffForm(true);
+  };
+
+  const handleUpdateStaff = () => {
+    if (!newStaff.name.trim() || !newStaff.email.trim() || !editingStaff) return;
+    
+    setStaffMembers(staffMembers.map(staff => 
+      staff.id === (editingStaff as any).id 
+        ? { ...staff, ...newStaff }
+        : staff
+    ));
+    
+    setNewStaff({ name: '', email: '', phone: '', role: 'SUPPORT_AGENT', department: 'CRM_SUPPORT' });
+    setEditingStaff(null);
+    setShowNewStaffForm(false);
   };
 
   const getRoleText = (role: string) => {
@@ -166,7 +193,7 @@ export function SupportStaffManagement() {
         <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900 dark:text-white">
-              افزودن کارمند جدید
+              {editingStaff ? 'ویرایش کارمند' : 'افزودن کارمند جدید'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -215,12 +242,19 @@ export function SupportStaffManagement() {
             </div>
             
             <div className="flex gap-3">
-              <Button onClick={handleCreateStaff} className="bg-green-600 hover:bg-green-700">
-                افزودن کارمند
+              <Button 
+                onClick={editingStaff ? handleUpdateStaff : handleCreateStaff} 
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {editingStaff ? 'بروزرسانی کارمند' : 'افزودن کارمند'}
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => setShowNewStaffForm(false)}
+                onClick={() => {
+                  setShowNewStaffForm(false);
+                  setEditingStaff(null);
+                  setNewStaff({ name: '', email: '', phone: '', role: 'SUPPORT_AGENT', department: 'CRM_SUPPORT' });
+                }}
                 className="border-gray-300 dark:border-gray-600"
               >
                 انصراف
@@ -325,6 +359,7 @@ export function SupportStaffManagement() {
                 <Button
                   size="sm"
                   variant="outline"
+                  onClick={() => handleEditStaff(staff)}
                   className="border-blue-300 text-blue-600 hover:bg-blue-50"
                 >
                   <Edit className="w-4 h-4 ml-1" />
