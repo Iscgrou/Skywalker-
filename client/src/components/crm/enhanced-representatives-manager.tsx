@@ -213,8 +213,7 @@ export default function EnhancedRepresentativesManager() {
   });
 
   // PAGINATION IMPLEMENTATION - SHERLOCK v3.0 ARCHITECTURE
-  const repsPerPage = 12; // Representatives per page
-  const [currentPage, setCurrentPage] = useState(1);
+  // Note: repsPerPage and currentPage state already declared above
 
   // Calculate filtered and sorted representatives with PAGINATION
   const allProcessedReps = React.useMemo(() => {
