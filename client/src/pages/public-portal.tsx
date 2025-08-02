@@ -273,7 +273,7 @@ export default function PublicPortal() {
                     <div>
                       <p className="text-red-100 text-sm font-medium">بدهی کل</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {totalDebt === 0 ? "0" : formatCurrency(totalDebt.toString())} تومان
+                        {formatCurrency(totalDebt.toString())} تومان
                       </p>
                       <p className="text-red-200 text-sm">وضعیت: {totalDebt === 0 ? "بدون بدهی" : "دارای بدهی"}</p>
                     </div>
@@ -291,9 +291,9 @@ export default function PublicPortal() {
                     <div>
                       <p className="text-blue-100 text-sm font-medium">فروش کل</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {totalSales === 0 ? "0" : formatCurrency(totalSales.toString())} تومان
+                        {formatCurrency(totalSales.toString())} تومان
                       </p>
-                      <p className="text-blue-200 text-sm">Raw: {portalData.totalSales}</p>
+                      <p className="text-blue-200 text-sm">مجموع فروش</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center">
                       <TrendingUp className="w-6 h-6 text-white" />
@@ -309,7 +309,7 @@ export default function PublicPortal() {
                     <div>
                       <p className="text-emerald-100 text-sm font-medium">موجودی خالص</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {netBalance === 0 ? "0" : formatCurrency(Math.abs(netBalance).toString())} تومان
+                        {formatCurrency(Math.abs(netBalance).toString())} تومان
                       </p>
                       <p className="text-emerald-200 text-sm">
                         {netBalance >= 0 ? 'بستانکار' : 'بدهکار'} | اعتبار: {credit}
@@ -329,7 +329,7 @@ export default function PublicPortal() {
                     <div>
                       <p className="text-purple-100 text-sm font-medium">کل پرداختی</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {totalPayments === 0 ? "0" : formatCurrency(totalPayments.toString())} تومان
+                        {formatCurrency(totalPayments.toString())} تومان
                       </p>
                       <p className="text-purple-200 text-sm">تعداد: {paymentsArray.length} پرداخت</p>
                     </div>
@@ -521,6 +521,79 @@ export default function PublicPortal() {
                     <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
                     <h3 className="text-lg font-semibold mb-2">فاکتوری یافت نشد</h3>
                     <p>هنوز هیچ فاکتوری برای این نماینده صادر نشده است</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 📊 SECTION 3: CONSUMPTION BREAKDOWN (تجزیه مصرف) */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <Database className="w-6 h-6 ml-3 text-orange-400" />
+              بخش سوم: تجزیه مصرف دوره‌ای
+            </h2>
+            
+            <Card className="bg-slate-800 border-slate-600 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center">
+                  <Database className="w-5 h-5 ml-2" />
+                  نمای کلی مصرف ({toPersianDigits(invoicesArray.length.toString())} دوره)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {invoicesArray.length > 0 ? (
+                  <div className="space-y-4">
+                    {invoicesArray.map((invoice, index) => (
+                      <Card key={index} className="bg-slate-700 border-slate-500">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-white font-semibold">
+                              فاکتور {invoice.invoiceNumber}
+                            </h4>
+                            <Badge className="bg-blue-600 text-white">
+                              {formatCurrency(invoice.amount)} تومان
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {invoice.usageData && formatUsageData(invoice.usageData).length > 0 ? (
+                            <div className="space-y-2">
+                              {formatUsageData(invoice.usageData).slice(0, 3).map((usage: any, usageIndex: number) => (
+                                <div key={usageIndex} className="flex items-center justify-between py-2 border-b border-slate-600 last:border-b-0">
+                                  <div className="flex-1">
+                                    <p className="text-white text-sm">{usage.description || 'بدون توضیح'}</p>
+                                    <p className="text-slate-400 text-xs">
+                                      {usage.event_timestamp ? new Date(usage.event_timestamp).toLocaleDateString('fa-IR') : 'نامشخص'}
+                                    </p>
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-emerald-400 font-semibold">
+                                      {formatCurrency(usage.amount || '0')} تومان
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                              {formatUsageData(invoice.usageData).length > 3 && (
+                                <p className="text-slate-400 text-center text-sm pt-2">
+                                  و {toPersianDigits((formatUsageData(invoice.usageData).length - 3).toString())} مورد دیگر...
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-slate-400">
+                              <p className="text-sm">اطلاعات مصرف در دسترس نیست</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-400">
+                    <Database className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">داده‌ای یافت نشد</h3>
+                    <p>اطلاعات مصرف در دسترس نیست</p>
                   </div>
                 )}
               </CardContent>
