@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Users, 
@@ -47,6 +47,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 interface Representative {
   id: number;
@@ -74,12 +88,49 @@ interface RepresentativeStats {
   avgPerformance: number;
 }
 
+interface RepresentativeWithDetails extends Representative {
+  invoices?: Invoice[];
+  payments?: Payment[];
+}
+
+interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  amount: string;
+  issueDate: string;
+  dueDate: string;
+  status: string;
+  sentToTelegram: boolean;
+  telegramSentAt?: string;
+}
+
+interface Payment {
+  id: number;
+  amount: string;
+  paymentDate: string;
+  description: string;
+  isAllocated: boolean;
+  invoiceId?: number;
+}
+
+// Form validation schema
+const representativeFormSchema = z.object({
+  code: z.string().min(1, "کد نماینده الزامی است"),
+  name: z.string().min(1, "نام فروشگاه الزامی است"),
+  ownerName: z.string().optional(),
+  panelUsername: z.string().min(1, "نام کاربری پنل الزامی است"),
+  phone: z.string().optional(),
+  salesPartnerId: z.number().optional(),
+  isActive: z.boolean().default(true)
+});
+
 export default function Representatives() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
+  const [selectedRep, setSelectedRep] = useState<RepresentativeWithDetails | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -146,9 +197,74 @@ export default function Representatives() {
     return "";
   };
 
-  const handleViewDetails = (rep: Representative) => {
-    setSelectedRep(rep);
-    setIsDetailsOpen(true);
+  // Create representative mutation
+  const createRepresentativeMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof representativeFormSchema>) => {
+      return apiRequest("/api/representatives", {
+        method: "POST",
+        body: data
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+      toast({
+        title: "موفقیت",
+        description: "نماینده جدید با موفقیت ایجاد شد"
+      });
+      setIsCreateOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خطا",
+        description: error?.message || "خطا در ایجاد نماینده",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Update representative mutation
+  const updateRepresentativeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number, data: Partial<z.infer<typeof representativeFormSchema>> }) => {
+      return apiRequest(`/api/representatives/${id}`, {
+        method: "PUT",
+        body: data
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+      toast({
+        title: "موفقیت",
+        description: "اطلاعات نماینده بروزرسانی شد"
+      });
+      setIsEditOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خطا",
+        description: error?.message || "خطا در بروزرسانی نماینده",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleViewDetails = async (rep: Representative) => {
+    try {
+      const detailsResponse = await apiRequest(`/api/representatives/${rep.code}`);
+      setSelectedRep({
+        ...rep,
+        invoices: detailsResponse.invoices || [],
+        payments: detailsResponse.payments || []
+      });
+      setIsDetailsOpen(true);
+    } catch (error) {
+      toast({
+        title: "خطا",
+        description: "خطا در دریافت جزئیات نماینده",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEdit = (rep: Representative) => {
@@ -185,7 +301,7 @@ export default function Representatives() {
             مدیریت جامع اطلاعات و عملکرد نمایندگان فروش
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="w-4 h-4 ml-2" />
           نماینده جدید
         </Button>
@@ -371,72 +487,541 @@ export default function Representatives() {
 
       {/* Representative Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>جزئیات نماینده</DialogTitle>
+            <DialogTitle>جزئیات کامل نماینده</DialogTitle>
             <DialogDescription>
-              اطلاعات کامل و عملکرد نماینده
+              اطلاعات، تراکنش‌ها و عملکرد نماینده
             </DialogDescription>
           </DialogHeader>
           {selectedRep && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              {/* Basic Information & Financial Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center">
+                      <User className="w-5 h-5 ml-2" />
+                      اطلاعات کلی
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">کد:</span>
+                      <span className="font-mono">{selectedRep.code}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">نام فروشگاه:</span>
+                      <span>{selectedRep.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">مالک:</span>
+                      <span>{selectedRep.ownerName || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">تلفن:</span>
+                      <span className="font-mono">{selectedRep.phone || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">نام کاربری پنل:</span>
+                      <span className="font-mono">{selectedRep.panelUsername}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">شناسه عمومی:</span>
+                      <span className="font-mono text-xs">{selectedRep.publicId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">وضعیت:</span>
+                      {getStatusBadge(selectedRep.isActive)}
+                    </div>
+                    <Separator />
+                    <div className="pt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => window.open(`/representative/${selectedRep.publicId}`, '_blank')}
+                      >
+                        <PhoneCall className="w-4 h-4 ml-2" />
+                        نمایش پورتال عمومی
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center">
+                      <DollarSign className="w-5 h-5 ml-2" />
+                      آمار مالی
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">کل فروش:</span>
+                      <span className="font-bold text-green-600 dark:text-green-400">
+                        {formatCurrency(parseFloat(selectedRep.totalSales))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">کل بدهی:</span>
+                      <span className="font-bold text-red-600 dark:text-red-400">
+                        {formatCurrency(parseFloat(selectedRep.totalDebt))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">اعتبار:</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        {formatCurrency(parseFloat(selectedRep.credit))}
+                      </span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">تعداد فاکتورها:</span>
+                      <span>{selectedRep.invoices?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">تعداد پرداخت‌ها:</span>
+                      <span>{selectedRep.payments?.length || 0}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">تاریخ ایجاد:</span>
+                      <span>{new Date(selectedRep.createdAt).toLocaleDateString('fa-IR')}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Invoices Section */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">اطلاعات کلی</CardTitle>
+                  <CardTitle className="text-lg flex items-center">
+                    <ShoppingBag className="w-5 h-5 ml-2" />
+                    فاکتورها ({selectedRep.invoices?.length || 0})
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">کد:</span>
-                    <span className="font-mono">{selectedRep.code}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">نام فروشگاه:</span>
-                    <span>{selectedRep.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">مالک:</span>
-                    <span>{selectedRep.ownerName || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">تلفن:</span>
-                    <span className="font-mono">{selectedRep.phone || '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">وضعیت:</span>
-                    {getStatusBadge(selectedRep.isActive)}
-                  </div>
+                <CardContent>
+                  {selectedRep.invoices && selectedRep.invoices.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>شماره فاکتور</TableHead>
+                            <TableHead>مبلغ</TableHead>
+                            <TableHead>تاریخ صدور</TableHead>
+                            <TableHead>وضعیت</TableHead>
+                            <TableHead>تلگرام</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedRep.invoices.map((invoice) => (
+                            <TableRow key={invoice.id}>
+                              <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
+                              <TableCell>{formatCurrency(parseFloat(invoice.amount))}</TableCell>
+                              <TableCell>{invoice.issueDate}</TableCell>
+                              <TableCell>
+                                <Badge variant={invoice.status === 'paid' ? 'default' : 'destructive'}>
+                                  {invoice.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {invoice.sentToTelegram ? (
+                                  <Badge variant="outline" className="text-green-600">
+                                    ✓ ارسال شده
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-red-600">
+                                    ✗ ارسال نشده
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      هیچ فاکتوری یافت نشد
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
+              {/* Payments Section */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">آمار مالی</CardTitle>
+                  <CardTitle className="text-lg flex items-center">
+                    <TrendingUp className="w-5 h-5 ml-2" />
+                    پرداخت‌ها ({selectedRep.payments?.length || 0})
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">کل فروش:</span>
-                    <span className="font-bold text-green-600 dark:text-green-400">
-                      {formatCurrency(parseFloat(selectedRep.totalSales))}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">بدهی:</span>
-                    <span className="font-bold text-red-600 dark:text-red-400">
-                      {formatCurrency(parseFloat(selectedRep.totalDebt))}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">اعتبار:</span>
-                    <span className="font-bold text-blue-600 dark:text-blue-400">
-                      {formatCurrency(parseFloat(selectedRep.credit))}
-                    </span>
-                  </div>
+                <CardContent>
+                  {selectedRep.payments && selectedRep.payments.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>مبلغ</TableHead>
+                            <TableHead>تاریخ پرداخت</TableHead>
+                            <TableHead>شرح</TableHead>
+                            <TableHead>وضعیت تخصیص</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedRep.payments.map((payment) => (
+                            <TableRow key={payment.id}>
+                              <TableCell>{formatCurrency(parseFloat(payment.amount))}</TableCell>
+                              <TableCell>{payment.paymentDate}</TableCell>
+                              <TableCell>{payment.description || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant={payment.isAllocated ? 'default' : 'secondary'}>
+                                  {payment.isAllocated ? 'تخصیص یافته' : 'تخصیص نیافته'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      هیچ پرداختی یافت نشد
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Create Representative Dialog */}
+      <CreateRepresentativeDialog 
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onSubmit={(data) => createRepresentativeMutation.mutate(data)}
+        isLoading={createRepresentativeMutation.isPending}
+      />
+
+      {/* Edit Representative Dialog */}
+      <EditRepresentativeDialog 
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        representative={selectedRep}
+        onSubmit={(data) => selectedRep && updateRepresentativeMutation.mutate({ 
+          id: selectedRep.id, 
+          data 
+        })}
+        isLoading={updateRepresentativeMutation.isPending}
+      />
     </div>
+  );
+}
+
+// Create Representative Form Component
+function CreateRepresentativeDialog({ 
+  open, 
+  onOpenChange, 
+  onSubmit, 
+  isLoading 
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (data: z.infer<typeof representativeFormSchema>) => void;
+  isLoading: boolean;
+}) {
+  const form = useForm<z.infer<typeof representativeFormSchema>>({
+    resolver: zodResolver(representativeFormSchema),
+    defaultValues: {
+      code: "",
+      name: "",
+      ownerName: "",
+      panelUsername: "",
+      phone: "",
+      salesPartnerId: undefined,
+      isActive: true
+    }
+  });
+
+  const handleSubmit = (data: z.infer<typeof representativeFormSchema>) => {
+    onSubmit(data);
+    form.reset();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>ایجاد نماینده جدید</DialogTitle>
+          <DialogDescription>
+            اطلاعات نماینده جدید را وارد کنید
+          </DialogDescription>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>کد نماینده *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="مثال: REP001" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>نام فروشگاه *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="نام فروشگاه" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="panelUsername"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>نام کاربری پنل *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="نام کاربری برای پنل مدیریت" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="ownerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>نام مالک</FormLabel>
+                    <FormControl>
+                      <Input placeholder="نام مالک فروشگاه" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>تلفن</FormLabel>
+                    <FormControl>
+                      <Input placeholder="09123456789" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+                className="ml-2"
+              >
+                انصراف
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "در حال ایجاد..." : "ایجاد نماینده"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Edit Representative Form Component
+function EditRepresentativeDialog({ 
+  open, 
+  onOpenChange, 
+  representative,
+  onSubmit, 
+  isLoading 
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  representative: Representative | null;
+  onSubmit: (data: Partial<z.infer<typeof representativeFormSchema>>) => void;
+  isLoading: boolean;
+}) {
+  const form = useForm<z.infer<typeof representativeFormSchema>>({
+    resolver: zodResolver(representativeFormSchema.partial()),
+    defaultValues: {
+      code: representative?.code || "",
+      name: representative?.name || "",
+      ownerName: representative?.ownerName || "",
+      panelUsername: representative?.panelUsername || "",
+      phone: representative?.phone || "",
+      isActive: representative?.isActive || true
+    }
+  });
+
+  // Update form when representative changes
+  React.useEffect(() => {
+    if (representative) {
+      form.reset({
+        code: representative.code,
+        name: representative.name,
+        ownerName: representative.ownerName || "",
+        panelUsername: representative.panelUsername,
+        phone: representative.phone || "",
+        isActive: representative.isActive
+      });
+    }
+  }, [representative, form]);
+
+  const handleSubmit = (data: z.infer<typeof representativeFormSchema>) => {
+    onSubmit(data);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>ویرایش نماینده</DialogTitle>
+          <DialogDescription>
+            اطلاعات نماینده را ویرایش کنید
+          </DialogDescription>
+        </DialogHeader>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>کد نماینده *</FormLabel>
+                  <FormControl>
+                    <Input {...field} disabled />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>نام فروشگاه *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="نام فروشگاه" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="panelUsername"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>نام کاربری پنل *</FormLabel>
+                  <FormControl>
+                    <Input {...field} disabled />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="ownerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>نام مالک</FormLabel>
+                    <FormControl>
+                      <Input placeholder="نام مالک فروشگاه" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>تلفن</FormLabel>
+                    <FormControl>
+                      <Input placeholder="09123456789" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">وضعیت فعال</FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      نماینده فعال باشد یا خیر
+                    </div>
+                  </div>
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={field.value}
+                      onChange={field.onChange}
+                      className="rounded"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+                className="ml-2"
+              >
+                انصراف
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
