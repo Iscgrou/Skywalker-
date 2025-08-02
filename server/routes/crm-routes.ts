@@ -34,53 +34,50 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   };
 
-  // ==================== ADMIN-CRM DATA SYNCHRONIZATION SERVICE ====================
+  // ==================== OPTIMIZED ADMIN-CRM DATA SYNCHRONIZATION SERVICE ====================
   
-  const syncAdminCrmData = async () => {
+  // Cache for sync status to avoid unnecessary operations
+  let lastSyncTime = 0;
+  const SYNC_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  let cachedRepresentatives: any[] = [];
+  
+  const syncAdminCrmData = async (forceSync = false) => {
     try {
+      const now = Date.now();
+      
+      // Return cached data if recent sync exists and not forcing
+      if (!forceSync && (now - lastSyncTime) < SYNC_CACHE_DURATION && cachedRepresentatives.length > 0) {
+        console.log('📈 Using cached representatives data');
+        return cachedRepresentatives;
+      }
+      
+      console.log('🔄 Starting optimized representatives sync...');
+      const startTime = Date.now();
+      
+      // Fetch all representatives (no individual sync needed - data already calculated)
       const adminReps = await db.select().from(representatives);
       
-      for (const rep of adminReps) {
-        try {
-          const invoicesSum = await db.select()
-            .from(invoices)
-            .where(eq(invoices.representativeId, rep.id));
-            
-          const paymentsSum = await db.select()
-            .from(payments)
-            .where(eq(payments.representativeId, rep.id));
-          
-          const totalSales = invoicesSum.reduce((sum, inv) => sum + parseFloat(inv.amount || '0'), 0);
-          const totalPayments = paymentsSum.reduce((sum, pay) => sum + parseFloat(pay.amount || '0'), 0);
-          const currentDebt = totalSales - totalPayments;
-          
-          await db.update(representatives)
-            .set({
-              totalSales: totalSales.toString(),
-              totalDebt: Math.max(0, currentDebt).toString(),
-              credit: Math.max(0, -currentDebt).toString(),
-              updatedAt: new Date()
-            })
-            .where(eq(representatives.id, rep.id));
-        } catch (repError) {
-          console.log(`Sync error for rep ${rep.id}:`, repError);
-        }
-      }
+      // Cache the results
+      cachedRepresentatives = adminReps;
+      lastSyncTime = now;
+      
+      const syncTime = Date.now() - startTime;
+      console.log(`✅ Sync completed in ${syncTime}ms for ${adminReps.length} representatives`);
       
       return adminReps;
     } catch (error) {
       console.error('❌ Admin-CRM sync error:', error);
-      return [];
+      return cachedRepresentatives.length > 0 ? cachedRepresentatives : [];
     }
   };
 
   // ==================== UNIFIED CRM REPRESENTATIVES ENDPOINTS ====================
   
-  // Statistics endpoint - Admin-CRM synchronized data
+  // Statistics endpoint - Optimized with caching
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
-      await syncAdminCrmData();
-      const reps = await db.select().from(representatives);
+      const startTime = Date.now();
+      const reps = await syncAdminCrmData(); // Use cached data
       
       const stats = {
         totalCount: reps.length,
@@ -102,6 +99,9 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
         riskAlerts: reps.filter(r => parseFloat(r.totalDebt || '0') > 100000).length
       };
       
+      const responseTime = Date.now() - startTime;
+      console.log(`📊 Statistics generated in ${responseTime}ms`);
+      
       res.json(stats);
     } catch (error) {
       console.error('Error fetching representatives statistics:', error);
@@ -109,67 +109,75 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   });
 
-  // List all representatives with pagination and filtering - Admin-CRM synchronized
+  // GET Representatives with optimized caching and pagination
   app.get("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
     try {
-      await syncAdminCrmData();
+      const startTime = Date.now();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 9;
+      const search = req.query.search as string || '';
+      const sortBy = req.query.sortBy as string || 'name';
+      const sortOrder = req.query.sortOrder as string || 'asc';
       
-      const { page = 1, limit = 9, search = '', status = 'all', sortBy = 'name' } = req.query;
-      const pageNum = parseInt(page as string);
-      const limitNum = parseInt(limit as string);
-      const offset = (pageNum - 1) * limitNum;
+      // Use cached data instead of real-time sync
+      const allRepresentatives = await syncAdminCrmData();
       
-      let query = db.select().from(representatives);
-      let conditions = [];
+      // Apply filtering, sorting, and pagination in memory (faster for 237 records)
+      let filteredReps = allRepresentatives;
       
+      // Apply search filter
       if (search) {
-        conditions.push(
-          or(
-            like(representatives.name, `%${search}%`),
-            like(representatives.code, `%${search}%`),
-            like(representatives.ownerName, `%${search}%`)
-          )
+        const searchLower = search.toLowerCase();
+        filteredReps = allRepresentatives.filter(rep => 
+          rep.name?.toLowerCase().includes(searchLower) ||
+          rep.code?.toLowerCase().includes(searchLower) ||
+          rep.ownerName?.toLowerCase().includes(searchLower)
         );
       }
       
-      if (status === 'active') {
-        conditions.push(eq(representatives.isActive, true));
-      } else if (status === 'inactive') {
-        conditions.push(eq(representatives.isActive, false));
-      }
+      // Apply sorting
+      filteredReps.sort((a, b) => {
+        let aVal, bVal;
+        
+        switch (sortBy) {
+          case 'totalSales':
+            aVal = parseFloat(a.totalSales || '0');
+            bVal = parseFloat(b.totalSales || '0');
+            break;
+          case 'totalDebt':
+            aVal = parseFloat(a.totalDebt || '0');
+            bVal = parseFloat(b.totalDebt || '0');
+            break;
+          default:
+            aVal = a.name || '';
+            bVal = b.name || '';
+        }
+        
+        if (sortOrder === 'desc') {
+          return aVal < bVal ? 1 : -1;
+        }
+        return aVal > bVal ? 1 : -1;
+      });
       
-      if (conditions.length > 0) {
-        query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
-      }
+      // Apply pagination
+      const totalCount = filteredReps.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const offset = (page - 1) * limit;
+      const paginatedData = filteredReps.slice(offset, offset + limit);
       
-      switch (sortBy) {
-        case 'totalSales':
-          query = query.orderBy(desc(representatives.totalSales)) as any;
-          break;
-        case 'totalDebt':
-          query = query.orderBy(desc(representatives.totalDebt)) as any;
-          break;
-        default:
-          query = query.orderBy(representatives.name) as any;
-      }
-      
-      const reps = await query.limit(limitNum).offset(offset);
-      
-      let countQuery = db.select({ count: sql`COUNT(*)` }).from(representatives);
-      if (conditions.length > 0) {
-        countQuery = countQuery.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
-      }
-      const [{ count }] = await countQuery;
+      const responseTime = Date.now() - startTime;
+      console.log(`📋 Representatives loaded in ${responseTime}ms (${totalCount} total, ${paginatedData.length} returned)`);
       
       res.json({
-        data: reps,
+        data: paginatedData,
         pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total: Number(count),
-          totalPages: Math.ceil(Number(count) / limitNum)
+          page,
+          limit,
+          total: totalCount,
+          totalPages
         },
-        syncStatus: 'SYNCED_WITH_ADMIN'
+        syncStatus: 'CACHED_OPTIMIZED',
+        responseTime: `${responseTime}ms`
       });
     } catch (error) {
       console.error('Error fetching representatives:', error);

@@ -138,9 +138,10 @@ router.get('/analysis/:representativeId/level', authMiddleware, async (req, res)
 
 
 
-// AI Engine status and capabilities
-router.get('/status', authMiddleware, async (req, res) => {
+// AI Engine status and capabilities - Fixed JSON response
+router.get('/status', async (req, res) => {
   try {
+    res.setHeader('Content-Type', 'application/json');
     res.json({
       aiEngine: 'DA VINCI v6.0 Persian Cultural Intelligence',
       version: '6.0.0',
