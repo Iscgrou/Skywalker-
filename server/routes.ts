@@ -36,7 +36,7 @@ import {
   getDefaultTelegramTemplate, 
   formatInvoiceStatus 
 } from "./services/telegram";
-import { xaiGrokEngine } from "./services/xai-grok-engine";
+import { groqAIEngine } from "./services/groq-ai-engine";
 import { registerCrmRoutes } from "./routes/crm-routes";
 import bcrypt from "bcryptjs";
 // Commented out temporarily - import { generateFinancialReport } from "./services/report-generator";
@@ -91,8 +91,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "کلید API الزامی است" });
       }
 
-      // Update Grok engine configuration
-      xaiGrokEngine.updateConfiguration(apiKey);
+      // Update Groq engine configuration
+      groqAIEngine.updateConfig({ apiKey });
       
       // Save to settings
       await storage.updateSetting('XAI_API_KEY', apiKey);
@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/settings/xai-grok/test", requireAuth, async (req, res) => {
     try {
-      const result = await xaiGrokEngine.testConnection();
+      const result = await groqAIEngine.testConnection();
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "خطا در تست اتصال" });
@@ -1174,10 +1174,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // xAI Grok Assistant API
   app.post("/api/ai/test-connection", requireAuth, async (req, res) => {
     try {
-      const result = await xaiGrokEngine.testConnection();
+      const result = await groqAIEngine.testConnection();
       res.json(result);
     } catch (error) {
-      res.status(500).json({ error: "خطا در تست اتصال xAI Grok" });
+      res.status(500).json({ error: "خطا در تست اتصال Groq AI" });
     }
   });
 
@@ -1185,12 +1185,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const dashboardData = await storage.getDashboardData();
       
-      // Use Grok for financial analysis
-      const analysis = await xaiGrokEngine.analyzeFinancialData(
-        parseFloat(dashboardData.totalRevenue),
-        parseFloat(dashboardData.totalDebt),
-        dashboardData.activeRepresentatives,
-        dashboardData.overdueInvoices
+      // Use Groq for financial analysis
+      const analysis = await groqAIEngine.generateResponse(
+        `تحلیل مالی: درآمد کل ${dashboardData.totalRevenue} ریال، بدهی کل ${dashboardData.totalDebt} ریال، نمایندگان فعال ${dashboardData.activeRepresentatives}، فاکتورهای معوق ${dashboardData.overdueInvoices}`,
+        { culturalContext: true, persianOptimized: true }
       );
       res.json(analysis);
     } catch (error) {
@@ -1207,7 +1205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "نماینده یافت نشد" });
       }
 
-      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative);
+      const culturalProfile = await groqAIEngine.analyzeCulturalProfile(representative);
       res.json({ representative, culturalProfile });
     } catch (error) {
       res.status(500).json({ error: "خطا در تحلیل نماینده" });
@@ -1217,7 +1215,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/question", requireAuth, async (req, res) => {
     try {
       const { question } = req.body;
-      const answer = await xaiGrokEngine.answerFinancialQuestion(question);
+      const answer = await groqAIEngine.generateResponse(question, { 
+        culturalContext: true, 
+        persianOptimized: true 
+      });
       res.json({ answer });
     } catch (error) {
       res.status(500).json({ error: "خطا در دریافت پاسخ از دستیار هوشمند" });

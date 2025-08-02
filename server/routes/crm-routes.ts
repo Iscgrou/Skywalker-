@@ -2,7 +2,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
-import { xaiGrokEngine } from "../services/xai-grok-engine";
+import { groqAIEngine } from "../services/groq-ai-engine";
 import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
 import { representatives } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
@@ -128,7 +128,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       let aiRecommendations = null;
       
       try {
-        culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(rep);
+        culturalProfile = await groqAIEngine.analyzeCulturalProfile(rep);
         
         // Generate AI recommendations based on profile
         aiRecommendations = {
@@ -661,7 +661,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       }
 
       // Get cultural analysis from xAI Grok
-      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative);
+      const culturalProfile = await groqAIEngine.analyzeCulturalProfile(representative);
       
       res.json({
         representative,
@@ -1291,7 +1291,15 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
           // Test Groq connection if configured
           if (config.groqModelVariant) {
             const testPrompt = "سلام، این یک تست ساده است.";
-            const response = await xaiGrokEngine.processMessage(testPrompt, {
+            
+            // Update Groq engine configuration
+            groqAIEngine.updateConfig({
+              model: config.groqModelVariant || 'llama-3.1-8b-instant',
+              temperature: parseFloat(config.temperature) || 0.7,
+              maxTokens: config.maxTokens || 100
+            });
+            
+            const response = await groqAIEngine.processMessage(testPrompt, {
               temperature: parseFloat(config.temperature) || 0.7,
               maxTokens: config.maxTokens || 100
             });
@@ -1584,7 +1592,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
       }
       
-      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative[0]);
+      const culturalProfile = await groqAIEngine.analyzeCulturalProfile(representative[0]);
       
       res.json({
         success: true,
