@@ -282,6 +282,43 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
+  // Get CRM Statistics for Representatives Manager
+  app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
+    try {
+      const allReps = await db.select().from(representatives);
+      
+      const totalRepresentatives = allReps.length;
+      const activeRepresentatives = allReps.filter(rep => rep.isActive).length;
+      const inactiveRepresentatives = totalRepresentatives - activeRepresentatives;
+      
+      const stats = {
+        totalRepresentatives,
+        activeRepresentatives,
+        inactiveRepresentatives,
+        totalDebt: allReps.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || '0'), 0),
+        totalSales: allReps.reduce((sum, rep) => sum + parseFloat(rep.totalSales || '0'), 0),
+        averageDebt: totalRepresentatives > 0 ? allReps.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || '0'), 0) / totalRepresentatives : 0,
+        topPerformers: allReps
+          .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
+          .slice(0, 5),
+        riskAlerts: allReps.filter(rep => parseFloat(rep.totalDebt || '0') > 5000000).length,
+        performanceMetrics: {
+          excellentPerformers: allReps.filter(rep => parseFloat(rep.totalSales || '0') > 10000000).length,
+          goodPerformers: allReps.filter(rep => {
+            const sales = parseFloat(rep.totalSales || '0');
+            return sales >= 5000000 && sales <= 10000000;
+          }).length,
+          needsImprovement: allReps.filter(rep => parseFloat(rep.totalSales || '0') < 5000000).length
+        }
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching CRM statistics:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار CRM' });
+    }
+  });
+
   // ==================== CRM AUTHENTICATION ====================
   
   app.post("/api/crm/auth/login", async (req, res) => {
