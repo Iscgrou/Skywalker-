@@ -52,16 +52,20 @@ import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SalesPartnerWithCount } from "@shared/schema";
 
-// Use the shared type instead of local interface
-type SalesPartner = SalesPartnerWithCount;
+// Extend the shared type with additional fields needed for UI
+interface SalesPartner extends SalesPartnerWithCount {
+  code?: string;
+  contactPerson?: string;
+  totalSales?: string;
+  lastActivityDate?: string;
+  updatedAt?: string;
+}
 
 interface SalesPartnerStats {
-  totalCount: number;
-  activeCount: number;
-  inactiveCount: number;
-  totalSales: number;
-  totalCommission: number;
-  avgCommissionRate: number;
+  totalPartners: string;
+  activePartners: string;
+  totalCommission: string;
+  averageCommissionRate: string;
 }
 
 interface Representative {
@@ -97,12 +101,10 @@ export default function SalesPartners() {
     queryKey: ["/api/sales-partners/statistics"],
     select: (data: any) => {
       return data || {
-        totalCount: 0,
-        activeCount: 0,
-        inactiveCount: 0,
-        totalSales: 0,
-        totalCommission: 0,
-        avgCommissionRate: 0
+        totalPartners: "0",
+        activePartners: "0",
+        totalCommission: "0",
+        averageCommissionRate: "0"
       };
     }
   });
@@ -120,13 +122,13 @@ export default function SalesPartners() {
   const filteredPartners = salesPartners.filter(partner => {
     const matchesSearch = 
       partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      partner.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      partner.contactPerson?.toLowerCase().includes(searchTerm.toLowerCase());
+      (partner.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (partner.contactPerson || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = 
       statusFilter === "all" || 
-      (statusFilter === "active" && partner.isActive) ||
-      (statusFilter === "inactive" && !partner.isActive);
+      (statusFilter === "active" && partner.isActive === true) ||
+      (statusFilter === "inactive" && partner.isActive === false);
     
     return matchesSearch && matchesStatus;
   });
@@ -145,9 +147,10 @@ export default function SalesPartners() {
     );
   };
 
-  const getCommissionRateColor = (rate: number) => {
-    if (rate >= 10) return "text-green-600 dark:text-green-400";
-    if (rate >= 5) return "text-yellow-600 dark:text-yellow-400";
+  const getCommissionRateColor = (rate: string | number | null) => {
+    const numRate = typeof rate === 'string' ? parseFloat(rate) : (rate || 0);
+    if (numRate >= 10) return "text-green-600 dark:text-green-400";
+    if (numRate >= 5) return "text-yellow-600 dark:text-yellow-400";
     return "text-red-600 dark:text-red-400";
   };
 
@@ -220,7 +223,7 @@ export default function SalesPartners() {
                       کل همکاران
                     </p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {toPersianDigits(stats?.totalCount.toString() || "0")}
+                      {toPersianDigits(stats?.totalPartners || "0")}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
@@ -238,7 +241,7 @@ export default function SalesPartners() {
                       همکاران فعال
                     </p>
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {toPersianDigits(stats?.activeCount.toString() || "0")}
+                      {toPersianDigits(stats?.activePartners || "0")}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
@@ -256,7 +259,7 @@ export default function SalesPartners() {
                       کل فروش
                     </p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {formatCurrency(stats?.totalSales || 0)}
+                      {formatCurrency(0)}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
@@ -274,7 +277,7 @@ export default function SalesPartners() {
                       کل کمیسیون
                     </p>
                     <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                      {formatCurrency(stats?.totalCommission || 0)}
+                      {formatCurrency(parseFloat(stats?.totalCommission || "0"))}
                     </p>
                   </div>
                   <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900 rounded-full flex items-center justify-center">
@@ -344,20 +347,20 @@ export default function SalesPartners() {
                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
                         <TableCell className="font-mono text-sm">
-                          {partner.code}
+                          {partner.code || '-'}
                         </TableCell>
                         <TableCell className="font-medium">
                           {partner.name}
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div>{partner.contactPerson}</div>
-                            <div className="text-sm text-gray-500 font-mono">{partner.phone}</div>
+                            <div>{partner.contactPerson || '-'}</div>
+                            <div className="text-sm text-gray-500 font-mono">{partner.phone || '-'}</div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <span className={`font-semibold ${getCommissionRateColor(partner.commissionRate)}`}>
-                            {toPersianDigits(partner.commissionRate.toString())}%
+                            {toPersianDigits((partner.commissionRate || 0).toString())}%
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
@@ -366,10 +369,10 @@ export default function SalesPartners() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {formatCurrency(parseFloat(partner.totalSales))}
+                          {formatCurrency(parseFloat(partner.totalSales || "0"))}
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(partner.isActive)}
+                          {getStatusBadge(partner.isActive === true)}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
@@ -444,7 +447,7 @@ export default function SalesPartners() {
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">درصد کمیسیون:</span>
                         <span className={`font-semibold ${getCommissionRateColor(partner.commissionRate)}`}>
-                          {toPersianDigits(partner.commissionRate.toString())}%
+                          {toPersianDigits((partner.commissionRate || 0).toString())}%
                         </span>
                       </div>
                     </div>
@@ -462,7 +465,7 @@ export default function SalesPartners() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                    {formatCurrency(stats?.totalCommission || 0)}
+                    {formatCurrency(parseFloat(stats?.totalCommission || "0"))}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">کل کمیسیون‌ها</div>
                 </div>
@@ -473,7 +476,7 @@ export default function SalesPartners() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {toPersianDigits((stats?.avgCommissionRate || 0).toFixed(1))}%
+                    {toPersianDigits(parseFloat(stats?.averageCommissionRate || "0").toFixed(1))}%
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">میانگین کمیسیون</div>
                 </div>
@@ -484,7 +487,7 @@ export default function SalesPartners() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(stats?.totalSales || 0)}
+                    {formatCurrency(0)}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">کل فروش</div>
                 </div>
@@ -511,8 +514,8 @@ export default function SalesPartners() {
                   </TableHeader>
                   <TableBody>
                     {filteredPartners.map((partner) => {
-                      const calculatedCommission = (parseFloat(partner.totalSales) * partner.commissionRate) / 100;
-                      const paidCommission = parseFloat(partner.totalCommission);
+                      const calculatedCommission = (parseFloat(partner.totalSales || "0") * (partner.commissionRate || 0)) / 100;
+                      const paidCommission = parseFloat(partner.totalCommission || "0");
                       const remaining = calculatedCommission - paidCommission;
                       
                       return (
@@ -520,16 +523,16 @@ export default function SalesPartners() {
                           <TableCell>
                             <div>
                               <div className="font-medium">{partner.name}</div>
-                              <div className="text-sm text-gray-500">{partner.code}</div>
+                              <div className="text-sm text-gray-500">{partner.code || '-'}</div>
                             </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge className={getCommissionRateColor(partner.commissionRate)}>
-                              {toPersianDigits(partner.commissionRate.toString())}%
+                              {toPersianDigits((partner.commissionRate || 0).toString())}%
                             </Badge>
                           </TableCell>
                           <TableCell className="font-mono">
-                            {formatCurrency(parseFloat(partner.totalSales))}
+                            {formatCurrency(parseFloat(partner.totalSales || "0"))}
                           </TableCell>
                           <TableCell className="font-mono">
                             {formatCurrency(calculatedCommission)}
@@ -571,7 +574,7 @@ export default function SalesPartners() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">کد:</span>
-                    <span className="font-mono">{selectedPartner.code}</span>
+                    <span className="font-mono">{selectedPartner.code || '-'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">نام:</span>
@@ -579,11 +582,11 @@ export default function SalesPartners() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">مسئول تماس:</span>
-                    <span>{selectedPartner.contactPerson}</span>
+                    <span>{selectedPartner.contactPerson || '-'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">تلفن:</span>
-                    <span className="font-mono">{selectedPartner.phone}</span>
+                    <span className="font-mono">{selectedPartner.phone || '-'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">ایمیل:</span>
@@ -591,7 +594,7 @@ export default function SalesPartners() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">وضعیت:</span>
-                    {getStatusBadge(selectedPartner.isActive)}
+                    {getStatusBadge(selectedPartner.isActive === true)}
                   </div>
                 </CardContent>
               </Card>
@@ -604,7 +607,7 @@ export default function SalesPartners() {
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">درصد کمیسیون:</span>
                     <span className={`font-bold ${getCommissionRateColor(selectedPartner.commissionRate)}`}>
-                      {toPersianDigits(selectedPartner.commissionRate.toString())}%
+                      {toPersianDigits((selectedPartner.commissionRate || 0).toString())}%
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -616,13 +619,13 @@ export default function SalesPartners() {
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">کل فروش:</span>
                     <span className="font-bold text-green-600 dark:text-green-400">
-                      {formatCurrency(parseFloat(selectedPartner.totalSales))}
+                      {formatCurrency(parseFloat(selectedPartner.totalSales || "0"))}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">کل کمیسیون:</span>
                     <span className="font-bold text-orange-600 dark:text-orange-400">
-                      {formatCurrency(parseFloat(selectedPartner.totalCommission))}
+                      {formatCurrency(parseFloat(selectedPartner.totalCommission || "0"))}
                     </span>
                   </div>
                 </CardContent>

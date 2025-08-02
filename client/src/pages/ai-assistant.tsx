@@ -87,14 +87,15 @@ interface AIInsights {
 }
 
 interface AIStatus {
-  aiEngine: string;
-  version: string;
-  capabilities: string[];
-  languages: string[];
-  culturalContexts: string[];
   status: string;
-  lastUpdate: string;
-  performance: string;
+  engine: string;
+  culturalIntelligence?: string;
+  version: string;
+  available: boolean;
+  model: string;
+  responseTime: number;
+  lastResponse: string;
+  capabilities: string[];
 }
 
 export default function AIAssistant() {
@@ -274,26 +275,26 @@ export default function AIAssistant() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
                     <Brain className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
-                    <div className="font-semibold">{aiStatus.aiEngine}</div>
+                    <div className="font-semibold">{aiStatus.engine}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">نسخه {aiStatus.version}</div>
                   </div>
                   
                   <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                     <Zap className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-2" />
-                    <div className="font-semibold">{toPersianDigits(aiStatus.capabilities.length.toString())}</div>
+                    <div className="font-semibold">{toPersianDigits((aiStatus.capabilities?.length || 0).toString())}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">قابلیت</div>
                   </div>
                   
                   <div className="text-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
                     <MessageSquare className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
-                    <div className="font-semibold">{toPersianDigits(aiStatus.languages.length.toString())}</div>
+                    <div className="font-semibold">{aiStatus.culturalIntelligence || 'فارسی'}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">زبان</div>
                   </div>
                   
                   <div className="text-center p-4 bg-orange-50 dark:bg-orange-950 rounded-lg">
                     <Activity className="w-8 h-8 text-orange-600 dark:text-orange-400 mx-auto mb-2" />
-                    <div className="font-semibold">{aiStatus.performance}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">عملکرد</div>
+                    <div className="font-semibold">{toPersianDigits(Math.round(aiStatus.responseTime / 1000).toString())}s</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">زمان پاسخ</div>
                   </div>
                 </div>
               ) : (
@@ -315,7 +316,7 @@ export default function AIAssistant() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {aiStatus.capabilities.map((capability, index) => (
+                    {(aiStatus.capabilities || []).map((capability, index) => (
                       <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
                         <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                         <span className="text-sm">{capability}</span>
@@ -331,12 +332,18 @@ export default function AIAssistant() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {aiStatus.culturalContexts.map((context, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                        <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        <span className="text-sm">{context}</span>
-                      </div>
-                    ))}
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm">هوش فرهنگی فارسی</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm">تحلیل روانشناختی نمایندگان</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm">بینش‌های کسب‌وکار</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -368,7 +375,7 @@ export default function AIAssistant() {
                     <SelectValue placeholder="انتخاب نماینده" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredRepresentatives.map((rep) => (
+                    {filteredRepresentatives.filter(rep => rep.id && rep.code).map((rep) => (
                       <SelectItem key={rep.id} value={rep.id.toString()}>
                         {rep.name} ({rep.code})
                       </SelectItem>
@@ -451,7 +458,7 @@ export default function AIAssistant() {
                     <SelectValue placeholder="انتخاب نماینده" />
                   </SelectTrigger>
                   <SelectContent>
-                    {representatives.map((rep) => (
+                    {representatives.filter(rep => rep.id && rep.code).map((rep) => (
                       <SelectItem key={rep.id} value={rep.id.toString()}>
                         {rep.name} ({rep.code})
                       </SelectItem>
