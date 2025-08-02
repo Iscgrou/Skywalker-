@@ -42,9 +42,9 @@ function CrmProtectedRoutes() {
   // Use useEffect to handle redirect - avoid setState during render
   useEffect(() => {
     if (!isLoading && !user) {
-      console.log('CRM Authentication failed, redirecting to CRM login...');
+      console.log('CRM Authentication failed, redirecting to unified login...');
       console.log('Auth state:', { user, isLoading }); // Debug logging
-      setLocation('/crm-auth'); // ✅ Redirect to CRM-specific login page
+      setLocation('/'); // ✅ Redirect to unified auth page (main login)
     } else if (user) {
       console.log('CRM User authenticated:', user); // Debug logging
     }
