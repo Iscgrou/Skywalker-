@@ -2,6 +2,8 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import { sql, eq, and, or } from "drizzle-orm";
+import { invoices } from "@shared/schema";
 // CRM routes are imported in registerCrmRoutes function
 
 import multer from "multer";
@@ -104,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "✅ DA VINCI v2.0 AI Task Generator Test Successful",
         result: {
           tasksGenerated: result.tasks.length,
-          generationTime: result.generationMetadata?.generatedAt || new Date().toISOString(),
+          generationTime: result.generationMetadata?.timestamp || new Date().toISOString(),
           culturalContext: "Persian Business Culture",
           aiEngine: "xAI Grok-4"
         }
