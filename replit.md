@@ -21,12 +21,18 @@ MarFaNet is a simplified financial management system focused on core business ne
 - **Routing**: Wouter for lightweight client-side routing
 - **Design**: Persian RTL support with professional styling
 
-### CRM Dashboard (Enhanced with DA VINCI v2.0)
+### CRM Dashboard (Enhanced with DA VINCI v2.0 + SHERLOCK v3.0 Security)
 The CRM system now contains four functional sections:
 1. **میز کار (Workspace Hub)**: DA VINCI v2.0 intelligent task management with AI-powered task generation
 2. **Representatives Management**: Complete list of 237 representatives with full CRUD operations
 3. **AI Assistant**: Persian cultural intelligence for representative insights and support
-4. **Settings Hub**: System configuration and management tools
+4. **Settings Hub**: System configuration and management tools (🔒 **Password Protected**)
+
+**Security Features**:
+- 🚪 **Logout Button**: Prominent logout functionality in dashboard header
+- 🔐 **Settings Protection**: Password-protected access to settings (default: Aa867945)
+- 🛡️ **Visual Security**: Lock icon and protection badges for sensitive areas
+- 🔑 **Persian Authentication**: Culturally-adapted security interface
 
 **Recently Added**: DA VINCI v2.0 Workspace tab with AI task generation, Persian cultural intelligence, and comprehensive task management interface (August 2, 2025).
 
@@ -57,6 +63,11 @@ The CRM system now contains four functional sections:
 ## Technical Decisions
 
 ### Recently Added (August 2, 2025)
+- **CRM SECURITY ENHANCEMENTS**: 
+  - ✅ Logout functionality added to CRM dashboard with prominent logout button
+  - ✅ Settings access control implemented with password protection (default: Aa867945)
+  - ✅ Visual security indicators (lock icon and "محفوظ" badge for protected settings)
+  - ✅ Secure password modal with Persian UI and proper error handling
 - **COMPLETE PORTAL REFACTOR**: Total redesign of public representative portal from scratch
   - Removed all legacy portal code (public-portal.tsx, public-portal-new.tsx)
   - Created new portal.tsx with completely different architecture
