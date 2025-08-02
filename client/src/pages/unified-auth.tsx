@@ -74,12 +74,18 @@ export default function UnifiedAuth() {
       
       if (targetLoginType === 'admin') {
         // Admin login
-        adminAuth.login.mutate(data, {
+        adminAuth.loginMutation.mutate(data, {
           onSuccess: () => {
             console.log('Admin login successful, redirecting to admin dashboard');
-            setLocation('/dashboard');
+            toast({
+              title: "ورود موفق",
+              description: "به پنل ادمین خوش آمدید",
+            });
+            // Delay redirect to ensure state is updated
+            setTimeout(() => setLocation('/dashboard'), 100);
           },
           onError: (error: any) => {
+            console.error('Admin login error:', error);
             toast({
               title: "خطا در ورود ادمین",
               description: error.message || "خطا در احراز هویت",
@@ -92,9 +98,15 @@ export default function UnifiedAuth() {
         crmAuth.loginMutation.mutate(data, {
           onSuccess: (response: any) => {
             console.log('CRM login successful, redirecting to CRM dashboard');
-            setLocation('/crm');
+            toast({
+              title: "ورود موفق",
+              description: "به پنل CRM خوش آمدید",
+            });
+            // Delay redirect to ensure state is updated
+            setTimeout(() => setLocation('/crm'), 100);
           },
           onError: (error: any) => {
+            console.error('CRM login error:', error);
             toast({
               title: "خطا در ورود CRM",
               description: error.message || "خطا در احراز هویت",
@@ -251,14 +263,14 @@ export default function UnifiedAuth() {
                   <div className="space-y-4">
                     <Button
                       type="submit"
-                      disabled={adminAuth.login.isPending || crmAuth.loginMutation.isPending}
+                      disabled={adminAuth.loginMutation.isPending || crmAuth.loginMutation.isPending}
                       className={`w-full h-12 font-semibold ${
                         loginType === 'admin' 
                           ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800' 
                           : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800'
                       } text-white border-0`}
                     >
-                      {(adminAuth.login.isPending || crmAuth.loginMutation.isPending) ? (
+                      {(adminAuth.loginMutation.isPending || crmAuth.loginMutation.isPending) ? (
                         <div className="flex items-center space-x-2">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                           <span>در حال ورود...</span>
