@@ -61,8 +61,10 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       try {
         const result = await apiRequest("/api/crm/auth/user", { method: "GET" });
+        console.log('CRM Auth Check Result:', result); // Debug logging
         return result || null; // Ensure we never return undefined
       } catch (error: any) {
+        console.log('CRM Auth Check Error:', error); // Debug logging
         if (error.message?.includes('401') || error.status === 401) {
           return null; // Not authenticated - return null instead of undefined
         }
@@ -70,8 +72,10 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
       }
     },
     retry: false,
-    staleTime: 0, // Always fetch fresh data
-    placeholderData: null // Use null as placeholder to avoid undefined
+    staleTime: 5000, // Cache for 5 seconds to avoid rapid re-fetching
+    placeholderData: null, // Use null as placeholder to avoid undefined
+    refetchOnWindowFocus: false, // Prevent excessive refetching
+    refetchOnMount: true // Always check on mount
   });
 
   const loginMutation = useMutation({

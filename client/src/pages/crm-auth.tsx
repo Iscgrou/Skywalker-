@@ -53,12 +53,12 @@ export default function CrmAuth() {
     }
   });
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (Updated for Modern CRM)
   if (user) {
     if (user.role === 'ADMIN') {
-      setLocation('/admin/dashboard');
-    } else if (user.role === 'CRM') {
-      setLocation('/crm/dashboard');
+      setLocation('/dashboard');
+    } else if (user.role === 'CRM' || user.role === 'CRM_MANAGER') {
+      setLocation('/crm'); // ✅ Updated to use new unified CRM route
     }
     return null;
   }
@@ -68,11 +68,11 @@ export default function CrmAuth() {
       onSuccess: (response) => {
         console.log('Login successful:', response);
         
-        // Redirect based on role
+        // Redirect based on role (Updated for Modern CRM)
         if (response.user.role === 'ADMIN') {
-          setLocation('/admin/dashboard');
-        } else if (response.user.role === 'CRM') {
-          setLocation('/crm/dashboard');
+          setLocation('/dashboard');
+        } else if (response.user.role === 'CRM' || response.user.role === 'CRM_MANAGER') {
+          setLocation('/crm'); // ✅ Updated to use new unified CRM route
         }
       }
     });
