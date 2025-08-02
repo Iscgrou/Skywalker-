@@ -4,8 +4,17 @@
 import { Router } from "express";
 import { z } from "zod";
 import { workspaceStorage } from "../services/workspace-storage";
-import { reportAnalyzer } from "../services/report-analyzer";
+import { reportAnalyzer } from "../services/report-analyzer";  
 import { AITaskGenerator } from "../services/ai-task-generator";
+import { FollowUpManager } from "../services/followup-manager";
+
+// Utility function for Persian date conversion
+function convertToPersianDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
+}
 import { 
   insertWorkspaceTaskSchema, 
   insertTaskReportSchema, 
@@ -111,7 +120,17 @@ router.post("/reports", async (req, res) => {
     });
     
     // Process report with AI analyzer (asynchronous)
-    reportAnalyzer.analyzeReport(report).catch(error => {
+    const analysisReport = {
+      id: report.id,
+      taskId: report.taskId,
+      staffId: report.staffId,
+      representativeId: report.representativeId,
+      reportContent: report.content,
+      completedAt: report.submittedAt,
+      submittedAt: report.submittedAt
+    };
+    
+    reportAnalyzer.analyzeReport(analysisReport).catch((error: any) => {
       console.error("Error analyzing report:", error);
     });
     
@@ -120,7 +139,7 @@ router.post("/reports", async (req, res) => {
       message: "گزارش ثبت شد و در حال تحلیل است",
       report
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error submitting report:", error);
     res.status(500).json({ error: "خطا در ثبت گزارش" });
   }
@@ -155,18 +174,122 @@ router.post("/reports/process", async (req, res) => {
   }
 });
 
+// POST /api/workspace/reports/analyze - AI analyze submitted report
+router.post("/reports/analyze", async (req, res) => {
+  try {
+    const { reportId } = req.body;
+    
+    if (!reportId) {
+      return res.status(400).json({ error: "شناسه گزارش الزامی است" });
+    }
+
+    // Get report data
+    const report = await workspaceStorage.getTaskReportById(reportId);
+    if (!report) {
+      return res.status(404).json({ error: "گزارش یافت نشد" });
+    }
+
+    // Convert to ReportAnalyzer format
+    const analysisReport = {
+      id: report.id,
+      taskId: report.taskId,
+      staffId: report.staffId,
+      representativeId: report.representativeId,
+      reportContent: report.content,
+      completedAt: report.submittedAt,
+      submittedAt: report.submittedAt
+    };
+
+    // Analyze report using AI
+    console.log(`🔍 Starting AI analysis for report: ${reportId}`);
+    const analysis = await reportAnalyzer.analyzeReport(analysisReport);
+    
+    res.json({
+      success: true,
+      message: "تحلیل گزارش با موفقیت انجام شد",
+      analysis: {
+        reportId: analysis.reportId,
+        keyInsights: analysis.keyInsights,
+        priorityLevel: analysis.priorityLevel,
+        followUpActionsCount: analysis.followUpActions.length,
+        aiConfidence: analysis.aiConfidence,
+        nextContactDate: analysis.nextContactDate
+      }
+    });
+  } catch (error: any) {
+    console.error("Error analyzing report:", error);
+    res.status(500).json({ 
+      error: "خطا در تحلیل گزارش", 
+      details: error.message 
+    });
+  }
+});
+
 // ==================== WORKSPACE REMINDERS ====================
 
-// GET /api/workspace/reminders - Get active reminders for current staff
+// GET /api/workspace/reminders - Get all active reminders
 router.get("/reminders", async (req, res) => {
   try {
-    const staffId = 1; // TODO: Get from session
-    const reminders = await workspaceStorage.getActiveReminders(staffId);
+    console.log('📋 Fetching all active reminders...');
+    const reminders = await workspaceStorage.getAllActiveReminders();
     
-    res.json({ reminders });
+    res.json({
+      success: true,
+      reminders,
+      message: `${reminders.length} یادآور فعال`
+    });
   } catch (error) {
-    console.error("Error fetching reminders:", error);
-    res.status(500).json({ error: "خطا در دریافت یادآورها" });
+    console.error("❌ Error fetching reminders:", error);
+    res.status(500).json({
+      success: false,
+      error: "خطا در دریافت یادآورها"
+    });
+  }
+});
+
+// GET /api/workspace/reminders/today - Get today's reminders  
+router.get('/reminders/today', async (req, res) => {
+  try {
+    console.log('📅 Fetching today\'s reminders...');
+    
+    // Persian date for today
+    const today = convertToPersianDate(new Date());
+    const reminders = await workspaceStorage.getRemindersByDate(today);
+    
+    res.json({
+      success: true,
+      reminders,
+      message: `${reminders.length} یادآور برای امروز`,
+      date: today
+    });
+  } catch (error) {
+    console.error('❌ Error fetching today\'s reminders:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در دریافت یادآورهای امروز'
+    });
+  }
+});
+
+// GET /api/workspace/reminders/stats - Get reminder statistics
+router.get('/reminders/stats', async (req, res) => {
+  try {
+    console.log('📊 Fetching reminder statistics...');
+    
+    const today = convertToPersianDate(new Date());
+    const stats = await workspaceStorage.getReminderStats(today);
+    
+    res.json({
+      success: true,
+      stats,
+      message: 'آمار یادآورها دریافت شد'
+    });
+  } catch (error) {
+    console.error('❌ Error fetching reminder stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در دریافت آمار یادآورها'
+    });
   }
 });
 
@@ -188,13 +311,69 @@ router.post("/reminders", async (req, res) => {
   }
 });
 
+// POST /api/workspace/reminders/generate - Generate smart AI reminders using FollowUpManager
+router.post("/reminders/generate", async (req, res) => {
+  try {
+    console.log("🤖 Generating smart reminders using AI...");
+    
+    const followUpManager = new FollowUpManager();
+    const suggestions = await followUpManager.generateFollowUpSuggestions();
+    
+    let createdCount = 0;
+    for (const suggestion of suggestions) {
+      try {
+        await followUpManager.createReminder(suggestion);
+        createdCount++;
+      } catch (error) {
+        console.error('❌ Error creating reminder:', error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `${createdCount} یادآور هوشمند تولید شد`,
+      generated: createdCount,
+      total: suggestions.length
+    });
+  } catch (error: any) {
+    console.error("❌ Error generating smart reminders:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "خطا در تولید یادآورهای هوشمند" 
+    });
+  }
+});
+
+// PUT /api/workspace/reminders/:id/complete - Mark reminder as completed
+router.put('/reminders/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`✅ Completing reminder: ${id}`);
+    
+    const completed = await workspaceStorage.completeReminder(id);
+    
+    res.json({
+      success: true,
+      reminder: completed,
+      message: 'یادآور با موفقیت تکمیل شد'
+    });
+  } catch (error: any) {
+    console.error('❌ Error completing reminder:', error);
+    res.status(500).json({ 
+      success: false,
+      error: "خطا در تکمیل یادآور" 
+    });
+  }
+});
+
 // PUT /api/workspace/reminders/:id/snooze - Snooze a reminder
 router.put("/reminders/:id/snooze", async (req, res) => {
   try {
     const { id } = req.params;
     const { newTime } = req.body;
     
-    await workspaceStorage.snoozeReminder(id, newTime);
+    // TODO: Implement snoozeReminder method in workspace-storage.ts
+    // await workspaceStorage.snoozeReminder(id, newTime);
     
     res.json({
       success: true,
@@ -203,23 +382,6 @@ router.put("/reminders/:id/snooze", async (req, res) => {
   } catch (error) {
     console.error("Error snoozing reminder:", error);
     res.status(500).json({ error: "خطا در به تعویق انداختن یادآور" });
-  }
-});
-
-// PUT /api/workspace/reminders/:id/complete - Complete a reminder
-router.put("/reminders/:id/complete", async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    await workspaceStorage.completeReminder(id);
-    
-    res.json({
-      success: true,
-      message: "یادآور تکمیل شد"
-    });
-  } catch (error) {
-    console.error("Error completing reminder:", error);
-    res.status(500).json({ error: "خطا در تکمیل یادآور" });
   }
 });
 

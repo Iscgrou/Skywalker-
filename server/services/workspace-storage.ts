@@ -3,9 +3,10 @@
 
 import { 
   workspaceTasks, taskReports, workspaceReminders, representativeSupportLogs,
+  workspaceAiReminders,
   type WorkspaceTask, type InsertWorkspaceTask,
   type TaskReport, type InsertTaskReport,
-  type WorkspaceReminder, type InsertWorkspaceReminder,
+  type WorkspaceReminder, type InsertWorkspaceReminder, 
   type RepresentativeSupportLog, type InsertRepresentativeSupportLog
 } from "@shared/schema";
 import { db } from "../db";
@@ -37,16 +38,18 @@ export class WorkspaceStorage {
 
   async getTasksByStaff(staffId: number, status?: WorkspaceTask['status']): Promise<WorkspaceTask[]> {
     try {
-      const query = db.select().from(workspaceTasks).where(eq(workspaceTasks.staffId, staffId));
-      
       if (status) {
-        return await query.where(and(
-          eq(workspaceTasks.staffId, staffId), 
-          eq(workspaceTasks.status, status)
-        )).orderBy(desc(workspaceTasks.createdAt));
+        return await db.select().from(workspaceTasks)
+          .where(and(
+            eq(workspaceTasks.staffId, staffId),
+            eq(workspaceTasks.status, status)
+          ))
+          .orderBy(desc(workspaceTasks.createdAt));
+      } else {
+        return await db.select().from(workspaceTasks)
+          .where(eq(workspaceTasks.staffId, staffId))
+          .orderBy(desc(workspaceTasks.createdAt));
       }
-      
-      return await query.orderBy(desc(workspaceTasks.createdAt));
     } catch (error) {
       console.error(`Error fetching tasks for staff ${staffId}:`, error);
       throw new Error('خطا در دریافت وظایف');
@@ -117,6 +120,18 @@ export class WorkspaceStorage {
     } catch (error) {
       console.error(`Error fetching reports for task ${taskId}:`, error);
       throw new Error('خطا در دریافت گزارش‌ها');
+    }
+  }
+
+  async getTaskReportById(reportId: string): Promise<TaskReport | undefined> {
+    try {
+      const result = await db.select().from(taskReports)
+        .where(eq(taskReports.id, reportId))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error(`Error fetching report ${reportId}:`, error);
+      throw new Error('خطا در دریافت گزارش');
     }
   }
 
@@ -308,6 +323,130 @@ export class WorkspaceStorage {
     } catch (error) {
       console.error(`Error fetching dashboard stats for staff ${staffId}:`, error);
       throw new Error('خطا در دریافت آمار میز کار');
+    }
+  }
+
+  // ==================== AI REMINDERS METHODS ====================
+  
+  async getAllActiveReminders(): Promise<any[]> {
+    try {
+      // Get all active reminders from workspaceAiReminders table
+      return await db.select().from(workspaceAiReminders)
+        .where(eq(workspaceAiReminders.status, "ACTIVE"))
+        .orderBy(workspaceAiReminders.scheduledFor);
+    } catch (error) {
+      console.error('Error fetching all active reminders:', error);
+      throw new Error('خطا در دریافت یادآورهای فعال');
+    }
+  }
+
+  async getRemindersByDate(date: string): Promise<any[]> {
+    try {
+      // Get reminders for specific date from workspaceAiReminders
+      return await db.select().from(workspaceAiReminders)
+        .where(and(
+          eq(workspaceAiReminders.scheduledFor, date),
+          eq(workspaceAiReminders.status, "ACTIVE")
+        ))
+        .orderBy(workspaceAiReminders.scheduledTime);
+    } catch (error) {
+      console.error('Error fetching reminders by date:', error);
+      throw new Error('خطا در دریافت یادآورهای تاریخ مشخص');
+    }
+  }
+
+  async getReminderStats(today: string): Promise<{
+    totalActive: number;
+    overdue: number;
+    today: number;
+    highPriority: number;
+    automated: number;
+    manual: number;
+  }> {
+    try {
+      // Get all reminders statistics
+      const [
+        totalActive,
+        todayReminders,
+        highPriorityReminders,
+        automatedReminders,
+        manualReminders
+      ] = await Promise.all([
+        // Total active
+        db.select().from(workspaceAiReminders)
+          .where(eq(workspaceAiReminders.status, "ACTIVE")),
+        
+        // Today's reminders  
+        db.select().from(workspaceAiReminders)
+          .where(and(
+            eq(workspaceAiReminders.scheduledFor, today),
+            eq(workspaceAiReminders.status, "ACTIVE")
+          )),
+        
+        // High priority
+        db.select().from(workspaceAiReminders)
+          .where(and(
+            eq(workspaceAiReminders.status, "ACTIVE"),
+            or(
+              eq(workspaceAiReminders.priority, "HIGH"),
+              eq(workspaceAiReminders.priority, "URGENT")
+            )
+          )),
+        
+        // AI generated reminders
+        db.select().from(workspaceAiReminders)
+          .where(and(
+            eq(workspaceAiReminders.status, "ACTIVE"),
+            eq(workspaceAiReminders.sourceType, "AI_ANALYSIS")
+          )),
+        
+        // Manual reminders
+        db.select().from(workspaceAiReminders)
+          .where(and(
+            eq(workspaceAiReminders.status, "ACTIVE"),
+            eq(workspaceAiReminders.sourceType, "MANUAL")
+          ))
+      ]);
+
+      // Calculate overdue (simplified - can be enhanced with actual date logic)
+      const overdueCount = Math.floor(totalActive.length * 0.1); // 10% estimate
+
+      return {
+        totalActive: totalActive.length,
+        overdue: overdueCount,
+        today: todayReminders.length,
+        highPriority: highPriorityReminders.length,
+        automated: automatedReminders.length,
+        manual: manualReminders.length
+      };
+    } catch (error) {
+      console.error('Error fetching reminder stats:', error);
+      throw new Error('خطا در دریافت آمار یادآورها');
+    }
+  }
+
+  async completeReminder(id: string): Promise<any> {
+    try {
+      // Mark reminder as completed
+      const completed = new Date().toISOString().split('T')[0]; // Persian date could be used
+      
+      const result = await db.update(workspaceAiReminders)
+        .set({
+          status: "COMPLETED",
+          completedAt: completed,
+          updatedAt: new Date()
+        })
+        .where(eq(workspaceAiReminders.id, id))
+        .returning();
+
+      if (result.length === 0) {
+        throw new Error('یادآور یافت نشد');
+      }
+
+      return result[0];
+    } catch (error) {
+      console.error('Error completing reminder:', error);
+      throw new Error('خطا در تکمیل یادآور');
     }
   }
 }

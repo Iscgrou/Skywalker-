@@ -18,8 +18,10 @@ import {
   BarChart3,
   MessageSquare,
   TrendingUp,
-  Bell
+  Bell,
+  Bot
 } from 'lucide-react';
+import RemindersPanel from './RemindersPanel';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 
@@ -164,7 +166,7 @@ export function WorkspaceHub() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">نمای کلی</TabsTrigger>
           <TabsTrigger value="tasks">وظایف من</TabsTrigger>
-          <TabsTrigger value="reports">عملکرد</TabsTrigger>
+          <TabsTrigger value="reminders">یادآورها</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
@@ -351,6 +353,10 @@ export function WorkspaceHub() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reminders" className="mt-6">
+          <RemindersPanel />
         </TabsContent>
       </Tabs>
     </div>
