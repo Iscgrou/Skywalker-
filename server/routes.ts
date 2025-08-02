@@ -515,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: representative.name,
         code: representative.code,
         panelUsername: representative.panelUsername,
-        shopOwnerName: representative.shopOwnerName,
+        ownerName: representative.ownerName,
         totalDebt: representative.totalDebt,
         totalSales: representative.totalSales,
         credit: representative.credit,

@@ -2,8 +2,43 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 
+// Type definitions for portal data
+interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  amount: string;
+  issueDate: string;
+  dueDate?: string;
+  status: string;
+  usageData?: {
+    records?: Array<{
+      event_timestamp: string;
+      event_type: string;
+      description: string;
+      admin_username: string;
+    }>;
+  };
+}
+
+interface Payment {
+  id: number;
+  amount: string;
+  paymentDate: string;
+  description?: string;
+}
+
+interface PortalData {
+  name: string;
+  panelUsername: string;
+  totalSales: string;
+  totalDebt: string;
+  credit: string;
+  invoices: Invoice[];
+  payments: Payment[];
+}
+
 // Invoice Card Component with detailed usage breakdown
-function InvoiceCard({ invoice }: { invoice: any }) {
+function InvoiceCard({ invoice }: { invoice: Invoice }) {
   const [showUsageDetails, setShowUsageDetails] = useState(false);
 
   const toggleUsageDetails = () => {
@@ -138,7 +173,7 @@ function InvoiceCard({ invoice }: { invoice: any }) {
 export default function Portal() {
   const { publicId } = useParams<{ publicId: string }>();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<PortalData>({
     queryKey: [`/api/portal/${publicId}`],
     enabled: !!publicId,
   });
@@ -181,17 +216,15 @@ export default function Portal() {
     );
   }
 
-  // Safely extract data
+  // Safely extract data - Use database-calculated values for consistency
   const totalSales = parseFloat(data.totalSales || '0');
+  const totalDebt = parseFloat(data.totalDebt || '0'); // Use database-calculated debt
+  const credit = parseFloat(data.credit || '0'); // Use database-calculated credit
   const invoices = data.invoices || [];
   const payments = data.payments || [];
   
-  // Calculate actual debt from unpaid invoices minus payments
-  const unpaidInvoicesTotal = invoices
-    .filter(invoice => invoice.status !== 'paid')
-    .reduce((sum, invoice) => sum + parseFloat(invoice.amount || '0'), 0);
-  const totalPayments = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || '0'), 0);
-  const actualTotalDebt = Math.max(0, unpaidInvoicesTotal - totalPayments);
+  // Use database values instead of recalculating for consistency
+  const actualTotalDebt = totalDebt;
 
   return (
     <div style={{ 
@@ -262,6 +295,24 @@ export default function Portal() {
               مجموع فروش ثبت شده
             </p>
           </div>
+
+          {/* Credit Balance (if exists) */}
+          {credit > 0 && (
+            <div style={{ 
+              background: 'linear-gradient(135deg, #059669, #047857)', 
+              padding: '20px', 
+              borderRadius: '10px',
+              border: '2px solid #10b981'
+            }}>
+              <p style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.9 }}>اعتبار</p>
+              <p style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '5px' }}>
+                {credit.toLocaleString('fa-IR')} تومان
+              </p>
+              <p style={{ fontSize: '12px', opacity: 0.8 }}>
+                اضافه پرداخت شما
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -278,7 +329,7 @@ export default function Portal() {
         }}>
           {invoices.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {invoices.map((invoice, index) => (
+              {invoices.map((invoice: Invoice, index: number) => (
                 <InvoiceCard key={index} invoice={invoice} />
               ))}
             </div>
@@ -303,7 +354,7 @@ export default function Portal() {
         }}>
           {payments.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {payments.map((payment: any, index: number) => (
+              {payments.map((payment: Payment, index: number) => (
                 <div key={index} style={{ 
                   background: 'linear-gradient(135deg, #059669, #047857)', 
                   padding: '15px', 

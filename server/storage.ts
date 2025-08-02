@@ -104,6 +104,8 @@ export interface IStorage {
   getPaymentsByRepresentative(repId: number): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
   updatePayment(id: number, payment: Partial<Payment>): Promise<Payment>;
+  deletePayment(id: number): Promise<void>;
+  updatePayment(id: number, payment: Partial<Payment>): Promise<Payment>;
   allocatePaymentToInvoice(paymentId: number, invoiceId: number): Promise<Payment>;
   autoAllocatePaymentToInvoices(paymentId: number, representativeId: number): Promise<void>;
   getPaymentStatistics(): Promise<any>;
@@ -790,6 +792,60 @@ export class DatabaseStorage implements IStorage {
     return newPayment;
   }
 
+  async updatePayment(id: number, payment: Partial<Payment>): Promise<Payment> {
+    return await withDatabaseRetry(
+      async () => {
+        // Get original payment to find representative
+        const [originalPayment] = await db.select().from(payments).where(eq(payments.id, id));
+        if (!originalPayment) {
+          throw new Error(`Payment ${id} not found`);
+        }
+
+        const [updated] = await db
+          .update(payments)
+          .set(payment)
+          .where(eq(payments.id, id))
+          .returning();
+
+        // Update representative's financials after payment change
+        await this.updateRepresentativeFinancials(originalPayment.representativeId);
+
+        await this.createActivityLog({
+          type: "payment_updated",
+          description: `پرداخت شماره ${id} بروزرسانی شد`,
+          relatedId: id
+        });
+
+        return updated;
+      },
+      'updatePayment'
+    );
+  }
+
+  async deletePayment(id: number): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        // Get payment to find representative before deletion
+        const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+        if (!payment) {
+          throw new Error(`Payment ${id} not found`);
+        }
+
+        await db.delete(payments).where(eq(payments.id, id));
+
+        // Update representative's financials after payment deletion
+        await this.updateRepresentativeFinancials(payment.representativeId);
+
+        await this.createActivityLog({
+          type: "payment_deleted",
+          description: `پرداخت ${payment.amount} تومانی حذف شد`,
+          relatedId: payment.representativeId
+        });
+      },
+      'deletePayment'
+    );
+  }
+
 
 
   async getActivityLogs(limit = 50): Promise<ActivityLog[]> {
@@ -883,10 +939,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateRepresentativeFinancials(repId: number): Promise<void> {
-    // Calculate total debt (unpaid + overdue invoices)
-    const [debtResult] = await db
+    // Calculate total from unpaid + overdue invoices
+    const [unpaidResult] = await db
       .select({ 
-        totalDebt: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+        unpaidTotal: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
       })
       .from(invoices)
       .where(
@@ -896,6 +952,19 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
+    // Calculate total payments for this representative
+    const [paymentsResult] = await db
+      .select({ 
+        totalPayments: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+      })
+      .from(payments)
+      .where(eq(payments.representativeId, repId));
+
+    // Calculate actual debt (unpaid invoices minus payments)
+    const unpaidAmount = parseFloat(unpaidResult.unpaidTotal || "0");
+    const totalPayments = parseFloat(paymentsResult.totalPayments || "0");
+    const actualDebt = Math.max(0, unpaidAmount - totalPayments);
+
     // Calculate total sales (all invoices)
     const [salesResult] = await db
       .select({ 
@@ -904,12 +973,16 @@ export class DatabaseStorage implements IStorage {
       .from(invoices)
       .where(eq(invoices.representativeId, repId));
 
-    // Update representative
+    // Calculate credit (if payments exceed unpaid invoices)
+    const credit = totalPayments > unpaidAmount ? totalPayments - unpaidAmount : 0;
+
+    // Update representative with accurate calculations
     await db
       .update(representatives)
       .set({
-        totalDebt: debtResult.totalDebt || "0",
+        totalDebt: actualDebt.toString(),
         totalSales: salesResult.totalSales || "0",
+        credit: credit.toString(),
         updatedAt: new Date()
       })
       .where(eq(representatives.id, repId));
