@@ -16,6 +16,10 @@ import Dashboard from "@/pages/dashboard";
 import Invoices from "@/pages/invoices";
 import InvoiceManagement from "@/pages/InvoiceManagement";
 import PaymentManagement from "@/pages/PaymentManagement";
+import Representatives from "@/pages/representatives";
+import Payments from "@/pages/payments";
+import SalesPartners from "@/pages/sales-partners";
+import AIAssistant from "@/pages/ai-assistant";
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import PublicPortal from "@/pages/public-portal";
@@ -165,10 +169,13 @@ function AuthenticatedRouter() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/dashboard" component={Dashboard} />
-        {/* Representatives routes removed - now handled in SHERLOCK v3.0 CRM */}
+        <Route path="/representatives" component={Representatives} />
         <Route path="/invoices" component={Invoices} />
         <Route path="/invoice-management" component={InvoiceManagement} />
+        <Route path="/payments" component={Payments} />
         <Route path="/payment-management" component={PaymentManagement} />
+        <Route path="/sales-partners" component={SalesPartners} />
+        <Route path="/ai-assistant" component={AIAssistant} />
         <Route path="/reports" component={Reports} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
