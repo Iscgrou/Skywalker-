@@ -1,26 +1,27 @@
-// DA VINCI v2.0 - WORKSPACE HUB - AI-Powered Task Management
-import { useState, useEffect } from 'react';
+// DA VINCI v2.0 - EMPLOYEE WORKSPACE - Task Viewing & Completion Only
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Plus, 
   Calendar, 
   Clock, 
   CheckCircle, 
-  AlertCircle, 
-  Brain, 
   FileText, 
-  Bell,
-  TrendingUp,
   Users,
   Target,
-  Zap
+  Zap,
+  RefreshCw,
+  Eye,
+  CheckCheck,
+  BarChart3,
+  MessageSquare,
+  TrendingUp,
+  Bell
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-// Import workspace components inline for now
 
 interface WorkspaceTask {
   id: string;
@@ -44,17 +45,13 @@ interface TaskStats {
 
 export function WorkspaceHub() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [showReportForm, setShowReportForm] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<WorkspaceTask | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch workspace tasks
+  // Fetch workspace tasks (assigned by manager)
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['/api/workspace/tasks'],
     select: (data: any) => {
-      // Handle different response formats
       if (Array.isArray(data)) return data;
       if (data && Array.isArray(data.tasks)) return data.tasks;
       return [];
@@ -70,22 +67,16 @@ export function WorkspaceHub() {
     }
   });
 
-  // Generate AI tasks mutation
-  const generateTasksMutation = useMutation({
-    mutationFn: () => fetch('/api/workspace/tasks/generate', { method: 'POST' }).then(res => res.json()),
-    onSuccess: (data) => {
+  // Mark task as completed
+  const completeTaskMutation = useMutation({
+    mutationFn: (taskId: string) => 
+      fetch(`/api/workspace/tasks/${taskId}/complete`, { method: 'POST' }).then(res => res.json()),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workspace/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workspace/stats'] });
       toast({
-        title: "تولید وظایف هوشمند",
-        description: `${data.metadata?.totalGenerated || 0} وظیفه جدید با هوش مصنوعی تولید شد`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "خطا در تولید وظایف",
-        description: "مشکلی در تولید وظایف هوشمند پیش آمد",
-        variant: "destructive",
+        title: "وظیفه تکمیل شد",
+        description: "وظیفه با موفقیت به عنوان انجام شده علامت‌گذاری شد",
       });
     }
   });
@@ -109,25 +100,18 @@ export function WorkspaceHub() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-            میز کار هوشمند DA VINCI v2.0
+            میز کار کارمند DA VINCI v2.0
           </h1>
-          <p className="text-gray-300 mt-2">مدیریت وظایف با هوش مصنوعی و فرهنگ ایرانی</p>
+          <p className="text-gray-300 mt-2">مشاهده و تکمیل وظایف محول شده توسط مدیر</p>
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={() => generateTasksMutation.mutate()}
-            disabled={generateTasksMutation.isPending}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            onClick={() => window.location.reload()}
+            variant="outline"
+            className="border-gray-600 text-gray-300 hover:bg-gray-800"
           >
-            <Brain className="w-4 h-4 ml-2" />
-            {generateTasksMutation.isPending ? 'در حال تولید...' : 'تولید وظایف هوشمند'}
-          </Button>
-          <Button 
-            onClick={() => setShowTaskForm(true)}
-            className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700"
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            وظیفه جدید
+            <RefreshCw className="w-4 h-4 ml-2" />
+            بروزرسانی
           </Button>
         </div>
       </div>
@@ -166,7 +150,7 @@ export function WorkspaceHub() {
 
         <Card className="bg-black/40 border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">تولید شده AI</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-300">هوش مصنوعی</CardTitle>
             <Zap className="h-4 w-4 text-purple-400" />
           </CardHeader>
           <CardContent>
@@ -175,40 +159,36 @@ export function WorkspaceHub() {
         </Card>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-black/30 border border-gray-700">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-green-600">
-            <TrendingUp className="w-4 h-4 ml-2" />
-            نمای کلی
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="data-[state=active]:bg-blue-600">
-            <FileText className="w-4 h-4 ml-2" />
-            مدیریت وظایف
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="data-[state=active]:bg-purple-600">
-            <Bell className="w-4 h-4 ml-2" />
-            گزارشات
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="overview">نمای کلی</TabsTrigger>
+          <TabsTrigger value="tasks">وظایف من</TabsTrigger>
+          <TabsTrigger value="reports">عملکرد</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-black/40 border-gray-700">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Tasks */}
+            <Card className="lg:col-span-2 bg-black/40 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white">وظایف اخیر</CardTitle>
-                <CardDescription>آخرین وظایف تولید شده</CardDescription>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  آخرین وظایف
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {tasksLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
+                  <div className="space-y-3 animate-pulse">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-16 bg-gray-800/50 rounded"></div>
+                    ))}
                   </div>
-                ) : tasks.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>هنوز وظیفه‌ای تعریف نشده</p>
-                    <p className="text-sm mt-2">از دکمه "تولید وظایف هوشمند" استفاده کنید</p>
+                ) : !Array.isArray(tasks) || tasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 mx-auto mb-3 text-gray-500" />
+                    <p className="text-gray-400">هنوز وظیفه‌ای تعریف نشده</p>
+                    <p className="text-sm mt-2 text-gray-500">مدیر شما وظایف را از طریق تنظیمات تعریف می‌کند</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -221,9 +201,21 @@ export function WorkspaceHub() {
                           </div>
                           <p className="text-xs text-gray-400 mt-1">{task.assignedTo}</p>
                         </div>
-                        <Badge className={`text-xs ${priorityColors[task.priority]}`}>
-                          {task.priority === 'HIGH' ? 'بالا' : task.priority === 'MEDIUM' ? 'متوسط' : 'پایین'}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-xs ${priorityColors[task.priority]}`}>
+                            {task.priority === 'HIGH' ? 'بالا' : task.priority === 'MEDIUM' ? 'متوسط' : 'پایین'}
+                          </Badge>
+                          {task.status !== 'COMPLETED' && (
+                            <Button
+                              size="sm"
+                              onClick={() => completeTaskMutation.mutate(task.id)}
+                              disabled={completeTaskMutation.isPending}
+                              className="text-xs"
+                            >
+                              <CheckCheck className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -231,10 +223,13 @@ export function WorkspaceHub() {
               </CardContent>
             </Card>
 
+            {/* AI Status */}
             <Card className="bg-black/40 border-gray-700">
               <CardHeader>
-                <CardTitle className="text-white">هوش مصنوعی DA VINCI</CardTitle>
-                <CardDescription>وضعیت موتور تولید وظایف</CardDescription>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-purple-400" />
+                  وضعیت AI
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -247,18 +242,8 @@ export function WorkspaceHub() {
                     <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">فارسی</Badge>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-300">آخرین تولید</span>
-                    <span className="text-sm text-gray-400">بدون داده</span>
-                  </div>
-                  <div className="pt-4">
-                    <Button 
-                      onClick={() => generateTasksMutation.mutate()}
-                      disabled={generateTasksMutation.isPending}
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    >
-                      <Brain className="w-4 h-4 ml-2" />
-                      {generateTasksMutation.isPending ? 'در حال تولید...' : 'تولید وظایف جدید'}
-                    </Button>
+                    <span className="text-sm text-gray-300">آخرین به‌روزرسانی</span>
+                    <span className="text-sm text-gray-400">مدیریت شده توسط مدیر</span>
                   </div>
                 </div>
               </CardContent>
@@ -290,16 +275,8 @@ export function WorkspaceHub() {
                 <Card className="bg-black/40 border-gray-700">
                   <CardContent className="text-center py-12">
                     <FileText className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                    <h3 className="text-lg font-semibold text-white mb-2">هنوز وظیفه‌ای ندارید</h3>
-                    <p className="text-gray-400 mb-6">از هوش مصنوعی برای تولید وظایف هوشمند استفاده کنید</p>
-                    <Button 
-                      onClick={() => generateTasksMutation.mutate()}
-                      disabled={generateTasksMutation.isPending}
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    >
-                      <Brain className="w-4 h-4 ml-2" />
-                      {generateTasksMutation.isPending ? 'در حال تولید...' : 'تولید وظایف هوشمند'}
-                    </Button>
+                    <h3 className="text-lg font-semibold text-white mb-2">هنوز وظیفه‌ای محول نشده</h3>
+                    <p className="text-gray-400">مدیر شما وظایف را از طریق بخش تنظیمات تعریف خواهد کرد</p>
                   </CardContent>
                 </Card>
               </div>
@@ -321,6 +298,9 @@ export function WorkspaceHub() {
                         <Badge className={`text-xs ${priorityColors[task.priority]}`}>
                           {task.priority === 'HIGH' ? 'بالا' : task.priority === 'MEDIUM' ? 'متوسط' : 'پایین'}
                         </Badge>
+                        <Badge className={`text-xs ${statusColors[task.status]}`}>
+                          {task.status === 'PENDING' ? 'در انتظار' : task.status === 'IN_PROGRESS' ? 'در حال انجام' : task.status === 'COMPLETED' ? 'تکمیل شده' : 'لغو شده'}
+                        </Badge>
                       </div>
                     </div>
                   </CardHeader>
@@ -338,6 +318,18 @@ export function WorkspaceHub() {
                         <span>مهلت: {new Date(task.dueDate).toLocaleDateString('fa-IR')}</span>
                       </div>
                     </div>
+                    {task.status !== 'COMPLETED' && (
+                      <div className="pt-2">
+                        <Button
+                          onClick={() => completeTaskMutation.mutate(task.id)}
+                          disabled={completeTaskMutation.isPending}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCheck className="w-4 h-4 ml-2" />
+                          {completeTaskMutation.isPending ? 'در حال تکمیل...' : 'علامت‌گذاری به عنوان انجام شده'}
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -348,53 +340,19 @@ export function WorkspaceHub() {
         <TabsContent value="reports" className="mt-6">
           <Card className="bg-black/40 border-gray-700">
             <CardHeader>
-              <CardTitle className="text-white">گزارشات عملکرد</CardTitle>
-              <CardDescription>تحلیل عملکرد وظایف و بازخورد کارمندان</CardDescription>
+              <CardTitle className="text-white">گزارش عملکرد من</CardTitle>
+              <CardDescription>نمایش آمار و تحلیل عملکرد وظایف انجام شده</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-center py-12">
-                <Bell className="w-16 h-16 mx-auto mb-4 text-gray-500" />
-                <h3 className="text-lg font-semibold text-white mb-2">بخش گزارشات</h3>
-                <p className="text-gray-400">این بخش برای نمایش گزارشات تحلیلی طراحی شده است</p>
+                <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-500" />
+                <h3 className="text-lg font-semibold text-white mb-2">گزارشات عملکردی</h3>
+                <p className="text-gray-400">این بخش برای نمایش گزارشات تحلیلی عملکرد کارمندان طراحی شده است</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Task Form Modal - Simplified for now */}
-      {showTaskForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="bg-gray-900 border-gray-700 w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle className="text-white">وظیفه جدید</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-400 mb-4">فرم ایجاد وظیفه در مراحل بعدی پیاده‌سازی خواهد شد</p>
-              <Button onClick={() => setShowTaskForm(false)} className="w-full">
-                بستن
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Report Form Modal - Simplified for now */}
-      {showReportForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="bg-gray-900 border-gray-700 w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle className="text-white">ارسال گزارش</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-400 mb-4">فرم گزارش‌دهی در مراحل بعدی پیاده‌سازی خواهد شد</p>
-              <Button onClick={() => setShowReportForm(false)} className="w-full">
-                بستن
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
