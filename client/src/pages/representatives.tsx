@@ -1296,7 +1296,7 @@ function EditInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg admin-glass-card border-white/20">
+      <DialogContent className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] max-w-4xl max-h-[95vh] admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-white text-xl flex items-center gap-2">
             <Edit className="w-5 h-5 text-blue-400" />
@@ -1356,82 +1356,141 @@ function EditInvoiceDialog({
           </div>
 
           <div>
-            <Label className="text-white">جزئیات مصرف</Label>
-            <div className="space-y-3 mt-2 admin-glass-card p-4 border-white/10">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="serviceType" className="text-sm text-blue-200">نوع سرویس</Label>
-                  <Input
-                    id="serviceType"
-                    value={parsedUsageData?.service || ""}
-                    onChange={(e) => updateUsageField("service", e.target.value)}
-                    placeholder="hosting، domain، ssl"
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                  />
+            <Label className="text-white">ویرایش جزئیات مصرف (HTML Template)</Label>
+            <div className="mt-2 admin-glass-card border-white/10">
+              <div className="max-h-96 overflow-y-auto p-4 space-y-4">
+                <div className="text-sm text-blue-200 mb-3">
+                  ویرایش ریز جزئیات مصرف نماینده در قالب گرافیکی:
                 </div>
-                <div>
-                  <Label htmlFor="servicePeriod" className="text-sm text-blue-200">دوره</Label>
-                  <Select 
-                    value={parsedUsageData?.period || ""} 
-                    onValueChange={(value) => updateUsageField("period", value)}
-                  >
-                    <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
-                      <SelectValue placeholder="انتخاب دوره" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-900 border-white/20">
-                      <SelectItem value="monthly" className="text-white hover:bg-white/10">ماهانه</SelectItem>
-                      <SelectItem value="yearly" className="text-white hover:bg-white/10">سالانه</SelectItem>
-                      <SelectItem value="quarterly" className="text-white hover:bg-white/10">فصلی</SelectItem>
-                      <SelectItem value="one-time" className="text-white hover:bg-white/10">یکبار</SelectItem>
-                    </SelectContent>
-                  </Select>
+                
+                {/* HTML Template for Usage Details */}
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="serviceType" className="text-sm text-blue-200">نوع سرویس</Label>
+                      <Input
+                        id="serviceType"
+                        value={parsedUsageData?.service || ""}
+                        onChange={(e) => updateUsageField("service", e.target.value)}
+                        placeholder="میزبانی وب، دامنه، SSL"
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="servicePlan" className="text-sm text-blue-200">پلن سرویس</Label>
+                      <Input
+                        id="servicePlan"
+                        value={parsedUsageData?.plan || ""}
+                        onChange={(e) => updateUsageField("plan", e.target.value)}
+                        placeholder="Basic، Pro، Enterprise"
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="usageAmount" className="text-sm text-blue-200">میزان مصرف</Label>
+                      <Input
+                        id="usageAmount"
+                        value={parsedUsageData?.amount || ""}
+                        onChange={(e) => updateUsageField("amount", e.target.value)}
+                        placeholder="GB، MB، ساعت"
+                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="usageUnit" className="text-sm text-blue-200">واحد</Label>
+                      <Select 
+                        value={parsedUsageData?.unit || ""} 
+                        onValueChange={(value) => updateUsageField("unit", value)}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
+                          <SelectValue placeholder="واحد" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-white/20">
+                          <SelectItem value="GB">گیگابایت (GB)</SelectItem>
+                          <SelectItem value="MB">مگابایت (MB)</SelectItem>
+                          <SelectItem value="hour">ساعت</SelectItem>
+                          <SelectItem value="day">روز</SelectItem>
+                          <SelectItem value="request">درخواست</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="servicePeriod" className="text-sm text-blue-200">دوره</Label>
+                      <Select 
+                        value={parsedUsageData?.period || ""}
+                        onValueChange={(value) => updateUsageField("period", value)}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
+                          <SelectValue placeholder="دوره" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-900 border-white/20">
+                          <SelectItem value="monthly">ماهانه</SelectItem>
+                          <SelectItem value="yearly">سالانه</SelectItem>
+                          <SelectItem value="quarterly">فصلی</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="pricePerUnit" className="text-sm text-blue-200">قیمت واحد (ریال)</Label>
+                    <Input
+                      id="pricePerUnit"
+                      type="number"  
+                      value={parsedUsageData?.price || ""}
+                      onChange={(e) => updateUsageField("price", e.target.value)}
+                      placeholder="قیمت به ریال"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description" className="text-sm text-blue-200">شرح تکمیلی مصرف</Label>
+                    <textarea
+                      id="description"
+                      value={parsedUsageData?.description || ""}
+                      onChange={(e) => updateUsageField("description", e.target.value)}
+                      placeholder="توضیحات کامل در مورد نحوه مصرف، محدودیت‌ها و جزئیات فنی سرویس..."
+                      className="w-full mt-1 p-3 bg-white/10 border border-white/20 rounded-md text-white placeholder:text-white/50 resize-none min-h-[100px]"
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* Real-time Preview */}
+                  <div className="border-t border-white/10 pt-4">
+                    <Label className="text-sm text-green-300">پیش‌نمایش زنده:</Label>
+                    <div className="mt-2 p-3 bg-green-900/20 border border-green-500/30 rounded-lg text-sm">
+                      <div className="text-green-200">
+                        <strong>سرویس:</strong> {parsedUsageData?.service || "نامشخص"} - 
+                        <strong>پلن:</strong> {parsedUsageData?.plan || "نامشخص"}
+                      </div>
+                      <div className="text-green-200 mt-1">
+                        <strong>مصرف:</strong> {parsedUsageData?.amount || "0"} {parsedUsageData?.unit || "واحد"} - 
+                        <strong>دوره:</strong> {parsedUsageData?.period || "نامشخص"}
+                      </div>
+                      <div className="text-green-200 mt-1">
+                        <strong>مبلغ:</strong> {formatCurrency(parseFloat(parsedUsageData?.price || "0"))}
+                      </div>
+                      {parsedUsageData?.description && (
+                        <div className="text-green-200 mt-2 text-xs">
+                          <strong>شرح:</strong> {parsedUsageData.description}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="bandwidth" className="text-sm text-blue-200">پهنای باند (GB)</Label>
-                  <Input
-                    id="bandwidth"
-                    type="number"
-                    value={parsedUsageData?.bandwidth || ""}
-                    onChange={(e) => updateUsageField("bandwidth", e.target.value)}
-                    placeholder="100"
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="storage" className="text-sm text-blue-200">فضای ذخیره (GB)</Label>
-                  <Input
-                    id="storage"
-                    type="number"
-                    value={parsedUsageData?.storage || ""}
-                    onChange={(e) => updateUsageField("storage", e.target.value)}
-                    placeholder="10"
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="description" className="text-sm text-blue-200">توضیحات تکمیلی</Label>
-                <Textarea
-                  id="description"
-                  value={parsedUsageData?.description || ""}
-                  onChange={(e) => updateUsageField("description", e.target.value)}
-                  placeholder="توضیحات اضافی در مورد سرویس"
-                  rows={2}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                />
-              </div>
+              <p className="text-xs text-blue-300 mt-2 p-2">
+                🔄 این اطلاعات در پورتال عمومی نماینده نمایش داده می‌شود
+              </p>
             </div>
-            <p className="text-xs text-blue-300 mt-2">
-              این اطلاعات در پورتال عمومی نمایش داده می‌شود
-            </p>
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 pt-4">
+        <div className="flex justify-end space-x-2 pt-4 border-t border-white/10 mt-6">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
@@ -1469,7 +1528,7 @@ function CreatePaymentDialog({
   const [amount, setAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("auto");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -1485,40 +1544,40 @@ function CreatePaymentDialog({
         return;
       }
 
-      const paymentData = {
-        representativeId: representative.id,
-        amount,
-        paymentDate,
-        description: description || `پرداخت برای ${representative.name}`,
-        invoiceId: selectedInvoiceId ? parseInt(selectedInvoiceId) : null,
-        isAllocated: !!selectedInvoiceId
-      };
-
-      await apiRequest("/api/payments", {
-        method: "POST",
-        data: paymentData
-      });
-
-      // Update representative's debt
-      const currentDebt = parseFloat(representative.totalDebt);
       const paymentAmount = parseFloat(amount);
-      const newDebt = Math.max(0, currentDebt - paymentAmount);
       
-      await apiRequest(`/api/representatives/${representative.id}`, {
-        method: "PUT",
-        data: { totalDebt: newDebt.toString() }
-      });
+      // Auto-allocation logic (Smart Payment Processing)
+      if (selectedInvoiceId === "auto") {
+        await handleAutoAllocation(paymentAmount);
+      } else {
+        // Manual allocation to specific invoice
+        const paymentData = {
+          representativeId: representative.id,
+          amount,
+          paymentDate,
+          description: description || `پرداخت برای ${representative.name}`,
+          invoiceId: selectedInvoiceId ? parseInt(selectedInvoiceId) : null,
+          isAllocated: !!selectedInvoiceId
+        };
+
+        await apiRequest("/api/payments", {
+          method: "POST",
+          data: paymentData
+        });
+        
+        await updateRepresentativeDebt(paymentAmount);
+      }
 
       toast({
         title: "موفقیت",
-        description: "پرداخت با موفقیت ثبت شد"
+        description: "پرداخت با موفقیت ثبت و تخصیص داده شد"
       });
       
       // Reset form
       setAmount("");
       setPaymentDate("");
       setDescription("");
-      setSelectedInvoiceId("");
+      setSelectedInvoiceId("auto");
       
       onSave();
     } catch (error: any) {
@@ -1530,6 +1589,84 @@ function CreatePaymentDialog({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Smart Auto-Allocation System
+  const handleAutoAllocation = async (paymentAmount: number) => {
+    try {
+      // Get unpaid invoices sorted by date (oldest first)
+      const unpaidInvoices = (representative as any).invoices?.filter(
+        (inv: any) => inv.status === 'unpaid' || inv.status === 'partial'
+      ).sort((a: any, b: any) => new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime()) || [];
+
+      let remainingAmount = paymentAmount;
+      const allocations: Array<{invoiceId: number, amount: number, newStatus: string}> = [];
+      
+      for (const invoice of unpaidInvoices) {
+        if (remainingAmount <= 0) break;
+        
+        const invoiceAmount = parseFloat(invoice.amount);
+        const allocationAmount = Math.min(remainingAmount, invoiceAmount);
+        
+        const newStatus = allocationAmount >= invoiceAmount ? 'paid' : 'partial';
+        allocations.push({
+          invoiceId: invoice.id,
+          amount: allocationAmount,
+          newStatus
+        });
+        
+        remainingAmount -= allocationAmount;
+      }
+
+      // Create payment record
+      const paymentData = {
+        representativeId: representative.id,
+        amount: paymentAmount.toString(),
+        paymentDate,
+        description: description || `تخصیص خودکار پرداخت برای ${representative.name}`,
+        isAllocated: true,
+        autoAllocated: true,
+        allocations
+      };
+
+      await apiRequest(`/api/payments/auto-allocate/${representative.id}`, {
+        method: "POST",
+        data: paymentData
+      });
+      
+      await updateRepresentativeDebt(paymentAmount);
+      
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Update representative debt with credit handling
+  const updateRepresentativeDebt = async (paymentAmount: number) => {
+    const currentDebt = parseFloat(representative.totalDebt);
+    const newDebt = currentDebt - paymentAmount;
+    
+    // Handle credit (overpayment) scenarios
+    const updateData: any = {
+      totalDebt: Math.max(0, newDebt).toString()
+    };
+    
+    if (newDebt < 0) {
+      // Representative has overpaid - convert to credit
+      updateData.credit = Math.abs(newDebt).toString();
+      updateData.totalDebt = "0";
+    }
+    
+    await apiRequest(`/api/representatives/${representative.id}`, {
+      method: "PUT",
+      data: updateData
+    });
+    
+    // Sync with CRM system
+    await apiRequest(`/api/crm/representatives/${representative.id}/sync-debt`, {
+      method: "POST",
+      data: updateData
+    });
   };
 
   // Get today's date in Persian format
@@ -1546,74 +1683,95 @@ function CreatePaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] max-w-lg admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle>ثبت پرداخت جدید</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-white text-xl">ثبت پرداخت جدید</DialogTitle>
+          <DialogDescription className="text-blue-200">
             ثبت پرداخت برای {representative.name}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-4 text-white">
           <div>
-            <Label htmlFor="amount">مبلغ پرداخت (ریال) *</Label>
+            <Label htmlFor="amount" className="text-white">مبلغ پرداخت (ریال) *</Label>
             <Input
               id="amount"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="مبلغ پرداخت"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="paymentDate">تاریخ پرداخت *</Label>
+            <Label htmlFor="paymentDate" className="text-white">تاریخ پرداخت *</Label>
             <Input
               id="paymentDate"
               value={paymentDate}
               onChange={(e) => setPaymentDate(e.target.value)}
               placeholder="1403/01/01"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="description">شرح پرداخت</Label>
+            <Label htmlFor="description" className="text-white">شرح پرداخت</Label>
             <Input
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="شرح پرداخت"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="invoiceId">تخصیص به فاکتور (اختیاری)</Label>
+            <Label htmlFor="invoiceId" className="text-white">تخصیص به فاکتور</Label>
             <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
-              <SelectTrigger>
-                <SelectValue placeholder="انتخاب فاکتور برای تخصیص" />
+              <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
+                <SelectValue placeholder="انتخاب روش تخصیص" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">عمومی (بدون تخصیص)</SelectItem>
-                {representative && (representative as any).invoices?.map((invoice: Invoice) => (
-                  <SelectItem key={invoice.id} value={invoice.id.toString()}>
-                    {invoice.invoiceNumber} - {formatCurrency(parseFloat(invoice.amount))}
+              <SelectContent className="bg-gray-900 border-white/20">
+                <SelectItem value="auto" className="text-white hover:bg-white/10">
+                  🤖 تخصیص خودکار (پیشنهادی)
+                </SelectItem>
+                {representative && (representative as any).invoices?.filter((inv: any) => inv.status !== 'paid').map((invoice: Invoice) => (
+                  <SelectItem key={invoice.id} value={invoice.id.toString()} className="text-white hover:bg-white/10">
+                    📄 {invoice.invoiceNumber} - {formatCurrency(parseFloat(invoice.amount))}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-blue-300 mt-1">
+              تخصیص خودکار: به قدیمی‌ترین فاکتورهای تسویه‌نشده تخصیص می‌یابد
+            </p>
           </div>
 
-          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
-            <div className="text-sm text-blue-800 dark:text-blue-200">
-              <div className="flex justify-between">
-                <span>بدهی فعلی:</span>
-                <span className="font-bold">{formatCurrency(parseFloat(representative.totalDebt))}</span>
+          <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 p-4 rounded-lg border border-blue-500/30">
+            <div className="text-sm text-blue-200">
+              <div className="flex justify-between items-center">
+                <span>💰 بدهی فعلی:</span>
+                <span className={`font-bold ${parseFloat(representative.totalDebt) > 0 ? 'text-red-300' : 'text-green-300'}`}>
+                  {formatCurrency(parseFloat(representative.totalDebt))}
+                </span>
               </div>
               {amount && (
-                <div className="flex justify-between mt-1">
-                  <span>بدهی پس از پرداخت:</span>
-                  <span className="font-bold">
-                    {formatCurrency(Math.max(0, parseFloat(representative.totalDebt) - parseFloat(amount || "0")))}
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-400/20">
+                  <span>📊 وضعیت پس از پرداخت:</span>
+                  <span className={`font-bold ${
+                    parseFloat(representative.totalDebt) - parseFloat(amount || "0") > 0 
+                      ? 'text-red-300' 
+                      : parseFloat(representative.totalDebt) - parseFloat(amount || "0") < 0
+                      ? 'text-green-300'
+                      : 'text-blue-300'
+                  }`}>
+                    {parseFloat(representative.totalDebt) - parseFloat(amount || "0") > 0 
+                      ? `بدهکار: ${formatCurrency(parseFloat(representative.totalDebt) - parseFloat(amount || "0"))}`
+                      : parseFloat(representative.totalDebt) - parseFloat(amount || "0") < 0
+                      ? `بستانکار: ${formatCurrency(Math.abs(parseFloat(representative.totalDebt) - parseFloat(amount || "0")))}`
+                      : 'تسویه کامل ✅'
+                    }
                   </span>
                 </div>
               )}
@@ -1621,17 +1779,21 @@ function CreatePaymentDialog({
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 pt-4">
+        <div className="flex justify-end space-x-2 pt-4 border-t border-white/10 mt-6">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            className="ml-2"
+            className="ml-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
           >
             انصراف
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
-            {isLoading ? "در حال ثبت..." : "ثبت پرداخت"}
+          <Button 
+            onClick={handleSave} 
+            disabled={isLoading}
+            className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white"
+          >
+            {isLoading ? "در حال ثبت پرداخت..." : "💰 ثبت و تخصیص پرداخت"}
           </Button>
         </div>
       </DialogContent>

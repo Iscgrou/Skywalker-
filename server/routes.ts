@@ -1141,23 +1141,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/payments/auto-allocate/:representativeId", requireAuth, async (req, res) => {
     try {
       const representativeId = parseInt(req.params.representativeId);
-      const result = await storage.autoAllocatePayments(representativeId);
+      const { amount, paymentDate, description, allocations } = req.body;
+      
+      // Create the main payment record first
+      const paymentData = {
+        representativeId,
+        amount,
+        paymentDate,
+        description,
+        isAllocated: true
+      };
+      
+      const payment = await storage.createPayment(paymentData);
+      
+      // Process allocations for each invoice if provided
+      if (allocations && allocations.length > 0) {
+        for (const allocation of allocations) {
+          // Update invoice status
+          await storage.updateInvoice(allocation.invoiceId, {
+            status: allocation.newStatus
+          });
+        }
+      } else {
+        // Fallback to existing auto-allocation logic
+        const result = await storage.autoAllocatePayments(representativeId);
+      }
       
       await storage.createActivityLog({
         type: "payment_auto_allocation",
-        description: `تخصیص خودکار ${result.allocated} پرداخت برای نماینده ${representativeId}`,
+        description: `تخصیص خودکار پرداخت ${amount} ریال برای نماینده ${representativeId}`,
         relatedId: representativeId,
         metadata: {
-          allocatedCount: result.allocated,
-          totalAmount: result.totalAmount,
-          details: result.details
+          paymentId: payment.id,
+          amount: amount,
+          allocationsCount: allocations?.length || 0
         }
       });
 
-      res.json(result);
+      res.json({ 
+        success: true, 
+        payment,
+        allocatedCount: allocations?.length || 0,
+        message: "پرداخت با موفقیت ثبت و تخصیص داده شد"
+      });
     } catch (error) {
       console.error('Error auto-allocating payments:', error);
       res.status(500).json({ error: "خطا در تخصیص خودکار پرداخت‌ها" });
+    }
+  });
+
+  // CRM debt synchronization endpoint
+  app.post("/api/crm/representatives/:id/sync-debt", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { totalDebt, credit } = req.body;
+      
+      // Update representative debt in main system
+      await storage.updateRepresentative(parseInt(id), {
+        totalDebt: totalDebt || "0",
+        credit: credit || "0"
+      });
+
+      // Log the synchronization
+      await storage.createActivityLog({
+        type: "debt_synchronized",
+        description: `همگام‌سازی بدهی: ${totalDebt} ریال${credit ? ` - اعتبار: ${credit} ریال` : ''}`,
+        relatedId: parseInt(id)
+      });
+
+      res.json({ success: true, message: "بدهی همگام‌سازی شد" });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در همگام‌سازی بدهی" });
     }
   });
 
