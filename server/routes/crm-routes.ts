@@ -655,54 +655,122 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
 
   // ==================== SHERLOCK v3.0 REPRESENTATIVES ENDPOINTS ====================
   
+  // Get representatives statistics - CRITICAL ENDPOINT
+  app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
+    try {
+      const reps = await db.select().from(representatives);
+      
+      const totalRepresentatives = reps.length;
+      const activeCount = reps.filter(rep => rep.isActive).length;
+      const inactiveCount = totalRepresentatives - activeCount;
+      
+      // Calculate financial totals
+      const totalSales = reps.reduce((sum, rep) => sum + parseFloat(rep.totalSales || '0'), 0);
+      const totalDebt = reps.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || '0'), 0);
+      const totalCredit = reps.reduce((sum, rep) => sum + parseFloat(rep.credit || '0'), 0);
+      
+      // Calculate performance metrics
+      const avgPerformance = totalRepresentatives > 0 ? 
+        Math.round((activeCount / totalRepresentatives) * 100) : 0;
+      
+      // Find top performers (by sales)
+      const topPerformers = reps
+        .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
+        .slice(0, 5);
+      
+      // Risk analysis - representatives with high debt
+      const riskAlerts = reps.filter(rep => {
+        const debt = parseFloat(rep.totalDebt || '0');
+        const sales = parseFloat(rep.totalSales || '0');
+        return debt > 100000 || (sales > 0 && (debt / sales) > 0.3);
+      }).length;
+      
+      const statistics = {
+        totalCount: totalRepresentatives,
+        activeCount,
+        inactiveCount,
+        totalSales,
+        totalDebt,
+        totalCredit,
+        avgPerformance,
+        topPerformers: topPerformers.map(rep => ({
+          id: rep.id,
+          code: rep.code,
+          name: rep.name,
+          ownerName: rep.ownerName,
+          totalSales: parseFloat(rep.totalSales || '0'),
+          totalDebt: parseFloat(rep.totalDebt || '0'),
+          isActive: rep.isActive
+        })),
+        riskAlerts,
+        healthScore: Math.max(0, 100 - (riskAlerts / totalRepresentatives * 20)),
+        lastUpdated: new Date().toISOString()
+      };
+      
+      res.json(statistics);
+    } catch (error) {
+      console.error('Error fetching representative statistics:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار نمایندگان' });
+    }
+  });
+
   // Get representatives data with enhanced filtering
   app.get("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
     try {
       const { sortBy = 'name', order = 'asc', status = 'all', search = '', limit = 1000 } = req.query;
       
-      let query = db.select().from(representatives);
+      let conditions = [];
       
       // Apply filters
       if (status === 'active') {
-        query = query.where(eq((representatives as any).isActive, true));
+        conditions.push(eq(representatives.isActive, true));
       } else if (status === 'inactive') {
-        query = query.where(eq((representatives as any).isActive, false));
+        conditions.push(eq(representatives.isActive, false));
       }
       
       // Apply search
       if (search) {
-        query = query.where(
+        conditions.push(
           or(
-            like((representatives as any).name, `%${search}%`),
-            like((representatives as any).code, `%${search}%`),
-            like((representatives as any).ownerName, `%${search}%`)
+            like(representatives.name, `%${search}%`),
+            like(representatives.code, `%${search}%`),
+            like(representatives.ownerName, `%${search}%`)
           )
         );
       }
       
-      // Apply sorting
-      const orderDirection = order === 'desc' ? desc : asc;
-      switch (sortBy) {
-        case 'name':
-          query = query.orderBy(orderDirection((representatives as any).name));
-          break;
-        case 'totalSales':
-          query = query.orderBy(orderDirection((representatives as any).totalSales));
-          break;
-        case 'totalDebt':
-          query = query.orderBy(orderDirection((representatives as any).totalDebt));
-          break;
-        case 'created':
-          query = query.orderBy(orderDirection((representatives as any).createdAt));
-          break;
-        default:
-          query = query.orderBy((representatives as any).name);
+      // Build base query
+      let queryBuilder = db.select().from(representatives);
+      
+      // Apply conditions
+      if (conditions.length > 0) {
+        queryBuilder = queryBuilder.where(conditions.length === 1 ? conditions[0] : and(...conditions));
       }
       
-      // Apply limit
-      query = query.limit(Number(limit));
+      // Apply sorting
+      const orderDirection = order === 'desc' ? desc : asc;
+      let orderClause;
+      switch (sortBy) {
+        case 'name':
+          orderClause = orderDirection(representatives.name);
+          break;
+        case 'totalSales':
+          orderClause = orderDirection(representatives.totalSales);
+          break;
+        case 'totalDebt':
+          orderClause = orderDirection(representatives.totalDebt);
+          break;
+        case 'created':
+          orderClause = orderDirection(representatives.createdAt);
+          break;
+        default:
+          orderClause = representatives.name;
+      }
       
-      const repsData = await query;
+      const repsData = await queryBuilder
+        .orderBy(orderClause)
+        .limit(Number(limit));
+      
       res.json(repsData);
     } catch (error) {
       console.error('Error fetching representatives:', error);
@@ -718,7 +786,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       const rep = await db
         .select()
         .from(representatives)
-        .where(eq((representatives as any).id, parseInt(id)))
+        .where(eq(representatives.id, parseInt(id)))
         .limit(1);
         
       if (rep.length === 0) {
@@ -729,15 +797,15 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       const invoicesData = await db
         .select()
         .from(invoices)
-        .where(eq((invoices as any).representativeId, parseInt(id)))
-        .orderBy(desc((invoices as any).createdAt))
+        .where(eq(invoices.representativeId, parseInt(id)))
+        .orderBy(desc(invoices.createdAt))
         .limit(10);
         
       const paymentsData = await db
         .select()
         .from(payments)
-        .where(eq((payments as any).representativeId, parseInt(id)))
-        .orderBy(desc((payments as any).createdAt))
+        .where(eq(payments.representativeId, parseInt(id)))
+        .orderBy(desc(payments.createdAt))
         .limit(10);
       
       res.json({
@@ -750,7 +818,9 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
             totalInvoices: invoicesData.length,
             totalPayments: paymentsData.length,
             lastActivity: Math.max(
-              ...[...invoicesData, ...paymentsData].map(item => new Date(item.createdAt).getTime())
+              ...[...invoicesData, ...paymentsData]
+                .map(item => item.createdAt ? new Date(item.createdAt).getTime() : 0)
+                .filter(time => time > 0)
             )
           }
         }
@@ -778,7 +848,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
           ...updateData,
           updatedAt: new Date().toISOString()
         })
-        .where(eq((representatives as any).id, parseInt(id)))
+        .where(eq(representatives.id, parseInt(id)))
         .returning();
         
       if (updated.length === 0) {
@@ -810,7 +880,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       const existingRep = await db
         .select()
         .from(representatives)
-        .where(eq((representatives as any).code, newRepData.code))
+        .where(eq(representatives.code, newRepData.code))
         .limit(1);
         
       if (existingRep.length > 0) {
@@ -863,7 +933,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
         const repInvoices = allInvoices.filter(inv => inv.representativeId === rep.id);
         const repPayments = allPayments.filter(pay => pay.representativeId === rep.id);
         
-        const repSales = repInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalAmount?.toString() || '0')), 0);
+        const repSales = repInvoices.reduce((sum, inv) => sum + (parseFloat(inv.amount?.toString() || '0')), 0);
         const repPaid = repPayments.reduce((sum, pay) => sum + (parseFloat(pay.amount?.toString() || '0')), 0);
         const repDebt = repSales - repPaid;
         
@@ -940,7 +1010,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       const representative = await db
         .select()
         .from(representatives)
-        .where(eq((representatives as any).id, repId))
+        .where(eq(representatives.id, repId))
         .limit(1);
       
       if (representative.length === 0) {
@@ -2628,8 +2698,8 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       }
       else if (message.includes('آمار') || message.includes('statistics') || message.includes('نماینده')) {
         const activeReps = representativesData.filter(rep => rep.isActive).length;
-        const totalSales = representativesData.reduce((sum, rep) => sum + (rep.totalSales || 0), 0);
-        const totalDebt = representativesData.reduce((sum, rep) => sum + (rep.totalDebt || 0), 0);
+        const totalSales = representativesData.reduce((sum, rep) => sum + parseFloat(rep.totalSales?.toString() || '0'), 0);
+        const totalDebt = representativesData.reduce((sum, rep) => sum + parseFloat(rep.totalDebt?.toString() || '0'), 0);
         
         aiResponse = `📊 آمار کامل نمایندگان:
 
