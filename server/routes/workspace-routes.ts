@@ -6,7 +6,7 @@ import { z } from "zod";
 import { workspaceStorage } from "../services/workspace-storage";
 import { reportAnalyzer } from "../services/report-analyzer";  
 import { AITaskGenerator } from "../services/ai-task-generator";
-import { FollowUpManager } from "../services/followup-manager";
+import { followUpManager } from "../services/followup-manager";
 
 // Utility function for Persian date conversion
 function convertToPersianDate(date: Date): string {
@@ -345,7 +345,6 @@ router.post("/reminders/generate", async (req, res) => {
   try {
     console.log("🤖 Generating smart reminders using AI...");
     
-    const followUpManager = new FollowUpManager();
     const suggestions = await followUpManager.generateFollowUpSuggestions();
     
     let createdCount = 0;
@@ -432,7 +431,7 @@ router.get("/support/representative/:id", async (req, res) => {
 // GET /api/workspace/support/staff - Get support activity for current staff
 router.get("/support/staff", async (req, res) => {
   try {
-    const staffId = 1; // TODO: Get from session
+    const staffId = getStaffIdFromSession(req); // ✅ FIXED: Get from session
     const activity = await workspaceStorage.getStaffSupportActivity(staffId);
     
     res.json({ activity });
@@ -447,7 +446,7 @@ router.get("/support/staff", async (req, res) => {
 // GET /api/workspace/dashboard - Get workspace dashboard stats
 router.get("/dashboard", async (req, res) => {
   try {
-    const staffId = 1; // TODO: Get from session
+    const staffId = getStaffIdFromSession(req); // ✅ FIXED: Get from session
     const stats = await workspaceStorage.getDashboardStats(staffId);
     
     res.json({ stats });

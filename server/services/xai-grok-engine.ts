@@ -80,7 +80,7 @@ export class XAIGrokEngine {
       }
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: "سلام، لطفا با یک کلمه پاسخ دهید." }],
         max_tokens: 10
       });
@@ -122,16 +122,16 @@ export class XAIGrokEngine {
       }
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: "سلام" }],
         max_tokens: 5
       });
 
       return {
         available: true,
-        model: "grok-4",
+        model: "grok-2-1212",
         status: "operational",
-        engine: "XAI-Grok-4",
+        engine: "XAI-Grok-Beta",
         culturalIntelligence: "persian",
         version: "SHERLOCK-v1.0",
         responseTime: Date.now(),
@@ -146,7 +146,7 @@ export class XAIGrokEngine {
         error: error instanceof Error ? error.message : String(error),
         fallbackMode: true,
         status: "operational",
-        engine: "XAI-Grok-4-Fallback",
+        engine: "XAI-Grok-Beta-Fallback",
         culturalIntelligence: "persian",
         version: "SHERLOCK-v1.0",
         capabilities: ["profile-generation", "cultural-insights", "pattern-analysis"]
@@ -183,7 +183,7 @@ export class XAIGrokEngine {
 `;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         max_tokens: 300
@@ -248,7 +248,7 @@ ${creativityLevel > 0.6 ? 'از ایده‌های خلاقانه و نوآورا
 `;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         max_tokens: parseInt(behaviorConfig.maxTokens || '500'),
@@ -295,7 +295,7 @@ ${creativityLevel > 0.6 ? 'از ایده‌های خلاقانه و نوآورا
 `;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         max_tokens: 300
@@ -335,7 +335,7 @@ ${creativityLevel > 0.6 ? 'از ایده‌های خلاقانه و نوآورا
 `;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: culturalPrompt }],
         max_tokens: 500,
         temperature: 0.7
@@ -404,7 +404,7 @@ ${config.culturalMetaphors ? 'از استعاره‌های فرهنگی ایرا
 پاسخ فارسی:`;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: culturalPrompt }],
         max_tokens: options.maxTokens || parseInt(config.maxTokens || '300'),
         temperature: options.temperature || parseFloat(config.temperature || '0.7')
@@ -473,7 +473,7 @@ ${config.culturalMetaphors ? 'از استعاره‌های فرهنگی ایرا
 `;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
         max_tokens: 800
@@ -500,7 +500,7 @@ ${config.culturalMetaphors ? 'از استعاره‌های فرهنگی ایرا
 `;
 
       const response = await this.client.chat.completions.create({
-        model: "grok-4",
+        model: "grok-2-1212",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 500
       });
