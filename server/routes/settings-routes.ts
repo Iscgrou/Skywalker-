@@ -29,7 +29,7 @@ async function testXaiGrokApi(apiKey: string): Promise<any> {
             content: "سلام! این یک تست ارتباط است."
           }
         ],
-        model: "grok-beta",
+        model: "grok-4",
         stream: false,
         temperature: 0.7
       })
@@ -47,12 +47,12 @@ async function testXaiGrokApi(apiKey: string): Promise<any> {
     
     return {
       success: true,
-      model: "grok-beta",
+      model: "grok-4",
       responseTime,
       response: data.choices?.[0]?.message?.content || "پاسخ دریافت شد",
       debugInfo: {
         requestPayload: {
-          model: "grok-beta",
+          model: "grok-4",
           temperature: 0.7,
           messagesCount: 2
         },
@@ -66,7 +66,7 @@ async function testXaiGrokApi(apiKey: string): Promise<any> {
   } catch (error: any) {
     return {
       success: false,
-      model: "grok-beta",
+      model: "grok-4",
       responseTime: 0,
       response: "",
       error: error.message,
@@ -415,7 +415,7 @@ export function registerSettingsRoutes(app: Express) {
 
       // Prepare test request
       const testRequest = {
-        model: "grok-beta",
+        model: "grok-4",
         messages: [
           {
             role: "system",
