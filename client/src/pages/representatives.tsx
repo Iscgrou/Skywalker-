@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Users, 
@@ -144,6 +144,8 @@ export default function Representatives() {
   const [isInvoiceEditOpen, setIsInvoiceEditOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPaymentCreateOpen, setIsPaymentCreateOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 30;
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -186,6 +188,17 @@ export default function Representatives() {
     return matchesSearch && matchesStatus;
   });
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredRepresentatives.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRepresentatives = filteredRepresentatives.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
   const getStatusBadge = (isActive: boolean) => {
     return isActive ? (
       <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -202,7 +215,6 @@ export default function Representatives() {
 
   const getDebtAlert = (debt: string) => {
     const debtAmount = parseFloat(debt);
-    console.log('Debt Alert Check:', { debt, debtAmount, isOver1M: debtAmount > 1000000 });
     if (debtAmount > 1000000) {
       return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800";
     } else if (debtAmount > 500000) {
@@ -451,6 +463,11 @@ export default function Representatives() {
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">
               {toPersianDigits(filteredRepresentatives.length.toString())} نماینده یافت شد
+              {totalPages > 1 && (
+                <span className="mr-2">
+                  (صفحه {toPersianDigits(currentPage.toString())} از {toPersianDigits(totalPages.toString())})
+                </span>
+              )}
             </div>
           </div>
         </CardContent>
@@ -476,7 +493,7 @@ export default function Representatives() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRepresentatives.map((rep) => (
+                {paginatedRepresentatives.map((rep) => (
                   <TableRow 
                     key={rep.id} 
                     className={`${getDebtAlert(rep.totalDebt)} hover:bg-gray-50 dark:hover:bg-gray-800`}
@@ -524,6 +541,48 @@ export default function Representatives() {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                قبلی
+              </Button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = i + 1;
+                  if (totalPages <= 5) {
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {toPersianDigits(page.toString())}
+                      </Button>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                بعدی
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
