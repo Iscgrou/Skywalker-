@@ -81,8 +81,8 @@ export default function UnifiedAuth() {
               title: "ورود موفق",
               description: "به پنل ادمین خوش آمدید",
             });
-            // Delay redirect to ensure state is updated
-            setTimeout(() => setLocation('/dashboard'), 100);
+            // Immediate redirect after successful login
+            setLocation('/dashboard');
           },
           onError: (error: any) => {
             console.error('Admin login error:', error);
@@ -102,8 +102,8 @@ export default function UnifiedAuth() {
               title: "ورود موفق",
               description: "به پنل CRM خوش آمدید",
             });
-            // Delay redirect to ensure state is updated
-            setTimeout(() => setLocation('/crm'), 100);
+            // Immediate redirect after successful login
+            setLocation('/crm');
           },
           onError: (error: any) => {
             console.error('CRM login error:', error);
@@ -127,14 +127,17 @@ export default function UnifiedAuth() {
 
   // Check if user is already authenticated and redirect accordingly
   useEffect(() => {
-    if (adminAuth.isAuthenticated) {
-      console.log('Admin already authenticated, redirecting...');
-      setLocation('/dashboard');
-    } else if (crmAuth.user) {
-      console.log('CRM user already authenticated, redirecting...');
-      setLocation('/crm');
+    // Only redirect if we're in detecting mode and user is authenticated
+    if (loginType === 'detecting') {
+      if (adminAuth.isAuthenticated) {
+        console.log('Admin already authenticated, redirecting...');
+        setLocation('/dashboard');
+      } else if (crmAuth.user) {
+        console.log('CRM user already authenticated, redirecting...');
+        setLocation('/crm');
+      }
     }
-  }, [adminAuth.isAuthenticated, crmAuth.user, setLocation]);
+  }, [adminAuth.isAuthenticated, crmAuth.user, setLocation, loginType]);
 
   return (
     <div className="min-h-screen clay-background relative">
