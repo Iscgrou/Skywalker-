@@ -655,7 +655,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
 
   // ==================== SHERLOCK v3.0 REPRESENTATIVES ENDPOINTS ====================
   
-  // Get representatives statistics - CRITICAL ENDPOINT
+  // IMPORTANT: Statistics endpoint MUST come before /:id route to avoid routing conflicts
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
       const reps = await db.select().from(representatives);
@@ -743,8 +743,10 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       let queryBuilder = db.select().from(representatives);
       
       // Apply conditions
-      if (conditions.length > 0) {
-        queryBuilder = queryBuilder.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+      if (conditions.length === 1) {
+        queryBuilder = queryBuilder.where(conditions[0]);
+      } else if (conditions.length > 1) {
+        queryBuilder = queryBuilder.where(and(...conditions));
       }
       
       // Apply sorting
@@ -912,94 +914,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // Get representative statistics - FIXED COMPREHENSIVE IMPLEMENTATION
-  app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
-    try {
-      console.log('🔍 Calculating CRM representative statistics...');
-      
-      // Get all data from database
-      const allReps = await db.select().from(representatives);
-      const allInvoices = await db.select().from(invoices);
-      const allPayments = await db.select().from(payments);
-      
-      console.log(`📊 Found ${allReps.length} representatives, ${allInvoices.length} invoices, ${allPayments.length} payments`);
-      
-      // Calculate real financial metrics from invoices and payments
-      let totalRealDebt = 0;
-      let totalRealSales = 0;
-      let totalRealPayments = 0;
-      
-      const repsWithRealFinancials = allReps.map(rep => {
-        const repInvoices = allInvoices.filter(inv => inv.representativeId === rep.id);
-        const repPayments = allPayments.filter(pay => pay.representativeId === rep.id);
-        
-        const repSales = repInvoices.reduce((sum, inv) => sum + (parseFloat(inv.amount?.toString() || '0')), 0);
-        const repPaid = repPayments.reduce((sum, pay) => sum + (parseFloat(pay.amount?.toString() || '0')), 0);
-        const repDebt = repSales - repPaid;
-        
-        totalRealSales += repSales;
-        totalRealPayments += repPaid;
-        totalRealDebt += repDebt;
-        
-        return {
-          ...rep,
-          realSales: repSales,
-          realDebt: repDebt,
-          realPayments: repPaid
-        };
-      });
-      
-      const stats = {
-        totalRepresentatives: allReps.length,
-        activeRepresentatives: allReps.filter(rep => rep.isActive).length,
-        inactiveRepresentatives: allReps.filter(rep => !rep.isActive).length,
-        // Real financial data from actual transactions
-        totalDebt: totalRealDebt,
-        totalSales: totalRealSales,
-        totalPayments: totalRealPayments,
-        averageDebt: allReps.length > 0 ? totalRealDebt / allReps.length : 0,
-        topPerformers: repsWithRealFinancials
-          .sort((a, b) => b.realSales - a.realSales)
-          .slice(0, 5)
-          .map(rep => ({
-            id: rep.id,
-            name: rep.name,
-            code: rep.code,
-            sales: rep.realSales,
-            debt: rep.realDebt
-          })),
-        riskAlerts: repsWithRealFinancials.filter(rep => rep.realDebt > 5000000).length,
-        performanceMetrics: {
-          excellentPerformers: repsWithRealFinancials.filter(rep => rep.realSales > 10000000).length,
-          goodPerformers: repsWithRealFinancials.filter(rep => {
-            const sales = rep.realSales;
-            return sales >= 5000000 && sales <= 10000000;
-          }).length,
-          needsImprovement: repsWithRealFinancials.filter(rep => rep.realSales < 5000000).length
-        },
-        riskList: repsWithRealFinancials
-          .filter(rep => rep.realDebt > 5000000)
-          .map(rep => ({
-            id: rep.id,
-            name: rep.name,
-            code: rep.code,
-            debt: rep.realDebt,
-            riskLevel: rep.realDebt > 10000000 ? 'خطرناک' : 'بالا'
-          }))
-      };
-      
-      console.log('✅ Statistics calculated successfully');
-      res.json({
-        success: true,
-        data: stats,
-        message: 'آمار نمایندگان با داده‌های واقعی محاسبه شد',
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error fetching representative statistics:', error);
-      res.status(500).json({ error: 'خطا در دریافت آمار نمایندگان' });
-    }
-  });
+  // DUPLICATE REMOVED - This endpoint was conflicting with the one above
 
   // ==================== REPRESENTATIVE ANALYSIS ====================
   
