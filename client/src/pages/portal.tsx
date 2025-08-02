@@ -1,6 +1,139 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import React from "react";
+import React, { useState } from "react";
+
+// Invoice Card Component with detailed usage breakdown
+function InvoiceCard({ invoice }: { invoice: any }) {
+  const [showUsageDetails, setShowUsageDetails] = useState(false);
+
+  const toggleUsageDetails = () => {
+    setShowUsageDetails(!showUsageDetails);
+  };
+
+  return (
+    <div style={{ 
+      background: '#475569', 
+      padding: '15px', 
+      borderRadius: '8px',
+      border: '1px solid #64748b'
+    }}>
+      {/* Invoice Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <div>
+          <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>
+            {invoice.invoiceNumber}
+          </p>
+          <p style={{ fontSize: '14px', opacity: 0.8 }}>
+            تاریخ: {invoice.issueDate}
+          </p>
+        </div>
+        <div style={{ textAlign: 'left' }}>
+          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981' }}>
+            {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
+          </p>
+          <p style={{ 
+            fontSize: '12px', 
+            padding: '4px 8px', 
+            borderRadius: '4px',
+            background: invoice.status === 'paid' ? '#059669' : '#dc2626',
+            color: 'white',
+            display: 'inline-block'
+          }}>
+            {invoice.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+          </p>
+        </div>
+      </div>
+
+      {/* Toggle Button for Usage Details */}
+      <button 
+        onClick={toggleUsageDetails}
+        style={{
+          background: 'linear-gradient(135deg, #1e40af, #3730a3)',
+          color: 'white',
+          border: 'none',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          fontSize: '12px',
+          cursor: 'pointer',
+          marginBottom: showUsageDetails ? '15px' : '0'
+        }}
+      >
+        {showUsageDetails ? 'پنهان کردن ریز جزئیات مصرف' : 'نمایش ریز جزئیات مصرف'}
+      </button>
+
+      {/* Usage Details Panel */}
+      {showUsageDetails && invoice.usageData && invoice.usageData.records && (
+        <div style={{
+          background: '#1f2937',
+          padding: '15px',
+          borderRadius: '8px',
+          border: '1px solid #374151',
+          marginTop: '10px'
+        }}>
+          <h5 style={{ 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '12px',
+            color: '#93c5fd'
+          }}>
+            ریز جزئیات مصرف دوره
+          </h5>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {invoice.usageData.records.map((record: any, idx: number) => (
+              <div key={idx} style={{
+                background: '#374151',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #4b5563'
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+                  <div>
+                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                      <strong>نوع رویداد:</strong> {record.event_type || 'نامشخص'}
+                    </p>
+                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                      <strong>زمان:</strong> {record.event_timestamp || 'نامشخص'}
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                      <strong>مبلغ:</strong> {record.amount ? parseFloat(record.amount).toLocaleString('fa-IR') : '0'} تومان
+                    </p>
+                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                      <strong>کاربر ادمین:</strong> {record.admin_username || 'نامشخص'}
+                    </p>
+                  </div>
+                </div>
+                {record.description && (
+                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #4b5563' }}>
+                    <p style={{ color: '#9ca3af', fontSize: '11px' }}>
+                      <strong>توضیحات:</strong> {record.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {/* Summary */}
+          <div style={{
+            marginTop: '12px',
+            padding: '10px',
+            background: '#065f46',
+            borderRadius: '6px',
+            border: '1px solid #047857'
+          }}>
+            <p style={{ fontSize: '12px', color: '#d1fae5' }}>
+              <strong>خلاصه:</strong> تعداد رکوردها: {invoice.usageData.records.length} | 
+              مجموع مبلغ: {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Portal() {
   const { publicId } = useParams<{ publicId: string }>();
@@ -49,11 +182,16 @@ export default function Portal() {
   }
 
   // Safely extract data
-  const totalDebt = parseFloat(data.totalDebt || '0');
   const totalSales = parseFloat(data.totalSales || '0');
-  const credit = parseFloat(data.credit || '0');
   const invoices = data.invoices || [];
   const payments = data.payments || [];
+  
+  // Calculate actual debt from unpaid invoices minus payments
+  const unpaidInvoicesTotal = invoices
+    .filter(invoice => invoice.status !== 'paid')
+    .reduce((sum, invoice) => sum + parseFloat(invoice.amount || '0'), 0);
+  const totalPayments = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || '0'), 0);
+  const actualTotalDebt = Math.max(0, unpaidInvoicesTotal - totalPayments);
 
   return (
     <div style={{ 
@@ -93,7 +231,7 @@ export default function Portal() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
           gap: '20px' 
         }}>
-          {/* Total Debt */}
+          {/* Total Debt - Calculated from unpaid invoices minus payments */}
           <div style={{ 
             background: 'linear-gradient(135deg, #dc2626, #b91c1c)', 
             padding: '20px', 
@@ -102,10 +240,10 @@ export default function Portal() {
           }}>
             <p style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.9 }}>بدهی کل</p>
             <p style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '5px' }}>
-              {totalDebt.toLocaleString('fa-IR')} تومان
+              {actualTotalDebt.toLocaleString('fa-IR')} تومان
             </p>
             <p style={{ fontSize: '12px', opacity: 0.8 }}>
-              Raw: {data.totalDebt}
+              فاکتورهای پرداخت نشده منهای پرداخت‌ها
             </p>
           </div>
 
@@ -121,39 +259,7 @@ export default function Portal() {
               {totalSales.toLocaleString('fa-IR')} تومان
             </p>
             <p style={{ fontSize: '12px', opacity: 0.8 }}>
-              Raw: {data.totalSales}
-            </p>
-          </div>
-
-          {/* Credit */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #059669, #047857)', 
-            padding: '20px', 
-            borderRadius: '10px',
-            border: '2px solid #10b981'
-          }}>
-            <p style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.9 }}>اعتبار</p>
-            <p style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '5px' }}>
-              {credit.toLocaleString('fa-IR')} تومان
-            </p>
-            <p style={{ fontSize: '12px', opacity: 0.8 }}>
-              Raw: {data.credit}
-            </p>
-          </div>
-
-          {/* Net Balance */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', 
-            padding: '20px', 
-            borderRadius: '10px',
-            border: '2px solid #8b5cf6'
-          }}>
-            <p style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.9 }}>موجودی خالص</p>
-            <p style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '5px' }}>
-              {Math.abs(credit - totalDebt).toLocaleString('fa-IR')} تومان
-            </p>
-            <p style={{ fontSize: '12px', opacity: 0.8 }}>
-              {(credit - totalDebt) >= 0 ? 'بستانکار' : 'بدهکار'}
+              مجموع فروش ثبت شده
             </p>
           </div>
         </div>
@@ -162,7 +268,7 @@ export default function Portal() {
       {/* Invoices Section */}
       <div style={{ marginBottom: '40px' }}>
         <h3 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>
-          ۲. فاکتورهای مرتب شده ({invoices.length} فاکتور)
+          ۲. فاکتورهای مرتب شده بر اساس تاریخ
         </h3>
         <div style={{ 
           background: '#334155', 
@@ -173,38 +279,7 @@ export default function Portal() {
           {invoices.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {invoices.map((invoice, index) => (
-                <div key={index} style={{ 
-                  background: '#475569', 
-                  padding: '15px', 
-                  borderRadius: '8px',
-                  border: '1px solid #64748b'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '5px' }}>
-                        {invoice.invoiceNumber}
-                      </p>
-                      <p style={{ fontSize: '14px', opacity: 0.8 }}>
-                        تاریخ: {invoice.issueDate}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'left' }}>
-                      <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981' }}>
-                        {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
-                      </p>
-                      <p style={{ 
-                        fontSize: '12px', 
-                        padding: '4px 8px', 
-                        borderRadius: '4px',
-                        background: invoice.status === 'paid' ? '#059669' : '#dc2626',
-                        color: 'white',
-                        display: 'inline-block'
-                      }}>
-                        {invoice.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <InvoiceCard key={index} invoice={invoice} />
               ))}
             </div>
           ) : (
@@ -228,7 +303,7 @@ export default function Portal() {
         }}>
           {payments.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {payments.map((payment, index) => (
+              {payments.map((payment: any, index: number) => (
                 <div key={index} style={{ 
                   background: 'linear-gradient(135deg, #059669, #047857)', 
                   padding: '15px', 
@@ -257,27 +332,7 @@ export default function Portal() {
         </div>
       </div>
 
-      {/* Debug Info */}
-      <div style={{ 
-        background: '#1f2937', 
-        padding: '20px', 
-        borderRadius: '10px',
-        border: '2px solid #374151',
-        fontSize: '12px',
-        fontFamily: 'monospace'
-      }}>
-        <h4 style={{ marginBottom: '10px' }}>اطلاعات Debug:</h4>
-        <pre style={{ whiteSpace: 'pre-wrap', opacity: 0.8 }}>
-          {JSON.stringify({
-            name: data.name,
-            totalDebt: data.totalDebt,
-            totalSales: data.totalSales,
-            credit: data.credit,
-            invoicesCount: invoices.length,
-            paymentsCount: payments.length
-          }, null, 2)}
-        </pre>
-      </div>
+
     </div>
   );
 }
