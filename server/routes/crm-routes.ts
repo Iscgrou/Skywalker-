@@ -653,82 +653,56 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // ==================== SHERLOCK v3.0 REPRESENTATIVES ENDPOINTS ====================
+  // ==================== REPRESENTATIVES ENDPOINTS - COMPLETELY REMOVED ====================
+  // All old endpoints removed for complete redesign
   
-  // IMPORTANT: Statistics endpoint MUST come before /:id route to avoid routing conflicts
+  // ==================== NEW CRM REPRESENTATIVES SYSTEM - FRESH START ====================
+  
+  // Statistics endpoint for CRM representatives dashboard
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
       const reps = await db.select().from(representatives);
       
-      const totalRepresentatives = reps.length;
-      const activeCount = reps.filter(rep => rep.isActive).length;
-      const inactiveCount = totalRepresentatives - activeCount;
-      
-      // Calculate financial totals
-      const totalSales = reps.reduce((sum, rep) => sum + parseFloat(rep.totalSales || '0'), 0);
-      const totalDebt = reps.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || '0'), 0);
-      const totalCredit = reps.reduce((sum, rep) => sum + parseFloat(rep.credit || '0'), 0);
-      
-      // Calculate performance metrics
-      const avgPerformance = totalRepresentatives > 0 ? 
-        Math.round((activeCount / totalRepresentatives) * 100) : 0;
-      
-      // Find top performers (by sales)
-      const topPerformers = reps
-        .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
-        .slice(0, 5);
-      
-      // Risk analysis - representatives with high debt
-      const riskAlerts = reps.filter(rep => {
-        const debt = parseFloat(rep.totalDebt || '0');
-        const sales = parseFloat(rep.totalSales || '0');
-        return debt > 100000 || (sales > 0 && (debt / sales) > 0.3);
-      }).length;
-      
-      const statistics = {
-        totalCount: totalRepresentatives,
-        activeCount,
-        inactiveCount,
-        totalSales,
-        totalDebt,
-        totalCredit,
-        avgPerformance,
-        topPerformers: topPerformers.map(rep => ({
-          id: rep.id,
-          code: rep.code,
-          name: rep.name,
-          ownerName: rep.ownerName,
-          totalSales: parseFloat(rep.totalSales || '0'),
-          totalDebt: parseFloat(rep.totalDebt || '0'),
-          isActive: rep.isActive
-        })),
-        riskAlerts,
-        healthScore: Math.max(0, 100 - (riskAlerts / totalRepresentatives * 20)),
-        lastUpdated: new Date().toISOString()
+      const stats = {
+        totalCount: reps.length,
+        activeCount: reps.filter(r => r.isActive).length,
+        inactiveCount: reps.filter(r => !r.isActive).length,
+        totalSales: reps.reduce((sum, r) => sum + parseFloat(r.totalSales || '0'), 0),
+        totalDebt: reps.reduce((sum, r) => sum + parseFloat(r.totalDebt || '0'), 0),
+        avgPerformance: reps.length > 0 ? Math.round((reps.filter(r => r.isActive).length / reps.length) * 100) : 0,
+        topPerformers: reps
+          .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
+          .slice(0, 5)
+          .map(r => ({
+            id: r.id,
+            name: r.name,
+            code: r.code,
+            totalSales: parseFloat(r.totalSales || '0'),
+            isActive: r.isActive
+          })),
+        riskAlerts: reps.filter(r => parseFloat(r.totalDebt || '0') > 100000).length
       };
       
-      res.json(statistics);
+      res.json(stats);
     } catch (error) {
-      console.error('Error fetching representative statistics:', error);
+      console.error('Error fetching representatives statistics:', error);
       res.status(500).json({ error: 'خطا در دریافت آمار نمایندگان' });
     }
   });
 
-  // Get representatives data with enhanced filtering
+  // Get all representatives with pagination and filtering
   app.get("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
     try {
-      const { sortBy = 'name', order = 'asc', status = 'all', search = '', limit = 1000 } = req.query;
+      const { page = 1, limit = 9, search = '', status = 'all', sortBy = 'name', order = 'asc' } = req.query;
       
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      const offset = (pageNum - 1) * limitNum;
+      
+      let query = db.select().from(representatives);
       let conditions = [];
       
-      // Apply filters
-      if (status === 'active') {
-        conditions.push(eq(representatives.isActive, true));
-      } else if (status === 'inactive') {
-        conditions.push(eq(representatives.isActive, false));
-      }
-      
-      // Apply search
+      // Apply search filter
       if (search) {
         conditions.push(
           or(
@@ -739,107 +713,161 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
         );
       }
       
-      // Build base query
-      let queryBuilder = db.select().from(representatives);
+      // Apply status filter
+      if (status === 'active') {
+        conditions.push(eq(representatives.isActive, true));
+      } else if (status === 'inactive') {
+        conditions.push(eq(representatives.isActive, false));
+      }
       
       // Apply conditions
-      if (conditions.length === 1) {
-        queryBuilder = queryBuilder.where(conditions[0]);
-      } else if (conditions.length > 1) {
-        queryBuilder = queryBuilder.where(and(...conditions));
+      if (conditions.length > 0) {
+        query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
       }
       
       // Apply sorting
       const orderDirection = order === 'desc' ? desc : asc;
-      let orderClause;
       switch (sortBy) {
         case 'name':
-          orderClause = orderDirection(representatives.name);
+          query = query.orderBy(orderDirection(representatives.name));
           break;
         case 'totalSales':
-          orderClause = orderDirection(representatives.totalSales);
+          query = query.orderBy(orderDirection(representatives.totalSales));
           break;
         case 'totalDebt':
-          orderClause = orderDirection(representatives.totalDebt);
-          break;
-        case 'created':
-          orderClause = orderDirection(representatives.createdAt);
+          query = query.orderBy(orderDirection(representatives.totalDebt));
           break;
         default:
-          orderClause = representatives.name;
+          query = query.orderBy(representatives.name);
       }
       
-      const repsData = await queryBuilder
-        .orderBy(orderClause)
-        .limit(Number(limit));
+      // Apply pagination
+      const reps = await query.limit(limitNum).offset(offset);
       
-      res.json(repsData);
+      // Get total count for pagination
+      let countQuery = db.select({ count: sql`COUNT(*)` }).from(representatives);
+      if (conditions.length > 0) {
+        countQuery = countQuery.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+      }
+      const [{ count }] = await countQuery;
+      
+      res.json({
+        data: reps,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: Number(count),
+          totalPages: Math.ceil(Number(count) / limitNum)
+        }
+      });
     } catch (error) {
       console.error('Error fetching representatives:', error);
-      res.status(500).json({ error: 'خطا در دریافت نمایندگان' });
+      res.status(500).json({ error: 'خطا در دریافت فهرست نمایندگان' });
     }
   });
 
   // Get single representative details
   app.get("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id);
       
       const rep = await db
         .select()
         .from(representatives)
-        .where(eq(representatives.id, parseInt(id)))
+        .where(eq(representatives.id, id))
         .limit(1);
-        
+      
       if (rep.length === 0) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
       }
       
-      // Get additional data for this representative
-      const invoicesData = await db
+      // Get related financial data
+      const invoices = await db
         .select()
         .from(invoices)
-        .where(eq(invoices.representativeId, parseInt(id)))
+        .where(eq(invoices.representativeId, id))
         .orderBy(desc(invoices.createdAt))
         .limit(10);
         
-      const paymentsData = await db
+      const payments = await db
         .select()
         .from(payments)
-        .where(eq(payments.representativeId, parseInt(id)))
+        .where(eq(payments.representativeId, id))
         .orderBy(desc(payments.createdAt))
         .limit(10);
       
       res.json({
-        success: true,
-        data: {
-          representative: rep[0],
-          recentInvoices: invoicesData,
-          recentPayments: paymentsData,
-          statistics: {
-            totalInvoices: invoicesData.length,
-            totalPayments: paymentsData.length,
-            lastActivity: Math.max(
-              ...[...invoicesData, ...paymentsData]
-                .map(item => item.createdAt ? new Date(item.createdAt).getTime() : 0)
-                .filter(time => time > 0)
-            )
-          }
+        representative: rep[0],
+        recentInvoices: invoices,
+        recentPayments: payments,
+        summary: {
+          totalInvoices: invoices.length,
+          totalPayments: payments.length,
+          lastActivity: new Date().toISOString()
         }
       });
     } catch (error) {
       console.error('Error fetching representative details:', error);
-      res.status(500).json({ error: 'خطا در دریافت جزئیات نماینده' });
+      res.status(500).json({ error: 'خطا در دریافت اطلاعات نماینده' });
+    }
+  });
+
+  // Create new representative
+  app.post("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { name, code, ownerName, phone, panelUsername } = req.body;
+      
+      if (!name || !code) {
+        return res.status(400).json({ error: 'نام و کد نماینده الزامی است' });
+      }
+      
+      // Check for duplicate code
+      const existing = await db
+        .select()
+        .from(representatives)
+        .where(eq(representatives.code, code))
+        .limit(1);
+        
+      if (existing.length > 0) {
+        return res.status(400).json({ error: 'کد نماینده تکراری است' });
+      }
+      
+      const newRep = await db
+        .insert(representatives)
+        .values({
+          name,
+          code,
+          ownerName: ownerName || '',
+          phone: phone || '',
+          panelUsername: panelUsername || '',
+          publicId: `pub_${Date.now()}_${code}`,
+          salesPartnerId: '',
+          isActive: true,
+          totalDebt: '0',
+          totalSales: '0',
+          credit: '0',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .returning();
+      
+      res.json({
+        success: true,
+        data: newRep[0],
+        message: 'نماینده جدید با موفقیت ایجاد شد'
+      });
+    } catch (error) {
+      console.error('Error creating representative:', error);
+      res.status(500).json({ error: 'خطا در ایجاد نماینده جدید' });
     }
   });
 
   // Update representative
   app.put("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id);
       const updateData = req.body;
       
-      // Validate input
       if (!updateData.name || !updateData.code) {
         return res.status(400).json({ error: 'نام و کد نماینده الزامی است' });
       }
@@ -850,7 +878,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
           ...updateData,
           updatedAt: new Date().toISOString()
         })
-        .where(eq(representatives.id, parseInt(id)))
+        .where(eq(representatives.id, id))
         .returning();
         
       if (updated.length === 0) {
@@ -860,7 +888,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       res.json({
         success: true,
         data: updated[0],
-        message: 'اطلاعات نماینده با موفقیت بروزرسانی شد'
+        message: 'اطلاعات نماینده بروزرسانی شد'
       });
     } catch (error) {
       console.error('Error updating representative:', error);
@@ -868,55 +896,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // Add new representative
-  app.post("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
-    try {
-      const newRepData = req.body;
-      
-      // Validate required fields
-      if (!newRepData.name || !newRepData.code) {
-        return res.status(400).json({ error: 'نام و کد نماینده الزامی است' });
-      }
-      
-      // Check if code already exists
-      const existingRep = await db
-        .select()
-        .from(representatives)
-        .where(eq(representatives.code, newRepData.code))
-        .limit(1);
-        
-      if (existingRep.length > 0) {
-        return res.status(400).json({ error: 'کد نماینده تکراری است' });
-      }
-      
-      const inserted = await db
-        .insert(representatives)
-        .values({
-          ...newRepData,
-          publicId: `pub_${Date.now()}`,
-          totalDebt: '0',
-          totalSales: '0',
-          credit: '0',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        })
-        .returning();
-      
-      res.json({
-        success: true,
-        data: inserted[0],
-        message: 'نماینده جدید با موفقیت اضافه شد'
-      });
-    } catch (error) {
-      console.error('Error creating representative:', error);
-      res.status(500).json({ error: 'خطا در ایجاد نماینده جدید' });
-    }
-  });
-
-  // DUPLICATE REMOVED - This endpoint was conflicting with the one above
-
-  // ==================== REPRESENTATIVE ANALYSIS ====================
+  // ==================== REPRESENTATIVE ANALYSIS & AI FEATURES ====================
   
   app.get("/api/crm/representative/:id/analysis", crmAuthMiddleware, async (req, res) => {
     try {
