@@ -4,15 +4,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, 
   Brain,
-  Settings
+  Settings,
+  Briefcase
 } from 'lucide-react';
 import NewRepresentativesManager from './new-representatives-manager';
 import EnhancedAIHelper from './enhanced-ai-helper';
 import { SettingsHub } from './settings/SettingsHub';
+import { WorkspaceHub } from './workspace/WorkspaceHub';
 
 
 export default function ModernCrmDashboard() {
-  const [activeTab, setActiveTab] = useState('representatives');
+  const [activeTab, setActiveTab] = useState('workspace');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-6">
@@ -25,10 +27,10 @@ export default function ModernCrmDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-black/30 border border-gray-700">
-            <TabsTrigger value="settings" className="data-[state=active]:bg-blue-600">
-              <Settings className="w-4 h-4 ml-2" />
-              تنظیمات
+          <TabsList className="grid w-full grid-cols-4 bg-black/30 border border-gray-700">
+            <TabsTrigger value="workspace" className="data-[state=active]:bg-green-600">
+              <Briefcase className="w-4 h-4 ml-2" />
+              میز کار
             </TabsTrigger>
             <TabsTrigger value="representatives" className="data-[state=active]:bg-purple-600">
               <Users className="w-4 h-4 ml-2" />
@@ -38,10 +40,14 @@ export default function ModernCrmDashboard() {
               <Brain className="w-4 h-4 ml-2" />
               دستیار هوش مصنوعی
             </TabsTrigger>
+            <TabsTrigger value="settings" className="data-[state=active]:bg-blue-600">
+              <Settings className="w-4 h-4 ml-2" />
+              تنظیمات
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="settings" className="mt-6">
-            <SettingsHub />
+          <TabsContent value="workspace" className="mt-6">
+            <WorkspaceHub />
           </TabsContent>
 
           <TabsContent value="representatives" className="mt-6">
@@ -50,6 +56,10 @@ export default function ModernCrmDashboard() {
 
           <TabsContent value="ai" className="mt-6">
             <EnhancedAIHelper />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-6">
+            <SettingsHub />
           </TabsContent>
         </Tabs>
       </div>
