@@ -20,9 +20,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { TaskCard } from './TaskCard';
-import { TaskForm } from './TaskForm'; 
-import { ReportForm } from './ReportForm';
+// Import workspace components inline for now
 
 interface WorkspaceTask {
   id: string;
@@ -55,13 +53,21 @@ export function WorkspaceHub() {
   // Fetch workspace tasks
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
     queryKey: ['/api/workspace/tasks'],
-    select: (data: WorkspaceTask[]) => data || []
+    select: (data: any) => {
+      // Handle different response formats
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.tasks)) return data.tasks;
+      return [];
+    }
   });
 
   // Fetch task statistics
   const { data: stats } = useQuery({
     queryKey: ['/api/workspace/stats'],
-    select: (data: TaskStats) => data || { totalTasks: 0, completedTasks: 0, pendingTasks: 0, aiGeneratedTasks: 0 }
+    select: (data: any) => {
+      if (data && typeof data === 'object') return data;
+      return { totalTasks: 0, completedTasks: 0, pendingTasks: 0, aiGeneratedTasks: 0 };
+    }
   });
 
   // Generate AI tasks mutation
@@ -206,7 +212,7 @@ export function WorkspaceHub() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {tasks.slice(0, 5).map((task) => (
+                    {Array.isArray(tasks) && tasks.slice(0, 5).map((task: WorkspaceTask) => (
                       <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -279,7 +285,7 @@ export function WorkspaceHub() {
                   </CardContent>
                 </Card>
               ))
-            ) : tasks.length === 0 ? (
+            ) : !Array.isArray(tasks) || tasks.length === 0 ? (
               <div className="col-span-full">
                 <Card className="bg-black/40 border-gray-700">
                   <CardContent className="text-center py-12">
@@ -298,13 +304,42 @@ export function WorkspaceHub() {
                 </Card>
               </div>
             ) : (
-              tasks.map((task: WorkspaceTask) => (
-                <TaskCard 
-                  key={task.id} 
-                  task={task}
-                  onEdit={(task) => setSelectedTask(task)}
-                  onReport={() => setShowReportForm(true)}
-                />
+              Array.isArray(tasks) && tasks.map((task: WorkspaceTask) => (
+                <Card key={task.id} className="bg-black/40 border-gray-700 hover:bg-black/60 transition-colors">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-white text-lg flex items-center gap-2">
+                        <span>{task.title}</span>
+                        {task.isAiGenerated && (
+                          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">
+                            <Zap className="w-3 h-3 ml-1" />
+                            AI
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <div className="flex gap-2">
+                        <Badge className={`text-xs ${priorityColors[task.priority]}`}>
+                          {task.priority === 'HIGH' ? 'بالا' : task.priority === 'MEDIUM' ? 'متوسط' : 'پایین'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      {task.description}
+                    </p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Users className="w-4 h-4" />
+                        <span>مسئول: {task.assignedTo}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Calendar className="w-4 h-4" />
+                        <span>مهلت: {new Date(task.dueDate).toLocaleDateString('fa-IR')}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))
             )}
           </div>
@@ -327,29 +362,38 @@ export function WorkspaceHub() {
         </TabsContent>
       </Tabs>
 
-      {/* Task Form Modal */}
+      {/* Task Form Modal - Simplified for now */}
       {showTaskForm && (
-        <TaskForm 
-          task={selectedTask}
-          onClose={() => {
-            setShowTaskForm(false);
-            setSelectedTask(null);
-          }}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/workspace/tasks'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/workspace/stats'] });
-          }}
-        />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="bg-gray-900 border-gray-700 w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-white">وظیفه جدید</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-400 mb-4">فرم ایجاد وظیفه در مراحل بعدی پیاده‌سازی خواهد شد</p>
+              <Button onClick={() => setShowTaskForm(false)} className="w-full">
+                بستن
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Report Form Modal */}
+      {/* Report Form Modal - Simplified for now */}
       {showReportForm && (
-        <ReportForm 
-          onClose={() => setShowReportForm(false)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/workspace/reports'] });
-          }}
-        />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="bg-gray-900 border-gray-700 w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-white">ارسال گزارش</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-400 mb-4">فرم گزارش‌دهی در مراحل بعدی پیاده‌سازی خواهد شد</p>
+              <Button onClick={() => setShowReportForm(false)} className="w-full">
+                بستن
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
