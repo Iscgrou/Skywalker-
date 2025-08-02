@@ -918,7 +918,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
   app.post("/api/crm/ai-workspace/mode", crmAuthMiddleware, async (req, res) => {
     try {
       const { mode } = req.body;
-      const userId = req.user?.id;
+      const userId = (req as any).user?.id;
       
       // Validate mode
       const validModes = ['AUTONOMOUS', 'COLLABORATIVE', 'MANUAL'];
@@ -1117,111 +1117,81 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // ==================== ADMIN AI CONFIGURATION - PHASE 3 ====================
+  // ==================== ADMIN AI CONFIGURATION - PHASE 3 (ADVANCED DATABASE-DRIVEN) ====================
   
-  // Get AI Configuration
+  // Get All AI Configurations
   app.get("/api/admin/ai-config", crmAuthMiddleware, async (req, res) => {
     try {
-      // Allow CRM users to access AI config
-      if (!req.session || !req.session.crmAuthenticated) {
-        return res.status(401).json({ error: 'احراز هویت نشده' });
-      }
-
-      const defaultConfig = {
-        general: {
-          aiEnabled: true,
-          defaultMode: 'COLLABORATIVE',
-          maxConcurrentTasks: 15,
-          responseTimeout: 30,
-          retryAttempts: 3,
-          debugMode: false,
-          loggingLevel: 'INFO'
-        },
-        persian: {
-          culturalIntelligence: true,
-          persianContextWeight: 85,
-          traditionalValues: true,
-          modernAdaptation: true,
-          formalCommunication: true,
-          relationshipFocus: true,
-          temporalPatterns: true,
-          religiousSensitivity: true
-        },
-        behavior: {
-          proactivity: 70,
-          confidenceThreshold: 80,
-          learningRate: 65,
-          creativityLevel: 45,
-          riskTolerance: 35,
-          humanInterventionTrigger: 85,
-          adaptationSpeed: 75,
-          memoryRetention: 90
-        },
-        performance: {
-          processingPriority: 'BALANCED',
-          cacheStrategy: 'MODERATE',
-          resourceAllocation: 70,
-          batchProcessing: true,
-          parallelExecution: true,
-          optimizationLevel: 80,
-          monitoringInterval: 30
-        },
-        security: {
-          dataEncryption: true,
-          accessLogging: true,
-          sensitiveDataMasking: true,
-          adminApprovalRequired: false,
-          ipWhitelist: [],
-          sessionTimeout: 120,
-          maxFailedAttempts: 5,
-          auditTrail: true
-        },
-        integration: {
-          groqEnabled: true,
-          groqModel: 'llama3-8b-8192',
-          groqApiKey: 'configured',
-          xaiEnabled: false,
-          xaiModel: 'grok-beta',
-          telegramEnabled: false,
-          telegramBotToken: '',
-          webhookEnabled: false,
-          webhookUrl: ''
-        },
-        advanced: {
-          experimentalFeatures: false,
-          betaMode: false,
-          customPrompts: [],
-          aiPersonality: 'دستیار مهربان و حرفه‌ای فارسی',
-          responseTemplates: {},
-          customRules: [],
-          emergencyShutdown: false,
-          maintenanceMode: false
+      const configs = await storage.getActiveAiConfiguration();
+      
+      // Organize configs by category for frontend
+      const organizedConfig = configs.reduce((acc, config) => {
+        if (!acc[config.configCategory]) {
+          acc[config.configCategory] = {};
         }
-      };
+        acc[config.configCategory][config.configName] = config;
+        return acc;
+      }, {} as any);
 
-      res.json(defaultConfig);
+      res.json(organizedConfig);
     } catch (error) {
-      console.error('Error fetching AI config:', error);
+      console.error('Error fetching AI configurations:', error);
       res.status(500).json({ error: 'خطا در دریافت تنظیمات AI' });
     }
   });
 
-  // Update AI Configuration
-  app.put("/api/admin/ai-config", requireAuth, async (req, res) => {
+  // Get AI Configuration by Category
+  app.get("/api/admin/ai-config/:category", crmAuthMiddleware, async (req, res) => {
     try {
-      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
-        return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
-      }
-
-      const configUpdates = req.body;
+      const { category } = req.params;
+      const configs = await storage.getAiConfigurationsByCategory(category.toUpperCase());
       
-      // In a real implementation, save to database
-      console.log('AI Configuration updated:', configUpdates);
+      res.json({ success: true, data: configs });
+    } catch (error) {
+      console.error('Error fetching AI config by category:', error);
+      res.status(500).json({ error: 'خطا در دریافت تنظیمات AI' });
+    }
+  });
+
+  // Create New AI Configuration
+  app.post("/api/admin/ai-config", crmAuthMiddleware, async (req, res) => {
+    try {
+      const configData = req.body;
+      const username = (req.session as any)?.crmUser?.username || 'system';
+      
+      const newConfig = await storage.createAiConfiguration({
+        ...configData,
+        lastModifiedBy: username
+      });
+      
+      res.json({
+        success: true,
+        message: 'تنظیمات AI جدید با موفقیت ایجاد شد',
+        data: newConfig
+      });
+    } catch (error) {
+      console.error('Error creating AI config:', error);
+      res.status(500).json({ error: 'خطا در ایجاد تنظیمات AI' });
+    }
+  });
+
+  // Update AI Configuration
+  app.put("/api/admin/ai-config/:configName", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { configName } = req.params;
+      const configUpdates = req.body;
+      const username = (req.session as any)?.crmUser?.username || 'system';
+      
+      const updatedConfig = await storage.updateAiConfiguration(configName, {
+        ...configUpdates,
+        lastModifiedBy: username,
+        updatedAt: new Date()
+      });
       
       res.json({
         success: true,
         message: 'تنظیمات AI با موفقیت به‌روزرسانی شد',
-        timestamp: new Date().toISOString()
+        data: updatedConfig
       });
     } catch (error) {
       console.error('Error updating AI config:', error);
@@ -1229,14 +1199,64 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // Reset AI Configuration
-  app.post("/api/admin/ai-config/reset", requireAuth, async (req, res) => {
+  // Delete AI Configuration
+  app.delete("/api/admin/ai-config/:configName", crmAuthMiddleware, async (req, res) => {
     try {
-      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
-        return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
-      }
+      const { configName } = req.params;
+      
+      await storage.deleteAiConfiguration(configName);
+      
+      res.json({
+        success: true,
+        message: 'تنظیمات AI با موفقیت حذف شد'
+      });
+    } catch (error) {
+      console.error('Error deleting AI config:', error);
+      res.status(500).json({ error: 'خطا در حذف تنظیمات' });
+    }
+  });
 
-      // Reset to default configuration
+  // Reset AI Configuration to Defaults
+  app.post("/api/admin/ai-config/reset", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { category } = req.body;
+      const username = (req.session as any)?.crmUser?.username || 'system';
+      
+      // Reset specific category or all configs
+      if (category) {
+        const configs = await storage.getAiConfigurationsByCategory(category);
+        for (const config of configs) {
+          await storage.deleteAiConfiguration(config.configName);
+        }
+        
+        // Create default config for this category
+        await storage.createAiConfiguration({
+          configName: `default_${category.toLowerCase()}`,
+          configCategory: category,
+          lastModifiedBy: username
+        });
+      } else {
+        // Reset all configurations to defaults
+        const allConfigs = await storage.getAiConfigurations();
+        for (const config of allConfigs) {
+          await storage.deleteAiConfiguration(config.configName);
+        }
+        
+        // Create default configurations
+        const defaultConfigs = [
+          { configName: 'default_general', configCategory: 'GENERAL' },
+          { configName: 'default_persian_cultural', configCategory: 'PERSIAN_CULTURAL' },
+          { configName: 'default_behavior', configCategory: 'BEHAVIOR' }
+        ];
+        
+        for (const config of defaultConfigs) {
+          await storage.createAiConfiguration({
+            ...config,
+            lastModifiedBy: username
+          });
+        }
+      }
+      
       res.json({
         success: true,
         message: 'تنظیمات AI به حالت پیش‌فرض بازنشانی شد'
@@ -1247,35 +1267,112 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // Test AI Configuration
-  app.post("/api/admin/ai-config/test", requireAuth, async (req, res) => {
+  // Test AI Configuration with Groq
+  app.post("/api/admin/ai-config/test", crmAuthMiddleware, async (req, res) => {
     try {
-      if (!req.session || !req.session.authenticated || req.session.role !== 'SUPER_ADMIN') {
-        return res.status(403).json({ error: 'دسترسی محدود - فقط مدیران سیستم' });
-      }
-
       const config = req.body;
       const startTime = Date.now();
       
-      // Simulate configuration test
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Test the configuration with real AI service
+      let testResults = {
+        aiEngine: 'غیرفعال',
+        groqConnection: 'قطع',
+        persianSupport: 'غیرفعال',
+        performance: 'نامشخص',
+        security: 'نامشخص',
+        responseTime: 0
+      };
       
-      const responseTime = Date.now() - startTime;
+      try {
+        // Test AI engine if enabled
+        if (config.aiEnabled) {
+          testResults.aiEngine = 'فعال';
+          
+          // Test Groq connection if configured
+          if (config.groqModelVariant) {
+            const testPrompt = "سلام، این یک تست ساده است.";
+            const response = await xaiGrokEngine.processMessage(testPrompt, {
+              temperature: parseFloat(config.temperature) || 0.7,
+              maxTokens: config.maxTokens || 100
+            });
+            
+            if (response) {
+              testResults.groqConnection = 'متصل';
+              testResults.persianSupport = 'فعال';
+              testResults.performance = 'بهینه';
+            }
+          }
+        }
+        
+        testResults.security = config.dataEncryption ? 'ایمن' : 'محدود';
+        testResults.responseTime = Date.now() - startTime;
+        
+      } catch (testError) {
+        console.error('AI test error:', testError);
+        testResults.performance = 'خطا در تست';
+      }
 
       res.json({
         success: true,
-        responseTime,
-        status: 'تنظیمات معتبر و قابل اجرا',
-        testResults: {
-          aiEngine: config.general?.aiEnabled ? 'فعال' : 'غیرفعال',
-          persianSupport: config.persian?.culturalIntelligence ? 'فعال' : 'غیرفعال',
-          performance: 'بهینه',
-          security: 'ایمن'
-        }
+        responseTime: Date.now() - startTime,
+        status: testResults.aiEngine === 'فعال' ? 'تنظیمات معتبر و قابل اجرا' : 'نیاز به پیکربندی',
+        testResults
       });
     } catch (error) {
       console.error('Error testing AI config:', error);
       res.status(500).json({ error: 'خطا در تست تنظیمات' });
+    }
+  });
+
+  // Export AI Configuration
+  app.get("/api/admin/ai-config/export", crmAuthMiddleware, async (req, res) => {
+    try {
+      const configs = await storage.getAiConfigurations();
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="ai-config-export.json"');
+      res.json({
+        exportDate: new Date().toISOString(),
+        configCount: configs.length,
+        configurations: configs
+      });
+    } catch (error) {
+      console.error('Error exporting AI config:', error);
+      res.status(500).json({ error: 'خطا در صادرات تنظیمات' });
+    }
+  });
+
+  // Import AI Configuration
+  app.post("/api/admin/ai-config/import", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { configurations } = req.body;
+      const username = (req.session as any)?.crmUser?.username || 'system';
+      
+      let imported = 0;
+      let errors = [];
+      
+      for (const config of configurations) {
+        try {
+          await storage.createAiConfiguration({
+            ...config,
+            lastModifiedBy: username,
+            configVersion: 1 // Reset version on import
+          });
+          imported++;
+        } catch (error: any) {
+          errors.push(`${config.configName}: ${error.message}`);
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `${imported} تنظیمات وارد شد`,
+        imported,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      console.error('Error importing AI config:', error);
+      res.status(500).json({ error: 'خطا در وارد کردن تنظیمات' });
     }
   });
 

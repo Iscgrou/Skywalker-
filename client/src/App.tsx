@@ -38,7 +38,7 @@ import UnifiedAuth from "@/pages/unified-auth";
 
 // Lazy load CRM components with proper Suspense fallback
 const DynamicAIWorkspace = lazy(() => import('./components/crm/dynamic-ai-workspace'));
-const AdminAIConfig = lazy(() => import('./components/crm/admin-ai-config'));
+const AdminAIConfig = lazy(() => import('./components/crm/admin-ai-config-advanced'));
 const AdvancedAnalytics = lazy(() => import('./components/crm/advanced-analytics'));
 
 // CRM Protected Routes Component

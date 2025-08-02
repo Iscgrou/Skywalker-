@@ -1,6 +1,7 @@
 import { 
   representatives, salesPartners, invoices, payments, activityLogs, settings, adminUsers, invoiceEdits,
   financialTransactions, dataIntegrityConstraints, invoiceBatches, crmUsers, telegramSendHistory,
+  aiConfiguration,
   type Representative, type InsertRepresentative,
   type SalesPartner, type InsertSalesPartner,
   type Invoice, type InsertInvoice,
@@ -16,7 +17,9 @@ import {
   // CRM Users Import
   type CrmUser, type InsertCrmUser,
   // Telegram Send History Import
-  type TelegramSendHistory, type InsertTelegramSendHistory
+  type TelegramSendHistory, type InsertTelegramSendHistory,
+  // AI Configuration Import
+  type AiConfiguration, type InsertAiConfiguration
 } from "@shared/schema";
 import { db, checkDatabaseHealth } from "./db";
 import { eq, desc, sql, and, or, ilike, inArray } from "drizzle-orm";
@@ -191,6 +194,15 @@ export interface IStorage {
     originalAmount: number;
     editedAmount: number;
   }): Promise<{transactionId: string, editId: number, success: boolean}>;
+
+  // AI Configuration
+  getAiConfigurations(): Promise<AiConfiguration[]>;
+  getAiConfiguration(configName: string): Promise<AiConfiguration | undefined>;
+  getAiConfigurationsByCategory(category: string): Promise<AiConfiguration[]>;
+  createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration>;
+  updateAiConfiguration(configName: string, config: Partial<AiConfiguration>): Promise<AiConfiguration>;
+  deleteAiConfiguration(configName: string): Promise<void>;
+  getActiveAiConfiguration(): Promise<AiConfiguration[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1815,6 +1827,132 @@ export class DatabaseStorage implements IStorage {
         };
       },
       'reconcileRepresentativeFinancials'
+    );
+  }
+
+  // ====== AI CONFIGURATION METHODS ======
+  async getAiConfigurations(): Promise<AiConfiguration[]> {
+    return await withDatabaseRetry(
+      () => db.select().from(aiConfiguration).orderBy(desc(aiConfiguration.updatedAt)),
+      'getAiConfigurations'
+    );
+  }
+
+  async getAiConfiguration(configName: string): Promise<AiConfiguration | undefined> {
+    return await withDatabaseRetry(
+      async () => {
+        const [config] = await db
+          .select()
+          .from(aiConfiguration)
+          .where(eq(aiConfiguration.configName, configName));
+        return config;
+      },
+      'getAiConfiguration'
+    );
+  }
+
+  async getAiConfigurationsByCategory(category: string): Promise<AiConfiguration[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(aiConfiguration)
+        .where(eq(aiConfiguration.configCategory, category))
+        .orderBy(desc(aiConfiguration.updatedAt)),
+      'getAiConfigurationsByCategory'
+    );
+  }
+
+  async createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
+    return await withDatabaseRetry(
+      async () => {
+        const [newConfig] = await db
+          .insert(aiConfiguration)
+          .values({
+            ...config,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        
+        await this.createActivityLog({
+          type: "ai_config_created",
+          description: `تنظیمات AI جدید ایجاد شد: ${config.configName}`,
+          relatedId: null,
+          metadata: {
+            configName: config.configName,
+            category: config.configCategory,
+            createdBy: config.lastModifiedBy
+          }
+        });
+
+        return newConfig;
+      },
+      'createAiConfiguration'
+    );
+  }
+
+  async updateAiConfiguration(configName: string, config: Partial<AiConfiguration>): Promise<AiConfiguration> {
+    return await withDatabaseRetry(
+      async () => {
+        const [updatedConfig] = await db
+          .update(aiConfiguration)
+          .set({
+            ...config,
+            updatedAt: new Date(),
+            configVersion: sql`${aiConfiguration.configVersion} + 1`
+          })
+          .where(eq(aiConfiguration.configName, configName))
+          .returning();
+
+        if (!updatedConfig) {
+          throw new Error(`AI configuration '${configName}' not found`);
+        }
+        
+        await this.createActivityLog({
+          type: "ai_config_updated",
+          description: `تنظیمات AI بروزرسانی شد: ${configName}`,
+          relatedId: null,
+          metadata: {
+            configName,
+            updatedBy: config.lastModifiedBy,
+            version: updatedConfig.configVersion
+          }
+        });
+
+        return updatedConfig;
+      },
+      'updateAiConfiguration'
+    );
+  }
+
+  async deleteAiConfiguration(configName: string): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .delete(aiConfiguration)
+          .where(eq(aiConfiguration.configName, configName));
+
+        if (result.rowCount === 0) {
+          throw new Error(`AI configuration '${configName}' not found`);
+        }
+        
+        await this.createActivityLog({
+          type: "ai_config_deleted",
+          description: `تنظیمات AI حذف شد: ${configName}`,
+          relatedId: null,
+          metadata: { configName }
+        });
+      },
+      'deleteAiConfiguration'
+    );
+  }
+
+  async getActiveAiConfiguration(): Promise<AiConfiguration[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(aiConfiguration)
+        .where(eq(aiConfiguration.isActive, true))
+        .orderBy(aiConfiguration.configCategory, desc(aiConfiguration.updatedAt)),
+      'getActiveAiConfiguration'
     );
   }
 }

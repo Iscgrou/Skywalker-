@@ -229,6 +229,76 @@ export const crmUsers = pgTable("crm_users", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// AI Configuration (تنظیمات پیشرفته هوش مصنوعی)
+export const aiConfiguration = pgTable("ai_configuration", {
+  id: serial("id").primaryKey(),
+  configName: text("config_name").notNull().unique(),
+  configCategory: text("config_category").notNull(), // "GENERAL", "PERSIAN_CULTURAL", "BEHAVIOR", "GROQ_SETTINGS", "SECURITY"
+  
+  // General AI Settings
+  aiEnabled: boolean("ai_enabled").default(true),
+  defaultModel: text("default_model").default("groq/llama-3.1-8b-instant"),
+  maxTokens: integer("max_tokens").default(4096),
+  temperature: decimal("temperature", { precision: 3, scale: 2 }).default("0.7"),
+  topP: decimal("top_p", { precision: 3, scale: 2 }).default("0.9"),
+  frequencyPenalty: decimal("frequency_penalty", { precision: 3, scale: 2 }).default("0.0"),
+  presencePenalty: decimal("presence_penalty", { precision: 3, scale: 2 }).default("0.0"),
+  
+  // Persian Cultural Intelligence
+  culturalSensitivity: decimal("cultural_sensitivity", { precision: 3, scale: 2 }).default("0.95"), // 0-1 scale
+  religiousSensitivity: decimal("religious_sensitivity", { precision: 3, scale: 2 }).default("0.9"),
+  traditionalValuesWeight: decimal("traditional_values_weight", { precision: 3, scale: 2 }).default("0.8"),
+  languageFormality: text("language_formality").default("RESPECTFUL"), // "FORMAL", "RESPECTFUL", "CASUAL"
+  persianPoetryIntegration: boolean("persian_poetry_integration").default(true),
+  culturalMetaphors: boolean("cultural_metaphors").default(true),
+  
+  // Behavior Tuning
+  proactivityLevel: decimal("proactivity_level", { precision: 3, scale: 2 }).default("0.8"), // How proactive AI should be
+  confidenceThreshold: decimal("confidence_threshold", { precision: 3, scale: 2 }).default("0.75"),
+  learningRate: decimal("learning_rate", { precision: 3, scale: 2 }).default("0.1"),
+  creativityLevel: decimal("creativity_level", { precision: 3, scale: 2 }).default("0.6"),
+  riskTolerance: decimal("risk_tolerance", { precision: 3, scale: 2 }).default("0.3"),
+  contextWindowMemory: integer("context_window_memory").default(10), // Number of conversations to remember
+  
+  // Advanced Groq Settings
+  groqModelVariant: text("groq_model_variant").default("llama-3.1-8b-instant"),
+  groqApiEndpoint: text("groq_api_endpoint").default("https://api.groq.com/openai/v1"),
+  maxConcurrentRequests: integer("max_concurrent_requests").default(5),
+  requestTimeoutMs: integer("request_timeout_ms").default(30000),
+  retryAttempts: integer("retry_attempts").default(3),
+  rateLimitRpm: integer("rate_limit_rpm").default(30), // Requests per minute
+  
+  // Security & Privacy
+  dataEncryption: boolean("data_encryption").default(true),
+  accessLogging: boolean("access_logging").default(true),
+  sensitiveDataRedaction: boolean("sensitive_data_redaction").default(true),
+  emergencyStopEnabled: boolean("emergency_stop_enabled").default(true),
+  auditTrail: boolean("audit_trail").default(true),
+  
+  // Performance & Monitoring
+  responseTimeLimit: integer("response_time_limit").default(5000), // milliseconds
+  qualityThreshold: decimal("quality_threshold", { precision: 3, scale: 2 }).default("0.8"),
+  errorRateThreshold: decimal("error_rate_threshold", { precision: 3, scale: 2 }).default("0.05"),
+  performanceMetrics: json("performance_metrics").default({}),
+  
+  // Custom Instructions & Prompts
+  systemPrompt: text("system_prompt"),
+  culturalPrompts: json("cultural_prompts").default([]),
+  behaviorPrompts: json("behavior_prompts").default([]),
+  specialInstructions: json("special_instructions").default([]),
+  
+  // Integration Settings
+  telegramIntegration: boolean("telegram_integration").default(false),
+  xaiIntegration: boolean("xai_integration").default(false),
+  customApiEndpoints: json("custom_api_endpoints").default([]),
+  
+  isActive: boolean("is_active").default(true),
+  lastModifiedBy: text("last_modified_by"),
+  configVersion: integer("config_version").default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // ==================== CRM INTELLIGENT SYSTEM ====================
 
 // CRM Representative Levels (سطح‌بندی نمایندگان)
@@ -588,6 +658,13 @@ export const insertCrmUserSchema = createInsertSchema(crmUsers).omit({
   updatedAt: true
 });
 
+export const insertAiConfigurationSchema = createInsertSchema(aiConfiguration).omit({
+  id: true,
+  configVersion: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 // CRM Insert Schemas
 export const insertRepresentativeLevelSchema = createInsertSchema(representativeLevels).omit({
   id: true,
@@ -680,6 +757,9 @@ export type InsertSetting = z.infer<typeof insertSettingSchema>;
 
 export type CrmUser = typeof crmUsers.$inferSelect;
 export type InsertCrmUser = z.infer<typeof insertCrmUserSchema>;
+
+export type AiConfiguration = typeof aiConfiguration.$inferSelect;
+export type InsertAiConfiguration = z.infer<typeof insertAiConfigurationSchema>;
 
 // CRM Types
 export type RepresentativeLevel = typeof representativeLevels.$inferSelect;
