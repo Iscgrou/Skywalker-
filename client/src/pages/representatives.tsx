@@ -1569,6 +1569,9 @@ function EditInvoiceDialog({
         }
       });
       
+      // Force refresh representative data to reflect changes
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for database to sync
+      
       console.log('Debt synchronization completed:', syncResponse);
 
       // 2. Recalculate invoice payment status if needed

@@ -1190,40 +1190,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // CRM debt synchronization endpoint
+  // CRM debt synchronization endpoint - Enhanced Financial Synchronization
   app.post("/api/crm/representatives/:id/sync-debt", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { totalDebt, credit, invoiceId, amountChange, syncReason } = req.body;
+      const { reason, invoiceId, amountChange, timestamp } = req.body;
       
-      // Update representative debt in main system
-      await storage.updateRepresentative(parseInt(id), {
-        totalDebt: totalDebt || "0",
-        credit: credit || "0"
+      console.log('Sync debt request:', { id, reason, invoiceId, amountChange });
+      
+      // Recalculate actual debt from database
+      const representativeId = parseInt(id);
+      
+      // Calculate total unpaid invoices for this representative
+      const unpaidResult = await db.select({ 
+        totalDebt: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+      }).from(invoices).where(
+        and(
+          eq(invoices.representativeId, representativeId),
+          or(eq(invoices.status, 'unpaid'), eq(invoices.status, 'overdue'))
+        )
+      );
+      
+      // Calculate total sales (all invoices)
+      const salesResult = await db.select({ 
+        totalSales: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+      }).from(invoices).where(eq(invoices.representativeId, representativeId));
+      
+      const actualTotalDebt = unpaidResult[0]?.totalDebt || "0";
+      const actualTotalSales = salesResult[0]?.totalSales || "0";
+      
+      console.log('Calculated debt:', { actualTotalDebt, actualTotalSales });
+      
+      // Update representative with calculated values
+      const updatedRep = await storage.updateRepresentative(representativeId, {
+        totalDebt: actualTotalDebt,
+        totalSales: actualTotalSales,
+        credit: "0" // Reset credit if needed
       });
 
-      // Log the synchronization with detailed information
+      // Log the synchronization with actual values
       await storage.createActivityLog({
         type: "debt_synchronized",
-        description: syncReason === "invoice_amount_changed" 
-          ? `همگام‌سازی مالی پس از تغییر مبلغ فاکتور: ${totalDebt} ریال`
-          : `همگام‌سازی بدهی: ${totalDebt} ریال${credit ? ` - اعتبار: ${credit} ریال` : ''}`,
-        relatedId: parseInt(id),
+        description: `همگام‌سازی مالی پس از تغییر مبلغ فاکتور: ${actualTotalDebt} ریال`,
+        relatedId: representativeId,
         metadata: {
-          invoiceId: invoiceId || null,
-          amountChange: amountChange || 0,
-          syncReason: syncReason || "manual_sync",
-          timestamp: new Date().toISOString()
+          invoiceId,
+          amountChange,
+          syncReason: reason || "invoice_amount_changed",
+          oldDebt: "unknown",
+          newDebt: actualTotalDebt,
+          timestamp: timestamp || new Date().toISOString()
         }
+      });
+
+      console.log('Debt synchronization completed:', { 
+        representativeId, 
+        actualTotalDebt, 
+        actualTotalSales 
       });
 
       res.json({ 
         success: true, 
         message: "همگام‌سازی مالی کامل انجام شد",
-        data: { totalDebt, credit, invoiceId, amountChange }
+        data: { 
+          invoiceId, 
+          amountChange, 
+          totalDebt: actualTotalDebt,
+          totalSales: actualTotalSales
+        }
       });
-    } catch (error) {
-      res.status(500).json({ error: "خطا در همگام‌سازی بدهی" });
+    } catch (error: any) {
+      console.error('Debt synchronization failed:', error);
+      res.status(500).json({ 
+        error: "خطا در همگام‌سازی بدهی",
+        details: error.message 
+      });
     }
   });
 
