@@ -140,7 +140,7 @@ export default function SherlockCrmInterface() {
             <EnhancedAIHelper />
           </div>
         )}
-        {activeSection === 'representatives' && <RepresentativesSection />}
+        {activeSection === 'representatives' && <EnhancedRepresentativesManager />}
         {activeSection === 'ai-workspace' && <AIWorkspaceSection />}
         {activeSection === 'analytics' && <AnalyticsSection />}
         {activeSection === 'reports' && <ReportsSection />}
@@ -291,7 +291,6 @@ function RepresentativesSection() {
           </Card>
         ))}
       </div>
-      <EnhancedRepresentativesManager />
     </div>
   );
 }

@@ -14,6 +14,9 @@ import {
   BarChart3, Target, Clock, Star, Activity, MessageSquare, Settings
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import RepresentativeDetailsModal from './representative-details-modal';
+import RepresentativeEditModal from './representative-edit-modal';
 
 // Persian Currency Formatter
 const CurrencyFormatter = new Intl.NumberFormat('fa-IR', {
@@ -64,8 +67,111 @@ export default function EnhancedRepresentativesManager() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [editingRep, setEditingRep] = useState<Representative | null>(null);
   
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Handler functions for representative actions
+  const handleViewRepresentative = async (repId: number) => {
+    try {
+      const response = await apiRequest(`/api/crm/representatives/${repId}`);
+      if (response.success) {
+        setSelectedRep(response.data.representative);
+        setShowDetailsModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching representative details:', error);
+      toast({
+        title: "خطا",
+        description: "خطا در دریافت جزئیات نماینده",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditRepresentative = async (repId: number) => {
+    try {
+      const response = await apiRequest(`/api/crm/representatives/${repId}`);
+      if (response.success) {
+        setEditingRep(response.data.representative);
+        setShowEditModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching representative for edit:', error);
+      toast({
+        title: "خطا",
+        description: "خطا در دریافت اطلاعات نماینده برای ویرایش",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleContactRepresentative = (repId: number) => {
+    // Open contact/communication modal
+    const rep = processedReps.find(r => r.id === repId);
+    if (rep?.phone) {
+      // Open phone dialer or SMS
+      window.open(`tel:${rep.phone}`, '_blank');
+    }
+  };
+
+  // Mutation for updating representative
+  const updateRepresentativeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Representative> }) => {
+      return apiRequest(`/api/crm/representatives/${id}`, {
+        method: 'PUT',
+        data: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/crm/representatives'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/crm/representatives/statistics'] });
+      setShowEditModal(false);
+      setEditingRep(null);
+      toast({
+        title: "موفقیت",
+        description: "اطلاعات نماینده با موفقیت بروزرسانی شد",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error updating representative:', error);
+      toast({
+        title: "خطا",
+        description: "خطا در بروزرسانی اطلاعات نماینده",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation for creating new representative
+  const createRepresentativeMutation = useMutation({
+    mutationFn: async (data: Partial<Representative>) => {
+      return apiRequest('/api/crm/representatives', {
+        method: 'POST',
+        data: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/crm/representatives'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/crm/representatives/statistics'] });
+      setShowAddModal(false);
+      toast({
+        title: "موفقیت",
+        description: "نماینده جدید با موفقیت اضافه شد",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error creating representative:', error);
+      toast({
+        title: "خطا",
+        description: "خطا در ایجاد نماینده جدید",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Fetch Representatives Data
   const { data: representatives, isLoading: repsLoading } = useQuery({
@@ -444,7 +550,7 @@ export default function EnhancedRepresentativesManager() {
                         size="sm" 
                         variant="outline" 
                         className="flex-1 border-white/20 hover:border-white/40"
-                        onClick={() => setSelectedRep(rep)}
+                        onClick={() => handleViewRepresentative(rep.id)}
                       >
                         <Eye className="w-4 h-4 ml-1" />
                         جزئیات
@@ -453,6 +559,7 @@ export default function EnhancedRepresentativesManager() {
                         size="sm" 
                         variant="outline" 
                         className="flex-1 border-white/20 hover:border-white/40"
+                        onClick={() => handleEditRepresentative(rep.id)}
                       >
                         <Edit2 className="w-4 h-4 ml-1" />
                         ویرایش
@@ -461,6 +568,7 @@ export default function EnhancedRepresentativesManager() {
                         size="sm" 
                         variant="outline" 
                         className="border-white/20 hover:border-white/40"
+                        onClick={() => handleContactRepresentative(rep.id)}
                       >
                         <MessageSquare className="w-4 h-4" />
                       </Button>
@@ -550,6 +658,32 @@ export default function EnhancedRepresentativesManager() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modals */}
+      <RepresentativeDetailsModal
+        representative={selectedRep}
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedRep(null);
+        }}
+        onEdit={(rep) => {
+          setEditingRep(rep);
+          setShowDetailsModal(false);
+          setShowEditModal(true);
+        }}
+      />
+
+      <RepresentativeEditModal
+        representative={editingRep}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingRep(null);
+        }}
+        onSave={(id, data) => updateRepresentativeMutation.mutate({ id, data })}
+        isLoading={updateRepresentativeMutation.isPending}
+      />
     </div>
   );
 }

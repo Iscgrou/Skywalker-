@@ -4,8 +4,8 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { groqAIEngine } from "../services/groq-ai-engine";
 import { XAIGrokEngine } from "../services/xai-grok-engine";
-import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
-import { representatives } from "@shared/schema";
+import { eq, desc, and, or, like, gte, lte, asc } from "drizzle-orm";
+import { representatives, invoices, payments } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
 import { taskManagementService, TaskWithDetails } from "../services/task-management-service";
 import { performanceAnalyticsService } from "../services/performance-analytics-service";
@@ -710,6 +710,138 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
+  // Get single representative details
+  app.get("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const rep = await db
+        .select()
+        .from(representatives)
+        .where(eq((representatives as any).id, parseInt(id)))
+        .limit(1);
+        
+      if (rep.length === 0) {
+        return res.status(404).json({ error: 'نماینده یافت نشد' });
+      }
+      
+      // Get additional data for this representative
+      const invoicesData = await db
+        .select()
+        .from(invoices)
+        .where(eq((invoices as any).representativeId, parseInt(id)))
+        .orderBy(desc((invoices as any).createdAt))
+        .limit(10);
+        
+      const paymentsData = await db
+        .select()
+        .from(payments)
+        .where(eq((payments as any).representativeId, parseInt(id)))
+        .orderBy(desc((payments as any).createdAt))
+        .limit(10);
+      
+      res.json({
+        success: true,
+        data: {
+          representative: rep[0],
+          recentInvoices: invoicesData,
+          recentPayments: paymentsData,
+          statistics: {
+            totalInvoices: invoicesData.length,
+            totalPayments: paymentsData.length,
+            lastActivity: Math.max(
+              ...[...invoicesData, ...paymentsData].map(item => new Date(item.createdAt).getTime())
+            )
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching representative details:', error);
+      res.status(500).json({ error: 'خطا در دریافت جزئیات نماینده' });
+    }
+  });
+
+  // Update representative
+  app.put("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+      
+      // Validate input
+      if (!updateData.name || !updateData.code) {
+        return res.status(400).json({ error: 'نام و کد نماینده الزامی است' });
+      }
+      
+      const updated = await db
+        .update(representatives)
+        .set({
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq((representatives as any).id, parseInt(id)))
+        .returning();
+        
+      if (updated.length === 0) {
+        return res.status(404).json({ error: 'نماینده یافت نشد' });
+      }
+      
+      res.json({
+        success: true,
+        data: updated[0],
+        message: 'اطلاعات نماینده با موفقیت بروزرسانی شد'
+      });
+    } catch (error) {
+      console.error('Error updating representative:', error);
+      res.status(500).json({ error: 'خطا در بروزرسانی نماینده' });
+    }
+  });
+
+  // Add new representative
+  app.post("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
+    try {
+      const newRepData = req.body;
+      
+      // Validate required fields
+      if (!newRepData.name || !newRepData.code) {
+        return res.status(400).json({ error: 'نام و کد نماینده الزامی است' });
+      }
+      
+      // Check if code already exists
+      const existingRep = await db
+        .select()
+        .from(representatives)
+        .where(eq((representatives as any).code, newRepData.code))
+        .limit(1);
+        
+      if (existingRep.length > 0) {
+        return res.status(400).json({ error: 'کد نماینده تکراری است' });
+      }
+      
+      const inserted = await db
+        .insert(representatives)
+        .values({
+          ...newRepData,
+          publicId: `pub_${Date.now()}`,
+          totalDebt: '0',
+          totalSales: '0',
+          credit: '0',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .returning();
+      
+      res.json({
+        success: true,
+        data: inserted[0],
+        message: 'نماینده جدید با موفقیت اضافه شد'
+      });
+    } catch (error) {
+      console.error('Error creating representative:', error);
+      res.status(500).json({ error: 'خطا در ایجاد نماینده جدید' });
+    }
+  });
+
   // Get representative statistics
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
@@ -749,24 +881,30 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
 
   // ==================== REPRESENTATIVE ANALYSIS ====================
   
-  app.get("/api/crm/representative/:id/analysis", async (req, res) => {
+  app.get("/api/crm/representative/:id/analysis", crmAuthMiddleware, async (req, res) => {
     try {
       const repId = parseInt(req.params.id);
-      const representative = await storage.getRepresentative(repId);
       
-      if (!representative) {
+      const representative = await db
+        .select()
+        .from(representatives)
+        .where(eq((representatives as any).id, repId))
+        .limit(1);
+      
+      if (representative.length === 0) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
       }
 
       // Get cultural analysis from xAI Grok
-      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative);
+      const repData = representative[0];
+      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(repData);
       
       res.json({
-        representative,
+        representative: repData,
         culturalProfile,
         performanceMetrics: {
-          debtRatio: (parseFloat(representative.totalDebt || "0") / parseFloat(representative.totalSales || "1")) * 100,
-          activityLevel: representative.isActive ? 'HIGH' : 'LOW',
+          debtRatio: (parseFloat(repData.totalDebt || "0") / parseFloat(repData.totalSales || "1")) * 100,
+          activityLevel: repData.isActive ? 'HIGH' : 'LOW',
           riskLevel: parseFloat(representative.totalDebt || "0") > 50000 ? 'HIGH' : 'MEDIUM'
         }
       });
