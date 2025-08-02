@@ -156,7 +156,7 @@ export default function Dashboard() {
           icon={TrendingUp}
           trend="+۸.۵%"
           colorClass="text-green-600"
-          onClick={() => window.location.href = '/reports'}
+          onClick={() => window.location.href = '/invoices'}
         />
         
         <StatCard

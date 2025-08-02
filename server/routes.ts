@@ -106,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "✅ DA VINCI v2.0 AI Task Generator Test Successful",
         result: {
           tasksGenerated: result.tasks.length,
-          generationTime: result.generationMetadata?.timestamp || new Date().toISOString(),
+          generationTime: new Date().toISOString(),
           culturalContext: "Persian Business Culture",
           aiEngine: "xAI Grok-4"
         }
@@ -463,31 +463,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const invoices = await storage.getInvoicesByRepresentative(representative.id);
       const payments = await storage.getPaymentsByRepresentative(representative.id);
       
+      // Fetch portal customization settings
+      const portalSettings = await storage.getSettings();
+      const portalConfig = {
+        title: portalSettings.find(s => s.key === 'portal_title')?.value || 'پرتال عمومی نماینده',
+        description: portalSettings.find(s => s.key === 'portal_description')?.value || 'مشاهده وضعیت مالی و فاکتورهای شما',
+        showOwnerName: portalSettings.find(s => s.key === 'portal_show_owner_name')?.value === 'true',
+        showDetailedUsage: portalSettings.find(s => s.key === 'portal_show_detailed_usage')?.value === 'true',
+        customCss: portalSettings.find(s => s.key === 'portal_custom_css')?.value || '',
+        
+        // Invoice display settings
+        showUsageDetails: portalSettings.find(s => s.key === 'invoice_show_usage_details')?.value === 'true',
+        showEventTimestamp: portalSettings.find(s => s.key === 'invoice_show_event_timestamp')?.value === 'true',
+        showEventType: portalSettings.find(s => s.key === 'invoice_show_event_type')?.value === 'true',
+        showDescription: portalSettings.find(s => s.key === 'invoice_show_description')?.value === 'true',
+        showAdminUsername: portalSettings.find(s => s.key === 'invoice_show_admin_username')?.value === 'true'
+      };
+      
+      // Sort invoices by date (newest first)
+      const sortedInvoices = invoices.sort((a, b) => {
+        const dateA = new Date(a.issueDate || a.createdAt);
+        const dateB = new Date(b.issueDate || b.createdAt);
+        return dateB.getTime() - dateA.getTime();
+      });
+      
       // Don't expose sensitive data in public portal
       const publicData = {
         name: representative.name,
         code: representative.code,
         panelUsername: representative.panelUsername,
+        shopOwnerName: representative.shopOwnerName,
         totalDebt: representative.totalDebt,
         totalSales: representative.totalSales,
         credit: representative.credit,
-        invoices: invoices.map(inv => ({
+        portalConfig,
+        invoices: sortedInvoices.map(inv => ({
           invoiceNumber: inv.invoiceNumber,
           amount: inv.amount,
           issueDate: inv.issueDate,
           dueDate: inv.dueDate,
           status: inv.status,
-          usageData: inv.usageData // Include usage data for detailed view
+          usageData: inv.usageData, // Include usage data for detailed view
+          createdAt: inv.createdAt
         })),
         payments: payments.map(pay => ({
           amount: pay.amount,
           paymentDate: pay.paymentDate,
           description: pay.description
-        }))
+        })).sort((a, b) => {
+          const dateA = new Date(a.paymentDate);
+          const dateB = new Date(b.paymentDate);
+          return dateB.getTime() - dateA.getTime();
+        })
       };
       
       res.json(publicData);
     } catch (error) {
+      console.error('Portal API error:', error);
       res.status(500).json({ error: "خطا در دریافت اطلاعات پورتال" });
     }
   });

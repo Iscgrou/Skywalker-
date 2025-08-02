@@ -50,9 +50,22 @@ interface PublicPortalData {
   name: string;
   code: string;
   panelUsername: string;
+  shopOwnerName?: string;
   totalDebt: string;
   totalSales: string;
   credit: string;
+  portalConfig: {
+    title: string;
+    description: string;
+    showOwnerName: boolean;
+    showDetailedUsage: boolean;
+    customCss: string;
+    showUsageDetails: boolean;
+    showEventTimestamp: boolean;
+    showEventType: boolean;
+    showDescription: boolean;
+    showAdminUsername: boolean;
+  };
   invoices: Array<{
     invoiceNumber: string;
     amount: string;
@@ -60,6 +73,7 @@ interface PublicPortalData {
     dueDate: string;
     status: string;
     usageData?: any; // JSON usage data from uploaded file
+    createdAt?: string;
   }>;
   payments: Array<{
     amount: string;
@@ -178,23 +192,33 @@ export default function PublicPortal() {
       );
     }
 
+    const config = portalData?.portalConfig;
+
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-600">
           <thead className="bg-gray-600">
             <tr>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                نام کاربری ادمین
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                زمان رویداد
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                نوع رویداد
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                توضیحات
-              </th>
+              {config?.showAdminUsername && (
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                  نام کاربری ادمین
+                </th>
+              )}
+              {config?.showEventTimestamp && (
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                  زمان رویداد
+                </th>
+              )}
+              {config?.showEventType && (
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                  نوع رویداد
+                </th>
+              )}
+              {config?.showDescription && (
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
+                  توضیحات
+                </th>
+              )}
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
                 مبلغ
               </th>
@@ -203,29 +227,37 @@ export default function PublicPortal() {
           <tbody className="bg-gray-700 divide-y divide-gray-600">
             {formattedData.map((record: any, index: number) => (
               <tr key={index} className="hover:bg-gray-600/50">
-                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-white">
-                  {record.admin_username || 'نامشخص'}
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
-                  {record.event_timestamp || record.timestamp || '-'}
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
-                  <Badge 
-                    className={`${
-                      record.event_type === 'CREATE' ? 'bg-green-600 hover:bg-green-700' :
-                      record.event_type === 'RENEWAL' ? 'bg-blue-600 hover:bg-blue-700' :
-                      record.event_type === 'EXPIRE' ? 'bg-red-600 hover:bg-red-700' :
-                      'bg-gray-600 hover:bg-gray-700'
-                    } text-white`}
-                  >
-                    {record.event_type || record.type || 'نامشخص'}
-                  </Badge>
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-300 max-w-xs">
-                  <div className="truncate" title={record.description || record.desc || ''}>
-                    {record.description || record.desc || '-'}
-                  </div>
-                </td>
+                {config?.showAdminUsername && (
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-white">
+                    {record.admin_username || 'نامشخص'}
+                  </td>
+                )}
+                {config?.showEventTimestamp && (
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                    {record.event_timestamp || record.timestamp || '-'}
+                  </td>
+                )}
+                {config?.showEventType && (
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
+                    <Badge 
+                      className={`${
+                        record.event_type === 'CREATE' ? 'bg-green-600 hover:bg-green-700' :
+                        record.event_type === 'RENEWAL' ? 'bg-blue-600 hover:bg-blue-700' :
+                        record.event_type === 'EXPIRE' ? 'bg-red-600 hover:bg-red-700' :
+                        'bg-gray-600 hover:bg-gray-700'
+                      } text-white`}
+                    >
+                      {record.event_type || record.type || 'نامشخص'}
+                    </Badge>
+                  </td>
+                )}
+                {config?.showDescription && (
+                  <td className="px-4 py-4 text-sm text-gray-300 max-w-xs">
+                    <div className="truncate" title={record.description || record.desc || ''}>
+                      {record.description || record.desc || '-'}
+                    </div>
+                  </td>
+                )}
                 <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-green-400">
                   {record.amount ? `${formatCurrency(record.amount.toString())} تومان` : '-'}
                 </td>
@@ -326,10 +358,16 @@ export default function PublicPortal() {
   const accountStatus = getAccountStatus();
   const lastPayment = getLastPayment();
 
+  // Add custom CSS if provided
+  const customStyles = portalData?.portalConfig?.customCss ? (
+    <style dangerouslySetInnerHTML={{ __html: portalData.portalConfig.customCss }} />
+  ) : null;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {customStyles}
       {/* Header */}
-      <div className="border-b border-gray-800">
+      <div className="border-b border-gray-800 portal-header">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 space-x-reverse">
@@ -337,8 +375,18 @@ export default function PublicPortal() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">پورتال مالی نماینده</h1>
-                <p className="text-gray-400">{portalData.name}</p>
+                <h1 className="text-2xl font-bold">
+                  {portalData?.portalConfig?.title || 'پورتال مالی نماینده'}
+                </h1>
+                <div className="space-y-1">
+                  <p className="text-gray-400">{portalData.name}</p>
+                  {portalData?.portalConfig?.showOwnerName && portalData.shopOwnerName && (
+                    <p className="text-sm text-gray-500">صاحب فروشگاه: {portalData.shopOwnerName}</p>
+                  )}
+                  <p className="text-sm text-gray-500">
+                    {portalData?.portalConfig?.description || 'مشاهده وضعیت مالی و فاکتورهای شما'}
+                  </p>
+                </div>
               </div>
             </div>
             <div className="text-left ltr">

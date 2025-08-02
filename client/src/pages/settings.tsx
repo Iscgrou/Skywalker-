@@ -143,6 +143,23 @@ export default function Settings() {
     queryKey: ["/api/settings/invoice_show_admin_username"]
   });
 
+  // Fetch portal settings
+  const { data: portalTitle } = useQuery({
+    queryKey: ["/api/settings/portal_title"]
+  });
+  
+  const { data: portalDescription } = useQuery({
+    queryKey: ["/api/settings/portal_description"]
+  });
+  
+  const { data: showOwnerName } = useQuery({
+    queryKey: ["/api/settings/portal_show_owner_name"]
+  });
+  
+  const { data: showDetailedUsage } = useQuery({
+    queryKey: ["/api/settings/portal_show_detailed_usage"]
+  });
+
   // Forms
   const telegramForm = useForm<TelegramSettingsData>({
     resolver: zodResolver(telegramSettingsSchema),
@@ -204,6 +221,17 @@ export default function Settings() {
     }
   });
 
+  const portalForm = useForm<PortalSettingsData>({
+    resolver: zodResolver(portalSettingsSchema),
+    defaultValues: {
+      portalTitle: "پرتال عمومی نماینده",
+      portalDescription: "مشاهده وضعیت مالی و فاکتورهای شما",
+      showOwnerName: true,
+      showDetailedUsage: true,
+      customCss: ""
+    }
+  });
+
   // Update forms when data is loaded
   useEffect(() => {
     if ((telegramBotToken as any)?.value) telegramForm.setValue('botToken', (telegramBotToken as any).value);
@@ -226,7 +254,17 @@ export default function Settings() {
     if ((showAdminUsername as any)?.value !== undefined) {
       invoiceTemplateForm.setValue('showAdminUsername', (showAdminUsername as any).value === 'true');
     }
-  }, [telegramBotToken, telegramChatId, telegramTemplate, showUsageDetails, showEventTimestamp, showEventType, showDescription, showAdminUsername]);
+    
+    // Update portal form
+    if ((portalTitle as any)?.value) portalForm.setValue('portalTitle', (portalTitle as any).value);
+    if ((portalDescription as any)?.value) portalForm.setValue('portalDescription', (portalDescription as any).value);
+    if ((showOwnerName as any)?.value !== undefined) {
+      portalForm.setValue('showOwnerName', (showOwnerName as any).value === 'true');
+    }
+    if ((showDetailedUsage as any)?.value !== undefined) {
+      portalForm.setValue('showDetailedUsage', (showDetailedUsage as any).value === 'true');
+    }
+  }, [telegramBotToken, telegramChatId, telegramTemplate, showUsageDetails, showEventTimestamp, showEventType, showDescription, showAdminUsername, portalTitle, portalDescription, showOwnerName, showDetailedUsage]);
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string, value: string }) => {
@@ -370,6 +408,46 @@ export default function Settings() {
     }
   });
 
+  const onInvoiceTemplateSubmit = async (data: InvoiceTemplateData) => {
+    try {
+      await updateSettingMutation.mutateAsync({ key: 'invoice_header', value: data.invoiceHeader });
+      if (data.invoiceFooter) {
+        await updateSettingMutation.mutateAsync({ key: 'invoice_footer', value: data.invoiceFooter });
+      }
+      await updateSettingMutation.mutateAsync({ key: 'invoice_show_usage_details', value: data.showUsageDetails.toString() });
+      await updateSettingMutation.mutateAsync({ key: 'invoice_show_event_timestamp', value: data.showEventTimestamp.toString() });
+      await updateSettingMutation.mutateAsync({ key: 'invoice_show_event_type', value: data.showEventType.toString() });
+      await updateSettingMutation.mutateAsync({ key: 'invoice_show_description', value: data.showDescription.toString() });
+      await updateSettingMutation.mutateAsync({ key: 'invoice_show_admin_username', value: data.showAdminUsername.toString() });
+    } catch (error: any) {
+      toast({
+        title: "خطا در ذخیره تنظیمات قالب فاکتور",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const onPortalSubmit = async (data: PortalSettingsData) => {
+    try {
+      await updateSettingMutation.mutateAsync({ key: 'portal_title', value: data.portalTitle });
+      if (data.portalDescription) {
+        await updateSettingMutation.mutateAsync({ key: 'portal_description', value: data.portalDescription });
+      }
+      await updateSettingMutation.mutateAsync({ key: 'portal_show_owner_name', value: data.showOwnerName.toString() });
+      await updateSettingMutation.mutateAsync({ key: 'portal_show_detailed_usage', value: data.showDetailedUsage.toString() });
+      if (data.customCss) {
+        await updateSettingMutation.mutateAsync({ key: 'portal_custom_css', value: data.customCss });
+      }
+    } catch (error: any) {
+      toast({
+        title: "خطا در ذخیره تنظیمات پورتال",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const onDataResetSubmit = async (data: DataResetData) => {
     const selectedItems = Object.entries(data).filter(([key, value]) => value).map(([key]) => key);
     
@@ -383,18 +461,6 @@ export default function Settings() {
     }
 
     await resetDataMutation.mutateAsync(data);
-  };
-
-  const onInvoiceTemplateSubmit = async (data: InvoiceTemplateData) => {
-    await updateSettingMutation.mutateAsync({ key: 'invoice_header', value: data.invoiceHeader });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_footer', value: data.invoiceFooter || '' });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_show_usage_details', value: data.showUsageDetails.toString() });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_usage_format', value: data.usageFormat || 'table' });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_usage_table_columns', value: data.usageTableColumns || 'admin_username,event_timestamp,event_type,description,amount' });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_show_event_timestamp', value: data.showEventTimestamp.toString() });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_show_event_type', value: data.showEventType.toString() });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_show_description', value: data.showDescription.toString() });
-    await updateSettingMutation.mutateAsync({ key: 'invoice_show_admin_username', value: data.showAdminUsername.toString() });
   };
 
   return (
@@ -414,10 +480,14 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="telegram" className="flex items-center">
             <Send className="w-4 h-4 mr-2" />
             تلگرام
+          </TabsTrigger>
+          <TabsTrigger value="portal" className="flex items-center">
+            <Globe className="w-4 h-4 mr-2" />
+            پرتال عمومی
           </TabsTrigger>
           <TabsTrigger value="invoice-template" className="flex items-center">
             <FileText className="w-4 h-4 mr-2" />
@@ -562,6 +632,177 @@ export default function Settings() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Portal Settings */}
+        <TabsContent value="portal">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Globe className="w-5 h-5 ml-2" />
+                تنظیمات پرتال عمومی نماینده
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...portalForm}>
+                <form onSubmit={portalForm.handleSubmit(onPortalSubmit)} className="space-y-6">
+                  <FormField
+                    control={portalForm.control}
+                    name="portalTitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>عنوان پرتال</FormLabel>
+                        <FormControl>
+                          <Input placeholder="پرتال عمومی نماینده" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          عنوان اصلی که در بالای پرتال نمایندگان نمایش داده می‌شود
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={portalForm.control}
+                    name="portalDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>توضیحات پرتال</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="مشاهده وضعیت مالی و فاکتورهای شما" 
+                            rows={3}
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          توضیحات مختصری که زیر عنوان پرتال نمایش داده می‌شود
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={portalForm.control}
+                      name="showOwnerName"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش نام صاحب فروشگاه</FormLabel>
+                            <FormDescription>
+                              نمایش نام صاحب فروشگاه در پرتال
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={portalForm.control}
+                      name="showDetailedUsage"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel>نمایش جزئیات مصرف</FormLabel>
+                            <FormDescription>
+                              نمایش جدول ریز جزئیات استفاده
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={portalForm.control}
+                    name="customCss"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>استایل سفارشی (CSS)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="/* استایل سفارشی CSS */
+.portal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.portal-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}"
+                            rows={8}
+                            className="font-mono text-sm"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          کدهای CSS سفارشی برای شخصی‌سازی ظاهر پرتال
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="pt-4">
+                    <Button 
+                      type="submit" 
+                      disabled={updateSettingMutation.isPending}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      {updateSettingMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+          
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>پیش‌نمایش پرتال</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg">
+                <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    {portalForm.watch('portalTitle') || 'پرتال عمومی نماینده'}
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    {portalForm.watch('portalDescription') || 'مشاهده وضعیت مالی و فاکتورهای شما'}
+                  </p>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                      <span className="text-sm font-medium">موجودی حساب:</span>
+                      <span className="text-blue-600 dark:text-blue-400 font-bold">۱,۲۵۰,۰۰۰ تومان</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-green-50 dark:bg-green-900/20 rounded">
+                      <span className="text-sm font-medium">فاکتورهای پرداخت شده:</span>
+                      <span className="text-green-600 dark:text-green-400 font-bold">۱۵ فاکتور</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded">
+                      <span className="text-sm font-medium">فاکتورهای در انتظار:</span>
+                      <span className="text-orange-600 dark:text-orange-400 font-bold">۳ فاکتور</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Invoice Template Settings */}
