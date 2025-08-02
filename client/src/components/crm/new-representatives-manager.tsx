@@ -72,14 +72,16 @@ export default function NewRepresentativesManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch statistics
+  // Fetch statistics with aggressive caching
   const { data: stats, isLoading: statsLoading } = useQuery<RepresentativeStats>({
     queryKey: ['/api/crm/representatives/statistics'],
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes - aggressive caching for performance
+    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes
     refetchInterval: false, // Disable auto-refresh to prevent constant re-renders
+    refetchOnWindowFocus: false, // Don't refetch when window gets focus
   });
 
-  // Fetch representatives with pagination
+  // Fetch representatives with optimized caching and pagination
   const { data: repsData, isLoading: repsLoading, error: repsError } = useQuery({
     queryKey: ['/api/crm/representatives', currentPage, searchTerm, statusFilter, sortBy],
     queryFn: () => {
@@ -97,8 +99,11 @@ export default function NewRepresentativesManager() {
         return res.json();
       });
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 8 * 60 * 1000, // 8 minutes for representative data
+    gcTime: 12 * 60 * 1000, // Keep in cache for 12 minutes
     refetchInterval: false, // Disable auto-refresh to prevent constant re-renders
+    refetchOnWindowFocus: false, // Don't refetch when window gets focus
+    refetchOnMount: false, // Don't automatically refetch on mount if data exists
   });
 
   // Extract representatives and pagination from response

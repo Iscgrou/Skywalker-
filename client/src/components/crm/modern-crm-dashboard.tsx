@@ -1,4 +1,4 @@
-// SHERLOCK v3.0 CRM DASHBOARD - Complete Refactored Architecture
+// SHERLOCK v3.0 CRM DASHBOARD - Performance Optimized Architecture  
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,13 @@ import {
   LogOut,
   Lock
 } from 'lucide-react';
-import NewRepresentativesManager from './new-representatives-manager';
-import EnhancedAIHelper from './enhanced-ai-helper';
-import { SettingsHub } from './settings/SettingsHub';
+import { lazy, Suspense } from 'react';
 import { WorkspaceHub } from './workspace/WorkspaceHub';
+
+// Lazy load heavy components to improve initial load time
+const NewRepresentativesManager = lazy(() => import('./new-representatives-manager'));
+const EnhancedAIHelper = lazy(() => import('./enhanced-ai-helper'));
+const SettingsHub = lazy(() => import('./settings/SettingsHub').then(module => ({ default: module.SettingsHub })));
 import { SettingsPasswordModal } from './settings/SettingsPasswordModal';
 import { useCrmAuth } from '@/hooks/use-crm-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -124,15 +127,42 @@ export default function ModernCrmDashboard() {
           </TabsContent>
 
           <TabsContent value="representatives" className="mt-6">
-            <NewRepresentativesManager />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                  <p className="text-white">بارگذاری مدیریت نمایندگان...</p>
+                </div>
+              </div>
+            }>
+              <NewRepresentativesManager />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="ai" className="mt-6">
-            <EnhancedAIHelper />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400 mx-auto mb-4"></div>
+                  <p className="text-white">بارگذاری دستیار هوش مصنوعی...</p>
+                </div>
+              </div>
+            }>
+              <EnhancedAIHelper />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="settings" className="mt-6">
-            <SettingsHub />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                  <p className="text-white">بارگذاری تنظیمات...</p>
+                </div>
+              </div>
+            }>
+              <SettingsHub />
+            </Suspense>
           </TabsContent>
         </Tabs>
 

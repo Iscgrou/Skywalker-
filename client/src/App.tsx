@@ -25,8 +25,14 @@ import AdminLogin from "@/pages/admin-login";
 import NotFound from "@/pages/not-found";
 import UnifiedAuth from "@/pages/unified-auth";
 
-// Lazy load Modern CRM Dashboard (New Unified Architecture)
-const ModernCrmDashboard = lazy(() => import('./components/crm/modern-crm-dashboard'));
+// Lazy load Modern CRM Dashboard with preloading optimization
+const ModernCrmDashboard = lazy(() => 
+  import('./components/crm/modern-crm-dashboard').then(module => {
+    // Preload critical components
+    import('./components/crm/workspace/WorkspaceHub');
+    return module;
+  })
+);
 
 // CRM Protected Routes Component
 function CrmProtectedRoutes() {
