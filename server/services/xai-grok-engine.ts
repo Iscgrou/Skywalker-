@@ -105,6 +105,55 @@ export class XAIGrokEngine {
     }
   }
 
+  // SHERLOCK v1.0 CRITICAL FIX - Missing checkEngineStatus method
+  async checkEngineStatus(): Promise<any> {
+    try {
+      if (!this.isConfigured) {
+        return {
+          available: false,
+          reason: "API key not configured - Using pattern-based fallback",
+          fallbackMode: true,
+          status: "operational",
+          engine: "XAI-Grok-4-Fallback",
+          culturalIntelligence: "persian",
+          version: "SHERLOCK-v1.0",
+          capabilities: ["profile-generation", "cultural-insights", "pattern-analysis"]
+        };
+      }
+
+      const response = await this.client.chat.completions.create({
+        model: "grok-4",
+        messages: [{ role: "user", content: "سلام" }],
+        max_tokens: 5
+      });
+
+      return {
+        available: true,
+        model: "grok-4",
+        status: "operational",
+        engine: "XAI-Grok-4",
+        culturalIntelligence: "persian",
+        version: "SHERLOCK-v1.0",
+        responseTime: Date.now(),
+        lastResponse: response.choices[0]?.message?.content || "OK",
+        capabilities: ["profile-generation", "cultural-insights", "ai-analysis"]
+      };
+    } catch (error) {
+      console.error('XAI Engine status check failed:', error);
+      return {
+        available: false,
+        reason: "Connection failed - Using pattern-based fallback",
+        error: error instanceof Error ? error.message : String(error),
+        fallbackMode: true,
+        status: "operational",
+        engine: "XAI-Grok-4-Fallback",
+        culturalIntelligence: "persian",
+        version: "SHERLOCK-v1.0",
+        capabilities: ["profile-generation", "cultural-insights", "pattern-analysis"]
+      };
+    }
+  }
+
   // Analyze representative cultural profile
   async analyzeCulturalProfile(representative: Representative): Promise<PersianCulturalAnalysis> {
     if (!this.isConfigured) {
