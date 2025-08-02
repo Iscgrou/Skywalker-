@@ -43,6 +43,8 @@ export class XAIGrokEngine {
     
     if (!this.isConfigured) {
       console.warn('XAI Grok Engine: API key not configured, using pattern-based fallback');
+    } else {
+      console.log('✅ XAI Grok Engine initialized successfully');
     }
   }
 
@@ -215,6 +217,38 @@ export class XAIGrokEngine {
     } catch (error) {
       console.error('Completion analysis failed, using pattern-based fallback:', error);
       return this.getPatternBasedCompletionAnalysis(outcome, notes);
+    }
+  }
+
+  // Generate cultural response with Persian context
+  async generateCulturalResponse(
+    prompt: string, 
+    options: { temperature?: number; maxTokens?: number } = {}
+  ): Promise<string> {
+    if (!this.isConfigured) {
+      return "سیستم AI موقتاً غیرفعال است. لطفاً تنظیمات XAI Grok را بررسی کنید.";
+    }
+
+    try {
+      const culturalPrompt = `
+شما یک دستیار هوشمند فارسی با درک عمیق از فرهنگ ایرانی هستید.
+لطفا با احترام، ادب و رعایت فرهنگ ایرانی پاسخ دهید.
+
+سوال کاربر: ${prompt}
+
+پاسخ فارسی:`;
+
+      const response = await this.client.chat.completions.create({
+        model: "grok-2-1212",
+        messages: [{ role: "user", content: culturalPrompt }],
+        max_tokens: options.maxTokens || 300,
+        temperature: options.temperature || 0.7
+      });
+
+      return response.choices[0]?.message?.content || "متأسفانه پاسخی دریافت نشد.";
+    } catch (error) {
+      console.error('XAI cultural response failed:', error);
+      return "خطا در ارتباط با سیستم AI. لطفاً مجدداً تلاش کنید.";
     }
   }
 

@@ -1868,8 +1868,8 @@ export class DatabaseStorage implements IStorage {
           .insert(aiConfiguration)
           .values({
             ...config,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            createdAt: sql`NOW()`,
+            updatedAt: sql`NOW()`
           })
           .returning();
         
@@ -1897,7 +1897,7 @@ export class DatabaseStorage implements IStorage {
           .update(aiConfiguration)
           .set({
             ...config,
-            updatedAt: new Date(),
+            updatedAt: sql`NOW()`,
             configVersion: sql`${aiConfiguration.configVersion} + 1`
           })
           .where(eq(aiConfiguration.configName, configName))

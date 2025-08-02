@@ -3,7 +3,17 @@
 ## Overview
 MarFaNet is a comprehensive financial management system designed for managing invoices, payments, and sales representatives. It streamlines financial operations by providing detailed tracking of debts, payments, and commissions, with features like efficient invoice generation, representative financial oversight, and automated reporting. The system supports both administrative and public-facing portals and includes advanced capabilities such as AI analysis, Telegram integration for notifications, and bulk invoice processing. Its ambition is to be a production-ready system for financial management with integrated intelligent reporting, analytics, and gamification, optimized for performance and security.
 
-## Recent Changes (2025-08-01)
+## Recent Changes (2025-08-02)
+
+**🔧 AI ENGINE ARCHITECTURE CORRECTION (00:28 AM):**
+- **✅ Fixed 500 Error**: Resolved AI configuration save errors with proper timestamp handling
+- **✅ Dual AI Architecture**: Corrected engine usage - Groq for speech-to-text only, XAI Grok for all CRM AI tasks  
+- **✅ XAI Integration**: Proper XAI_API_KEY configuration and initialization
+- **✅ Method Implementation**: Added generateCulturalResponse method to XAI Grok engine
+- **✅ API Testing**: AI configuration test functionality now works with XAI Grok
+- **✅ Voice Processing**: Updated to use Groq for audio transcription and XAI for text analysis
+- **🔧 Database Fix**: SQL timestamp handling corrected for all AI configuration operations
+- **🔧 Route Updates**: All CRM AI routes now properly use XAI Grok for Persian cultural intelligence
 
 **🎨 DA VINCI v9.0 CLAYMORPHISM DESIGN COMPLETION (01:54 AM):**
 - **🔧 Zero Glow Effects**: Complete removal of all glow/shadow effects from Claymorphism design
@@ -129,7 +139,8 @@ The application features a modern full-stack architecture with distinct client a
 
 ## External Dependencies
 - **Neon Database**: PostgreSQL hosting with serverless architecture.
-- **xAI Grok API**: For AI analysis and financial insights.
+- **XAI Grok API**: Primary AI engine for Persian cultural intelligence, task generation, and financial analysis.
+- **Groq API**: Speech-to-text conversion and audio transcription only.
 - **Telegram Bot API**: For automated notifications and messaging.
 - **Drizzle ORM**: Type-safe database operations with PostgreSQL.
 - **TanStack Query**: For server state management and caching.

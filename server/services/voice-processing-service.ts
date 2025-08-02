@@ -1,6 +1,7 @@
 // 🎤 VOICE PROCESSING SERVICE - DA VINCI v9.0 Speech-to-Text + AI Analysis
 // Groq Cloud (Speech-to-Text) + xAI Grok (Text Processing & Analysis)
 
+import { groqAIEngine } from './groq-ai-engine';
 import { xaiGrokEngine } from './xai-grok-engine';
 
 interface TranscriptionResult {
@@ -72,6 +73,50 @@ class VoiceProcessingService {
    */
   async transcribeAudio(audioFile: Buffer, language: 'fa' | 'en' = 'fa'): Promise<TranscriptionResult> {
     if (!this.groqApiKey) {
+      return this.getFallbackTranscription();
+    }
+
+    try {
+      // Use Groq's speech-to-text capabilities  
+      const formData = new FormData();
+      const audioBlob = new Blob([audioFile], { type: 'audio/wav' });
+      formData.append('file', audioBlob, 'audio.wav');
+      formData.append('model', 'whisper-large-v3');
+      formData.append('language', language);
+      formData.append('response_format', 'verbose_json');
+
+      const response = await fetch(`${this.groqBaseUrl}/audio/transcriptions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.groqApiKey}`,
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Groq API error: ${response.status}`);
+      }
+
+      const transcriptionData = await response.json();
+      
+      return {
+        text: transcriptionData.text || '',
+        confidence: 0.95, // Groq typically has high confidence
+        language: transcriptionData.language || language,
+        segments: transcriptionData.segments?.map((seg: any) => ({
+          startTime: seg.start,
+          endTime: seg.end,
+          text: seg.text,
+          confidence: seg.confidence || 0.9
+        })) || [],
+        metadata: {
+          duration: transcriptionData.duration || 0,
+          speakerCount: 1, // Basic implementation
+          backgroundNoise: false
+        }
+      };
+    } catch (error) {
+      console.error('Groq transcription failed:', error);
       return this.getFallbackTranscription();
     }
 

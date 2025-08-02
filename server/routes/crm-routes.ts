@@ -3,6 +3,7 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { groqAIEngine } from "../services/groq-ai-engine";
+import { xaiGrokEngine } from "../services/xai-grok-engine";
 import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
 import { representatives } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
@@ -128,7 +129,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       let aiRecommendations = null;
       
       try {
-        culturalProfile = await groqAIEngine.analyzeCulturalProfile(rep);
+        culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(rep);
         
         // Generate AI recommendations based on profile
         aiRecommendations = {
@@ -661,7 +662,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       }
 
       // Get cultural analysis from xAI Grok
-      const culturalProfile = await groqAIEngine.analyzeCulturalProfile(representative);
+      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative);
       
       res.json({
         representative,
@@ -1184,8 +1185,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       
       const updatedConfig = await storage.updateAiConfiguration(configName, {
         ...configUpdates,
-        lastModifiedBy: username,
-        updatedAt: new Date()
+        lastModifiedBy: username
       });
       
       res.json({
@@ -1288,24 +1288,17 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
         if (config.aiEnabled) {
           testResults.aiEngine = 'فعال';
           
-          // Test Groq connection if configured
-          if (config.groqModelVariant) {
-            const testPrompt = "سلام، این یک تست ساده است.";
+          // Test XAI Grok connection for main AI tasks
+          if (config.aiEnabled) {
+            const testPrompt = "سلام، این یک تست ساده برای دستیار هوشمند فارسی است.";
             
-            // Update Groq engine configuration
-            groqAIEngine.updateConfig({
-              model: config.groqModelVariant || 'llama-3.1-8b-instant',
-              temperature: parseFloat(config.temperature) || 0.7,
-              maxTokens: config.maxTokens || 100
-            });
-            
-            const response = await groqAIEngine.processMessage(testPrompt, {
+            const response = await xaiGrokEngine.generateCulturalResponse(testPrompt, {
               temperature: parseFloat(config.temperature) || 0.7,
               maxTokens: config.maxTokens || 100
             });
             
             if (response) {
-              testResults.groqConnection = 'متصل';
+              testResults.groqConnection = 'XAI Grok متصل';
               testResults.persianSupport = 'فعال';
               testResults.performance = 'بهینه';
             }
@@ -1592,7 +1585,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
       }
       
-      const culturalProfile = await groqAIEngine.analyzeCulturalProfile(representative[0]);
+      const culturalProfile = await xaiGrokEngine.analyzeCulturalProfile(representative[0]);
       
       res.json({
         success: true,
