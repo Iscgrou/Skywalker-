@@ -5,7 +5,6 @@ import {
   Users, 
   FileText, 
   Handshake, 
-  ChartBar, 
   Settings, 
   Shield,
   LogOut,
@@ -22,7 +21,6 @@ const navigation = [
   { name: "فاکتورها", href: "/invoices", icon: FileText },
   { name: "مدیریت فاکتورها", href: "/invoice-management", icon: Edit },
   { name: "همکاران فروش", href: "/sales-partners", icon: Handshake },
-  { name: "گزارشات", href: "/reports", icon: ChartBar },
   { name: "تنظیمات", href: "/settings", icon: Settings },
 ];
 

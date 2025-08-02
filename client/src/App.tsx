@@ -18,7 +18,7 @@ import InvoiceManagement from "@/pages/InvoiceManagement";
 import Representatives from "@/pages/representatives";
 import SalesPartners from "@/pages/sales-partners";
 
-import Reports from "@/pages/reports";
+
 import Settings from "@/pages/settings";
 import PublicPortal from "@/pages/public-portal";
 import AdminLogin from "@/pages/admin-login";
@@ -171,7 +171,6 @@ function AuthenticatedRouter() {
         <Route path="/invoices" component={Invoices} />
         <Route path="/invoice-management" component={InvoiceManagement} />
         <Route path="/sales-partners" component={SalesPartners} />
-        <Route path="/reports" component={Reports} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
