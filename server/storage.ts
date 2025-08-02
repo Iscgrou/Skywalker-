@@ -1893,10 +1893,17 @@ export class DatabaseStorage implements IStorage {
   async updateAiConfiguration(configName: string, config: Partial<AiConfiguration>): Promise<AiConfiguration> {
     return await withDatabaseRetry(
       async () => {
+        // Create clean object without timestamp fields that cause issues
+        const cleanConfig = Object.fromEntries(
+          Object.entries(config).filter(([key]) => 
+            !['createdAt', 'updatedAt', 'id'].includes(key)
+          )
+        );
+        
         const [updatedConfig] = await db
           .update(aiConfiguration)
           .set({
-            ...config,
+            ...cleanConfig,
             updatedAt: sql`NOW()`,
             configVersion: sql`${aiConfiguration.configVersion} + 1`
           })
