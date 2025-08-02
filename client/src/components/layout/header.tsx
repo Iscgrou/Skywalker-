@@ -46,25 +46,25 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <div className="px-4 lg:px-6 py-4">
+    <header className="admin-glass-card mx-4 lg:mx-6 mt-4 mb-6">
+      <div className="px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 space-x-reverse">
             {/* Mobile menu button */}
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden"
+              className="lg:hidden text-white hover:bg-white/10"
               onClick={onMenuClick}
             >
               <Menu className="w-5 h-5" />
             </Button>
             
             <div>
-              <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl lg:text-2xl font-bold text-white">
                 داشبورد مدیریت مالی
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 hidden sm:block">
+              <p className="text-sm text-blue-200 mt-1 hidden sm:block">
                 مدیریت فاکتورها، پرداخت‌ها و نمایندگان
               </p>
             </div>
@@ -72,14 +72,18 @@ export default function Header({ onMenuClick }: HeaderProps) {
           
           <div className="flex items-center space-x-2 lg:space-x-4 space-x-reverse">
             {/* Current Time */}
-            <div className="text-sm text-gray-500 dark:text-gray-400 ltr hidden md:block">
+            <div className="text-sm text-blue-200 ltr hidden md:block bg-black/20 px-3 py-1 rounded-lg backdrop-blur-sm">
               {currentTime.toLocaleTimeString('fa-IR')}
             </div>
             
             {/* Telegram Integration Status */}
             <Badge 
               variant={isTelegramConnected ? "default" : "destructive"}
-              className="telegram-connected hidden sm:flex"
+              className={`telegram-connected hidden sm:flex backdrop-blur-sm ${
+                isTelegramConnected 
+                  ? "bg-green-500/20 text-green-300 border-green-500/30" 
+                  : "bg-red-500/20 text-red-300 border-red-500/30"
+              }`}
             >
               <Send className="w-3 h-3 mr-1 lg:w-4 lg:h-4 lg:mr-2" />
               <span className="hidden lg:inline">
@@ -94,7 +98,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Button 
               variant="outline"
               size="sm"
-              className="bg-accent hover:bg-accent/90 text-white border-accent"
+              className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 text-white border-purple-500/30 backdrop-blur-sm"
               onClick={() => window.location.href = '/ai-assistant'}
             >
               <Bot className="w-4 h-4 mr-2" />
@@ -105,7 +109,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Button 
               variant="outline"
               size="sm"
-              className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-700 dark:hover:text-red-400"
+              className="bg-red-500/20 hover:bg-red-500/30 text-red-300 border-red-500/30 hover:text-white backdrop-blur-sm transition-all duration-200"
               onClick={handleLogout}
             >
               <LogOut className="w-4 h-4 mr-2" />

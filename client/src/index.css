@@ -100,24 +100,220 @@
     @apply bg-background text-foreground font-sans antialiased;
     direction: rtl;
     font-family: 'Inter', 'Tahoma', 'Arial', sans-serif;
-    background: linear-gradient(135deg, hsl(260, 25%, 8%) 0%, hsl(270, 20%, 12%) 30%, hsl(280, 15%, 15%) 70%, hsl(265, 25%, 10%) 100%);
     min-height: 100vh;
     position: relative;
   }
 
-  body::before {
+  /* Main Admin/Management Panel Background - Similar to CRM */
+  .admin-panel-background {
+    background: linear-gradient(135deg, 
+      hsl(220, 30%, 8%) 0%, 
+      hsl(235, 25%, 10%) 25%, 
+      hsl(250, 20%, 12%) 50%, 
+      hsl(265, 25%, 10%) 75%, 
+      hsl(280, 30%, 8%) 100%
+    );
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .admin-panel-background::before {
     content: '';
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
     background: 
-      radial-gradient(circle at 20% 80%, rgba(166, 139, 201, 0.005) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(139, 201, 166, 0.003) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(201, 166, 139, 0.003) 0%, transparent 50%);
+      radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(147, 51, 234, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.04) 0%, transparent 50%);
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
+  }
+
+  /* Unified Login Background */
+  .clay-background {
+    background: linear-gradient(135deg, 
+      hsl(220, 30%, 8%) 0%, 
+      hsl(235, 25%, 10%) 25%, 
+      hsl(250, 20%, 12%) 50%, 
+      hsl(265, 25%, 10%) 75%, 
+      hsl(280, 30%, 8%) 100%
+    );
+    position: relative;
+  }
+
+  /* Glassmorphism Cards for Admin Panel */
+  .admin-glass-card {
+    background: rgba(30, 41, 59, 0.25);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+  }
+
+  .admin-glass-card:hover {
+    background: rgba(30, 41, 59, 0.35);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
+
+  /* Sidebar Glassmorphism */
+  .admin-sidebar {
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(148, 163, 184, 0.1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Navigation Items */
+  .admin-nav-item {
+    background: rgba(30, 41, 59, 0.3);
+    border: 1px solid rgba(148, 163, 184, 0.05);
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+  }
+
+  .admin-nav-item:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    transform: translateX(-4px);
+  }
+
+  .admin-nav-item.active {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(147, 51, 234, 0.3));
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+  }
+
+  /* Stat Cards with Gradients */
+  .stat-card {
+    background: rgba(30, 41, 59, 0.25);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover {
+    background: rgba(30, 41, 59, 0.35);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+  }
+
+  /* AI Chat Component Styling */
+  .ai-assistant-card {
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.1) 0%, 
+      rgba(147, 51, 234, 0.1) 100%
+    );
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(147, 51, 234, 0.2);
+    box-shadow: 0 8px 32px rgba(147, 51, 234, 0.1);
+  }
+
+  /* Enhanced Glassmorphism for Form Elements */
+  .admin-input {
+    background: rgba(30, 41, 59, 0.3);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: white;
+    transition: all 0.3s ease;
+  }
+
+  .admin-input:focus {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .admin-input::placeholder {
+    color: rgba(203, 213, 225, 0.6);
+  }
+
+  /* Button Enhancements */
+  .admin-button-primary {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.8));
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+    transition: all 0.3s ease;
+  }
+
+  .admin-button-primary:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(147, 51, 234, 0.9));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+  }
+
+  /* Enhanced Table Styling */
+  .admin-table {
+    background: rgba(30, 41, 59, 0.2);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .admin-table-row {
+    background: rgba(30, 41, 59, 0.1);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+    transition: all 0.2s ease;
+  }
+
+  .admin-table-row:hover {
+    background: rgba(30, 41, 59, 0.3);
+    transform: scale(1.001);
+  }
+
+  /* Modal and Dialog Enhancements */
+  .admin-modal {
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Notification and Toast Styling */
+  .admin-toast {
+    background: rgba(30, 41, 59, 0.9);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: white;
+  }
+
+  /* Loading Spinner */
+  .admin-spinner {
+    background: conic-gradient(transparent, rgba(59, 130, 246, 0.8));
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Scroll Bar Styling */
+  .admin-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.2);
+    border-radius: 4px;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.3);
+    border-radius: 4px;
+  }
+
+  .admin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.5);
   }
 
   /* Claymorphism Utility Classes */

@@ -51,76 +51,78 @@ export default function Sidebar({ isOpen = true, onToggle }: SidebarProps) {
       
       {/* Sidebar */}
       <div className={cn(
-        "sidebar-nav fixed right-0 top-0 h-screen z-50 transform transition-transform duration-300 ease-in-out",
+        "admin-sidebar fixed right-0 top-0 h-screen z-50 w-80 transform transition-all duration-300 ease-in-out",
         "lg:translate-x-0",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
-      {/* Logo Section */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 space-x-reverse">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
+        {/* Logo Section */}
+        <div className="p-6 border-b border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white mb-1">MarFaNet</h1>
+                <p className="text-sm text-blue-200">سیستم مدیریت مالی</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">MarFaNet</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">سیستم مدیریت مالی</p>
-            </div>
-          </div>
-          
-          {/* Close button for mobile */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden"
-            onClick={onToggle}
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Navigation Menu */}
-      <nav className="mt-6 px-3 flex-1">
-        <div className="space-y-1">
-          {navigation.map((item) => {
-            const isActive = location === item.href || 
-                           (item.href === "/dashboard" && location === "/");
             
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                  isActive
-                    ? "text-primary bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                )}
-              >
-                <item.icon className="ml-3 w-5 h-5" />
-                {item.name}
-              </Link>
-            );
-          })}
+            {/* Close button for mobile */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="lg:hidden text-white hover:bg-white/10"
+              onClick={onToggle}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
-      </nav>
 
-      {/* User Profile Section */}
-      <div className="absolute bottom-0 right-0 left-0 p-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3 space-x-reverse">
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-            <Users className="w-4 h-4 text-white" />
+        {/* Navigation Menu */}
+        <nav className="mt-6 px-4 flex-1">
+          <div className="space-y-2">
+            {navigation.map((item) => {
+              const isActive = location === item.href || 
+                             (item.href === "/dashboard" && location === "/");
+              
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "admin-nav-item flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300",
+                    isActive
+                      ? "active text-white"
+                      : "text-blue-100 hover:text-white"
+                  )}
+                >
+                  <item.icon className="ml-3 w-5 h-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">حسابدار اصلی</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">admin@marfanet.com</p>
+        </nav>
+
+        {/* User Profile Section */}
+        <div className="absolute bottom-0 right-0 left-0 p-4 border-t border-white/10">
+          <div className="admin-glass-card p-4">
+            <div className="flex items-center space-x-3 space-x-reverse">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">حسابدار اصلی</p>
+                <p className="text-xs text-blue-200">admin@marfanet.com</p>
+              </div>
+              <button className="text-blue-200 hover:text-white transition-colors duration-200">
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-            <LogOut className="w-4 h-4" />
-          </button>
         </div>
-      </div>
     </div>
     </>
   );

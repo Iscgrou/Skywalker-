@@ -90,9 +90,9 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="admin-panel-background">
       <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
-      <div className="main-content lg:mr-64 mr-0">
+      <div className="main-content lg:mr-80 mr-0 relative z-10">
         <Header onMenuClick={toggleSidebar} />
         <main className="p-4 lg:p-6">
           {children}
