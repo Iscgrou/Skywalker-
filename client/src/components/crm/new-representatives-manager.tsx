@@ -81,12 +81,22 @@ export default function NewRepresentativesManager() {
 
   // Fetch representatives with pagination
   const { data: repsData, isLoading: repsLoading, error: repsError } = useQuery({
-    queryKey: ['/api/crm/representatives', { 
-      page: currentPage, 
-      search: searchTerm, 
-      status: statusFilter,
-      sortBy 
-    }],
+    queryKey: ['/api/crm/representatives', currentPage, searchTerm, statusFilter, sortBy],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '9',
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(sortBy && { sortBy })
+      });
+      return fetch(`/api/crm/representatives?${params}`, {
+        credentials: 'include'
+      }).then(res => {
+        if (!res.ok) throw new Error('خطا در دریافت اطلاعات نمایندگان');
+        return res.json();
+      });
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: false, // Disable auto-refresh to prevent constant re-renders
   });
