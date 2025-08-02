@@ -63,16 +63,15 @@ export default function EnhancedAIHelper() {
     initialData: { success: true, data: { cultural_understanding: 94, language_adaptation: 89, processing_time: '156ms', model_confidence: 91 } }
   });
 
-  // Recent Tasks Query - Fix: Stable data loading
-  const { data: recentTasks } = useQuery<{success: boolean, data: any[]}>({
-    queryKey: ['/api/crm/helper/recent-tasks'],
-    staleTime: 60000, // Keep data fresh for 1 minute
-    initialData: { success: true, data: [
+  // Static tasks data - No API call needed
+  const recentTasks = { 
+    success: true, 
+    data: [
       { id: 1, title: 'بررسی نماینده جدید', priority: 'high', status: 'pending' },
       { id: 2, title: 'تحلیل عملکرد ماه', priority: 'medium', status: 'in_progress' },
       { id: 3, title: 'پیگیری بدهی‌ها', priority: 'high', status: 'completed' }
-    ] }
-  });
+    ] 
+  };
 
   // Chat Mutation
   const chatMutation = useMutation({

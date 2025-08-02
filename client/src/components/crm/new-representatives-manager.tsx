@@ -276,7 +276,7 @@ export default function NewRepresentativesManager() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 bg-black/30">
+        <TabsList className="grid w-full grid-cols-2 bg-black/30">
           <TabsTrigger value="overview" className="data-[state=active]:bg-white/20">
             <BarChart3 className="w-4 h-4 ml-2" />
             نمای کلی
@@ -284,10 +284,6 @@ export default function NewRepresentativesManager() {
           <TabsTrigger value="grid" className="data-[state=active]:bg-white/20">
             <Users className="w-4 h-4 ml-2" />
             فهرست نمایندگان
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="data-[state=active]:bg-white/20">
-            <Activity className="w-4 h-4 ml-2" />
-            تحلیل عملکرد
           </TabsTrigger>
         </TabsList>
 
@@ -539,45 +535,7 @@ export default function NewRepresentativesManager() {
           )}
         </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-4">
-          <Card className="bg-black/20 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white">تحلیل جامع عملکرد</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-white font-semibold mb-3">نمودار عملکرد</h4>
-                  <div className="h-32 bg-white/5 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-400">نمودار در حال توسعه...</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-white font-semibold mb-3">آمار کلیدی</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">میانگین فروش:</span>
-                      <span className="text-white">
-                        {formatCurrency((stats?.totalSales || 0) / (stats?.totalCount || 1))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">میانگین بدهی:</span>
-                      <span className="text-white">
-                        {formatCurrency((stats?.totalDebt || 0) / (stats?.totalCount || 1))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-300">نرخ فعالیت:</span>
-                      <span className="text-white">{stats?.avgPerformance || 0}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
       </Tabs>
 
       {/* Modals */}
