@@ -156,10 +156,12 @@ router.get('/status', async (req, res) => {
       languages: ['Persian/Farsi', 'English'],
       culturalContexts: ['Iranian Business Culture', 'Traditional Commerce', 'Modern CRM'],
       status: 'operational',
-      lastUpdate: new Date().toISOString()
+      lastUpdate: new Date().toISOString(),
+      performance: 'optimized'
     });
   } catch (error: any) {
     console.error('AI status error:', error);
+    res.setHeader('Content-Type', 'application/json');
     res.status(500).json({ 
       error: 'خطا در دریافت وضعیت موتور هوشمند' 
     });

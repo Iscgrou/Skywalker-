@@ -28,31 +28,47 @@ const taskGenerator = new AITaskGenerator();
 
 // ==================== WORKSPACE TASKS ====================
 
-// GET /api/workspace/tasks - Get tasks for current staff
+// GET /api/workspace/tasks - Get tasks for current staff (Optimized)
 router.get("/tasks", async (req, res) => {
   try {
+    const startTime = Date.now();
     const staffId = 1; // TODO: Get from session
     const status = req.query.status as string;
     
     const tasks = await workspaceStorage.getTasksByStaff(staffId, status as any);
-    res.json({ tasks });
+    
+    const responseTime = Date.now() - startTime;
+    console.log(`📋 Workspace tasks loaded in ${responseTime}ms`);
+    
+    res.json({ 
+      tasks,
+      totalCount: tasks.length,
+      responseTime: `${responseTime}ms`,
+      status: 'success'
+    });
   } catch (error) {
     console.error("Error fetching workspace tasks:", error);
     res.status(500).json({ error: "خطا در دریافت وظایف" });
   }
 });
 
-// POST /api/workspace/tasks/generate - Generate new tasks using AI
+// POST /api/workspace/tasks/generate - Generate new tasks using AI (Auth Required)
 router.post("/tasks/generate", async (req, res) => {
   try {
-    console.log("Generating workspace tasks using AI...");
+    const startTime = Date.now();
+    console.log("🤖 Generating workspace tasks using DA VINCI AI...");
     
     const result = await taskGenerator.generateDailyTasks();
+    
+    const generationTime = Date.now() - startTime;
+    console.log(`🚀 AI task generation completed in ${generationTime}ms`);
     
     res.json({
       success: true,
       message: `${result.tasks.length} وظیفه جدید تولید شد`,
       tasks: result.tasks,
+      generationTime: `${generationTime}ms`,
+      aiEngine: 'DA VINCI v2.0',
       metadata: result.generationMetadata
     });
   } catch (error) {

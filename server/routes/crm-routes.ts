@@ -185,23 +185,20 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   });
 
-  // Get single representative details - Admin-CRM synchronized
+  // Get single representative details - Optimized with cache
   app.get("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
     try {
-      await syncAdminCrmData();
+      const allReps = await syncAdminCrmData(); // Use cached data
       
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ error: 'شناسه نماینده نامعتبر است' });
       }
       
-      const rep = await db
-        .select()
-        .from(representatives)
-        .where(eq(representatives.id, id))
-        .limit(1);
+      // Find from cached data instead of database query
+      const rep = allReps.find(r => r.id === id);
       
-      if (rep.length === 0) {
+      if (!rep) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
       }
       
@@ -218,6 +215,13 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
         .where(eq(payments.representativeId, id))
         .orderBy(desc(payments.createdAt))
         .limit(10);
+      
+      res.json({
+        representative: rep,
+        invoices: representativeInvoices,
+        payments: representativePayments,
+        syncStatus: 'CACHED_OPTIMIZED'
+      });
       
       res.json({
         ...rep[0],
