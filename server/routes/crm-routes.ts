@@ -842,35 +842,87 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // Get representative statistics
+  // Get representative statistics - FIXED COMPREHENSIVE IMPLEMENTATION
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
+      console.log('🔍 Calculating CRM representative statistics...');
+      
+      // Get all data from database
       const allReps = await db.select().from(representatives);
+      const allInvoices = await db.select().from(invoices);
+      const allPayments = await db.select().from(payments);
+      
+      console.log(`📊 Found ${allReps.length} representatives, ${allInvoices.length} invoices, ${allPayments.length} payments`);
+      
+      // Calculate real financial metrics from invoices and payments
+      let totalRealDebt = 0;
+      let totalRealSales = 0;
+      let totalRealPayments = 0;
+      
+      const repsWithRealFinancials = allReps.map(rep => {
+        const repInvoices = allInvoices.filter(inv => inv.representativeId === rep.id);
+        const repPayments = allPayments.filter(pay => pay.representativeId === rep.id);
+        
+        const repSales = repInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalAmount?.toString() || '0')), 0);
+        const repPaid = repPayments.reduce((sum, pay) => sum + (parseFloat(pay.amount?.toString() || '0')), 0);
+        const repDebt = repSales - repPaid;
+        
+        totalRealSales += repSales;
+        totalRealPayments += repPaid;
+        totalRealDebt += repDebt;
+        
+        return {
+          ...rep,
+          realSales: repSales,
+          realDebt: repDebt,
+          realPayments: repPaid
+        };
+      });
       
       const stats = {
-        totalCount: allReps.length,
-        activeCount: allReps.filter(rep => rep.isActive).length,
-        inactiveCount: allReps.filter(rep => !rep.isActive).length,
-        totalSales: allReps.reduce((sum, rep) => sum + parseFloat(rep.totalSales || '0'), 0),
-        totalDebt: allReps.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || '0'), 0),
-        totalCredit: allReps.reduce((sum, rep) => sum + parseFloat(rep.credit || '0'), 0),
-        topPerformers: allReps
-          .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
-          .slice(0, 5),
-        riskAlerts: allReps.filter(rep => parseFloat(rep.totalDebt || '0') > 5000000).length,
+        totalRepresentatives: allReps.length,
+        activeRepresentatives: allReps.filter(rep => rep.isActive).length,
+        inactiveRepresentatives: allReps.filter(rep => !rep.isActive).length,
+        // Real financial data from actual transactions
+        totalDebt: totalRealDebt,
+        totalSales: totalRealSales,
+        totalPayments: totalRealPayments,
+        averageDebt: allReps.length > 0 ? totalRealDebt / allReps.length : 0,
+        topPerformers: repsWithRealFinancials
+          .sort((a, b) => b.realSales - a.realSales)
+          .slice(0, 5)
+          .map(rep => ({
+            id: rep.id,
+            name: rep.name,
+            code: rep.code,
+            sales: rep.realSales,
+            debt: rep.realDebt
+          })),
+        riskAlerts: repsWithRealFinancials.filter(rep => rep.realDebt > 5000000).length,
         performanceMetrics: {
-          excellentPerformers: allReps.filter(rep => parseFloat(rep.totalSales || '0') > 10000000).length,
-          goodPerformers: allReps.filter(rep => {
-            const sales = parseFloat(rep.totalSales || '0');
+          excellentPerformers: repsWithRealFinancials.filter(rep => rep.realSales > 10000000).length,
+          goodPerformers: repsWithRealFinancials.filter(rep => {
+            const sales = rep.realSales;
             return sales >= 5000000 && sales <= 10000000;
           }).length,
-          needsImprovement: allReps.filter(rep => parseFloat(rep.totalSales || '0') < 5000000).length
-        }
+          needsImprovement: repsWithRealFinancials.filter(rep => rep.realSales < 5000000).length
+        },
+        riskList: repsWithRealFinancials
+          .filter(rep => rep.realDebt > 5000000)
+          .map(rep => ({
+            id: rep.id,
+            name: rep.name,
+            code: rep.code,
+            debt: rep.realDebt,
+            riskLevel: rep.realDebt > 10000000 ? 'خطرناک' : 'بالا'
+          }))
       };
       
+      console.log('✅ Statistics calculated successfully');
       res.json({
         success: true,
         data: stats,
+        message: 'آمار نمایندگان با داده‌های واقعی محاسبه شد',
         timestamp: new Date().toISOString()
       });
     } catch (error) {
@@ -905,7 +957,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
         performanceMetrics: {
           debtRatio: (parseFloat(repData.totalDebt || "0") / parseFloat(repData.totalSales || "1")) * 100,
           activityLevel: repData.isActive ? 'HIGH' : 'LOW',
-          riskLevel: parseFloat(representative.totalDebt || "0") > 50000 ? 'HIGH' : 'MEDIUM'
+          riskLevel: parseFloat(repData.totalDebt || "0") > 50000 ? 'HIGH' : 'MEDIUM'
         }
       });
     } catch (error) {
@@ -2226,9 +2278,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     try {
       const { representativeId } = req.body;
       
-      if (!representativeId) {
-        return res.status(400).json({ error: 'شناسه نماینده الزامی است' });
-      }
+      // Remove this check since statistics should work for all representatives
       
       const instructions = await adaptiveLearningService.generateDailyInstructions();
       

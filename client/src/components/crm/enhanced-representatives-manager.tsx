@@ -17,6 +17,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import RepresentativeDetailsModal from './representative-details-modal';
 import RepresentativeEditModal from './representative-edit-modal';
+import RepresentativeCreateModal from './representative-create-modal';
 
 // Persian Currency Formatter
 const CurrencyFormatter = new Intl.NumberFormat('fa-IR', {
@@ -70,6 +71,8 @@ export default function EnhancedRepresentativesManager() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingRep, setEditingRep] = useState<Representative | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const repsPerPage = 9;
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -109,12 +112,36 @@ export default function EnhancedRepresentativesManager() {
     }
   };
 
-  const handleContactRepresentative = (repId: number) => {
-    // Open contact/communication modal
-    const rep = processedReps.find(r => r.id === repId);
-    if (rep?.phone) {
-      // Open phone dialer or SMS
-      window.open(`tel:${rep.phone}`, '_blank');
+  // REAL FUNCTIONAL HANDLERS - SHERLOCK v3.0 ARCHITECTURE
+  const handleViewRep = (rep: Representative) => {
+    console.log('Viewing representative:', rep);
+    setSelectedRep(rep);
+    setShowDetailsModal(true);
+  };
+
+  const handleEditRep = (rep: Representative) => {
+    console.log('Editing representative:', rep);
+    setEditingRep(rep);
+    setShowEditModal(true);
+  };
+
+  const handleCallRep = (rep: Representative) => {
+    console.log('Calling representative:', rep);
+    if (rep.phone) {
+      const shouldCall = window.confirm(`آیا می‌خواهید با ${rep.name} (${rep.phone}) تماس بگیرید؟`);
+      if (shouldCall) {
+        window.open(`tel:${rep.phone}`, '_self');
+        toast({
+          title: "تماس برقرار شد",
+          description: `تماس با ${rep.name} برقرار شد`
+        });
+      }
+    } else {
+      toast({
+        title: "خطا",
+        description: "شماره تماس برای این نماینده ثبت نشده",
+        variant: "destructive"
+      });
     }
   };
 
@@ -185,8 +212,12 @@ export default function EnhancedRepresentativesManager() {
     refetchInterval: 60000, // Auto-refresh every minute
   });
 
-  // Calculate filtered and sorted representatives
-  const processedReps = React.useMemo(() => {
+  // PAGINATION IMPLEMENTATION - SHERLOCK v3.0 ARCHITECTURE
+  const repsPerPage = 12; // Representatives per page
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Calculate filtered and sorted representatives with PAGINATION
+  const allProcessedReps = React.useMemo(() => {
     if (!representatives || !Array.isArray(representatives)) return [];
     
     let filtered = representatives.filter((rep: Representative) => {
@@ -217,6 +248,17 @@ export default function EnhancedRepresentativesManager() {
 
     return filtered;
   }, [representatives, searchTerm, filterStatus, sortBy]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(allProcessedReps.length / repsPerPage);
+  const startIndex = (currentPage - 1) * repsPerPage;
+  const endIndex = startIndex + repsPerPage;
+  const processedReps = allProcessedReps.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
 
   // Loading states
   if (repsLoading) {
@@ -388,6 +430,15 @@ export default function EnhancedRepresentativesManager() {
           <TabsTrigger value="grid" className="data-[state=active]:bg-white/20">
             <Users className="w-4 h-4 ml-2" />
             فهرست نمایندگان
+            <Button
+              size="sm"
+              variant="outline"
+              className="mr-auto bg-green-600 hover:bg-green-700 border-green-500"
+              onClick={() => setShowAddModal(true)}
+            >
+              <Plus className="w-3 h-3 ml-1" />
+              افزودن
+            </Button>
           </TabsTrigger>
           <TabsTrigger value="analytics" className="data-[state=active]:bg-white/20">
             <Target className="w-4 h-4 ml-2" />
@@ -412,7 +463,7 @@ export default function EnhancedRepresentativesManager() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {processedReps.slice(0, 5).map((rep: Representative, index: number) => (
+                  {allProcessedReps.slice(0, 5).map((rep: Representative, index: number) => (
                     <div key={rep.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-black font-bold">
@@ -550,7 +601,7 @@ export default function EnhancedRepresentativesManager() {
                         size="sm" 
                         variant="outline" 
                         className="flex-1 border-white/20 hover:border-white/40"
-                        onClick={() => handleViewRepresentative(rep.id)}
+                        onClick={() => handleViewRep(rep)}
                       >
                         <Eye className="w-4 h-4 ml-1" />
                         جزئیات
@@ -559,7 +610,7 @@ export default function EnhancedRepresentativesManager() {
                         size="sm" 
                         variant="outline" 
                         className="flex-1 border-white/20 hover:border-white/40"
-                        onClick={() => handleEditRepresentative(rep.id)}
+                        onClick={() => handleEditRep(rep)}
                       >
                         <Edit2 className="w-4 h-4 ml-1" />
                         ویرایش
@@ -568,9 +619,9 @@ export default function EnhancedRepresentativesManager() {
                         size="sm" 
                         variant="outline" 
                         className="border-white/20 hover:border-white/40"
-                        onClick={() => handleContactRepresentative(rep.id)}
+                        onClick={() => handleCallRep(rep)}
                       >
-                        <MessageSquare className="w-4 h-4" />
+                        <Phone className="w-4 h-4" />
                       </Button>
                     </div>
                   </CardContent>
@@ -578,6 +629,53 @@ export default function EnhancedRepresentativesManager() {
               ))}
             </div>
           )}
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-2 rtl:space-x-reverse mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                قبلی
+              </Button>
+              
+              <div className="flex space-x-1 rtl:space-x-reverse">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={currentPage === pageNum 
+                      ? "bg-purple-600 hover:bg-purple-700" 
+                      : "border-white/20 text-white hover:bg-white/10"
+                    }
+                  >
+                    {pageNum}
+                  </Button>
+                ))}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="border-white/20 text-white hover:bg-white/10"
+              >
+                بعدی
+              </Button>
+            </div>
+          )}
+          
+          {/* Page Information */}
+          <div className="text-center text-gray-400 text-sm mt-4">
+            صفحه {currentPage} از {totalPages} • {allProcessedReps.length} نماینده
+          </div>
         </TabsContent>
 
         {/* Analytics Tab */}
@@ -660,6 +758,13 @@ export default function EnhancedRepresentativesManager() {
       </Tabs>
 
       {/* Modals */}
+      <RepresentativeCreateModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={(data) => createRepresentativeMutation.mutate(data)}
+        isLoading={createRepresentativeMutation.isPending}
+      />
+
       <RepresentativeDetailsModal
         representative={selectedRep}
         isOpen={showDetailsModal}
