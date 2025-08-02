@@ -1066,6 +1066,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
       const invoiceId = parseInt(req.params.id);
+      if (isNaN(invoiceId)) {
+        return res.status(400).json({ error: "شناسه فاکتور نامعتبر است" });
+      }
       const invoice = await storage.getInvoice(invoiceId);
       
       if (!invoice) {
@@ -1100,15 +1103,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const repMap = new Map(representatives.map(rep => [rep.id, rep]));
       const batchMap = new Map(batches.map(batch => [batch.id, batch]));
       
-      // Enhance invoices with additional info
+      // Enhance invoices with additional info - removed problematic getInvoice call
       const enhancedInvoices = invoices.map(invoice => {
         const rep = repMap.get(invoice.representativeId);
         const batch = invoice.batchId ? batchMap.get(invoice.batchId) : null;
         
         return {
           ...invoice,
-          representativeName: rep?.name,
-          representativeCode: rep?.code,
+          representativeName: rep?.name || 'نامشخص',
+          representativeCode: rep?.code || 'نامشخص',
           batch: batch ? {
             id: batch.id,
             batchName: batch.batchName,

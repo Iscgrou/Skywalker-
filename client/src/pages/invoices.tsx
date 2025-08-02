@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   FileText, 
@@ -82,7 +82,7 @@ export default function Invoices() {
   const queryClient = useQueryClient();
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
-    queryKey: ["/api/invoices"]
+    queryKey: ["/api/invoices/with-batch-info"]
   });
 
   const { data: representatives } = useQuery({
@@ -102,7 +102,7 @@ export default function Invoices() {
         title: "ارسال به تلگرام",
         description: `${toPersianDigits(data.success.toString())} فاکتور با موفقیت ارسال شد`,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/invoices/with-batch-info'] });
       setSelectedInvoices([]);
       setIsSendDialogOpen(false);
     },
@@ -138,10 +138,10 @@ export default function Invoices() {
   const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
 
   // Reset to first page when filters change
-  const resetToFirstPage = () => {
+  useEffect(() => {
     setCurrentPage(1);
     setSelectedInvoices([]);
-  };
+  }, [searchTerm, statusFilter, telegramFilter]);
 
   const handleSelectAll = () => {
     const currentPageInvoiceIds = paginatedInvoices.map(inv => inv.id);
@@ -473,7 +473,7 @@ export default function Invoices() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoices.map((invoice) => (
+              {paginatedInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell>
                     <Checkbox
@@ -578,6 +578,75 @@ export default function Invoices() {
               ))}
             </TableBody>
           </Table>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6 pt-4 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronRight className="w-4 h-4" />
+                قبلی
+              </Button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page;
+                  if (totalPages <= 5) {
+                    page = i + 1;
+                  } else if (currentPage <= 3) {
+                    page = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    page = totalPages - 4 + i;
+                  } else {
+                    page = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {toPersianDigits(page.toString())}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                بعدی
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
