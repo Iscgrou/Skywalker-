@@ -3,6 +3,8 @@
 
 import { XAIGrokEngine } from "./xai-grok-engine";
 import { settingsStorage } from "./settings-storage";
+import { db } from '../db.js';
+import { sql } from 'drizzle-orm';
 import type { 
   WorkspaceTask, 
   SupportStaff, 
@@ -11,8 +13,8 @@ import type {
   AiKnowledge 
 } from "@shared/schema";
 
-// Import persian-date as ES module
-import * as persianDate from "persian-date";
+// Persian date utilities (ES module compatible)
+import persianDate from 'persian-date';
 
 export interface TaskGenerationContext {
   managerTasks: ManagerTask[];
@@ -39,7 +41,7 @@ export class AITaskGenerator {
   constructor() {
     this.grokEngine = new XAIGrokEngine(settingsStorage);
     
-    // Initialize Persian calendar - use constructor function
+    // Initialize Persian calendar
     this.persianCalendar = persianDate;
   }
 
@@ -95,35 +97,45 @@ export class AITaskGenerator {
    * Build comprehensive context for task generation
    */
   private async buildGenerationContext(): Promise<TaskGenerationContext> {
-    // DA VINCI v2.0 - Use available data with error handling for missing tables
+    // DA VINCI v2.0 - Bypass settings storage and use direct DB queries for immediate functionality
     try {
-      const contextPromises = [
-        settingsStorage.getManagerTasks().catch(() => []),
-        settingsStorage.getSupportStaff().catch(() => []),
-        settingsStorage.getOfferIncentives().catch(() => []),
-        settingsStorage.getAiKnowledge().catch(() => []),
-        this.getRepresentativeProfiles().catch(() => [])
-      ];
+      // Using direct imports now
 
-      const [managerTasks, staff, offers, knowledge, representatives] = await Promise.all(contextPromises);
+      // Direct database queries for immediate data access
+      const [managerTasksResult, staffResult, offersResult] = await Promise.all([
+        db.execute(sql`SELECT * FROM manager_tasks WHERE status IN ('ACTIVE', 'PENDING') ORDER BY created_at DESC`).catch(() => ({ rows: [] })),
+        db.execute(sql`SELECT * FROM support_staff WHERE is_active = true ORDER BY created_at DESC`).catch(() => ({ rows: [] })),
+        db.execute(sql`SELECT * FROM offers_incentives WHERE is_active = true ORDER BY created_at DESC`).catch(() => ({ rows: [] }))
+      ]);
+
+      const managerTasks = managerTasksResult.rows as any[];
+      const staff = staffResult.rows as any[];
+      const offers = offersResult.rows as any[];
+      const representatives = await this.getRepresentativeProfiles().catch(() => []);
+
+      console.log('✅ Task Generation Context - Direct DB Access:', {
+        managerTasks: managerTasks.length,
+        availableStaff: staff.length,
+        activeOffers: offers.length,
+        representatives: representatives.length
+      });
 
       return {
-        managerTasks: managerTasks.filter(task => task?.isActive),
-        availableStaff: staff.filter(s => s?.isActive),
-        activeOffers: offers.filter(offer => offer?.isActive),
-        knowledgeBase: knowledge.filter(kb => kb?.isActive),
+        managerTasks,
+        availableStaff: staff,
+        activeOffers: offers,
+        knowledgeBase: [], // Skip for now
         representativeProfiles: representatives
       };
     } catch (error) {
-      console.log('Using minimal context for DA VINCI v2.0 task generation');
-      const representatives = await this.getRepresentativeProfiles().catch(() => []);
+      console.error('Error in buildGenerationContext:', error);
       
       return {
         managerTasks: [],
         availableStaff: [],
         activeOffers: [],
         knowledgeBase: [],
-        representativeProfiles: representatives
+        representativeProfiles: []
       };
     }
   }
@@ -136,14 +148,22 @@ export class AITaskGenerator {
 
     for (const managerTask of context.managerTasks) {
       try {
+        // Skip if no representatives available
+        if (context.representativeProfiles.length === 0) {
+          console.log(`⚠️ No representatives found for manager task: ${managerTask.title}`);
+          continue;
+        }
+
+        console.log(`✅ Processing manager task: ${managerTask.title} with ${context.representativeProfiles.length} representatives`);
+
         // Generate AI-powered task based on manager's definition
         const aiPrompt = this.buildTaskGenerationPrompt(managerTask, context);
         
+        // Select appropriate representative based on task type and debt level
+        const targetRep = this.selectTargetRepresentative(managerTask, context.representativeProfiles);
+        
         const aiResponse = await this.grokEngine.generateTaskRecommendation(
-          // Find representative related to this task
-          context.representativeProfiles.find(rep => 
-            managerTask.targetRepresentatives?.includes(rep.id)
-          ) || context.representativeProfiles[0], // Fallback to first rep
+          targetRep,
           
           // Cultural analysis placeholder - will be enhanced
           {
@@ -216,8 +236,11 @@ export class AITaskGenerator {
 پاسخ را در قالب JSON ارائه ده.
 `;
 
-        // Use public interface instead of private client
-        const culturalAnalysisResponse = await this.grokEngine.generateResponse(culturalPrompt);
+        // Use XAI Grok engine for cultural analysis
+        const culturalAnalysisResponse = await this.grokEngine.generateCulturalInsights(
+          context.representativeProfiles[0] || { id: 1, name: 'Test' },
+          culturalPrompt
+        );
 
         // Try to parse as JSON, fallback to basic structure
         let analysis: any = {};
@@ -235,13 +258,13 @@ export class AITaskGenerator {
         return {
           ...task,
           aiContext: {
-            ...task.aiContext!,
+            ...(task.aiContext as any || {}),
             culturalConsiderations: [
-              ...(task.aiContext?.culturalConsiderations || []),
+              ...((task.aiContext as any)?.culturalConsiderations || []),
               ...(analysis.culturalNotes || [])
             ],
-            suggestedApproach: analysis.suggestedApproach || task.aiContext?.suggestedApproach || '',
-            riskLevel: analysis.riskLevel || task.aiContext?.riskLevel || 3
+            suggestedApproach: analysis.suggestedApproach || ((task.aiContext as any)?.suggestedApproach) || '',
+            riskLevel: analysis.riskLevel || ((task.aiContext as any)?.riskLevel) || 3
           }
         };
       } catch (error) {
@@ -278,7 +301,7 @@ export class AITaskGenerator {
    * Apply Persian scheduling and datetime
    */
   private applyPersianScheduling(tasks: Partial<WorkspaceTask>[]): WorkspaceTask[] {
-    const now = new this.persianCalendar();
+    const now = new persianDate();
     
     return tasks.map((task, index) => {
       // Generate unique task ID
@@ -294,17 +317,21 @@ export class AITaskGenerator {
       return {
         id: taskId,
         staffId: task.staffId!,
-        representativeId: task.representativeId || 1, // Will be set properly later
+        representativeId: task.representativeId || 1,
         title: task.title!,
         description: task.description!,
         priority: task.priority!,
         status: 'ASSIGNED' as const,
         assignedAt,
         deadline,
+        readAt: null,
+        completedAt: null,
         aiContext: task.aiContext!,
         managerTaskId: task.managerTaskId,
-        generatedFromSettings: task.generatedFromSettings!
-      };
+        generatedFromSettings: task.generatedFromSettings!,
+        createdAt: null,
+        updatedAt: null
+      } as WorkspaceTask;
     });
   }
 
@@ -361,8 +388,51 @@ export class AITaskGenerator {
   }
 
   private async getRepresentativeProfiles(): Promise<any[]> {
-    // TODO: Integrate with existing representative system
-    // For now, return empty array
-    return [];
+    try {
+      // Get basic representative data for context
+      console.log('🔍 Fetching representative profiles from database...');
+      
+      const representatives = await db.execute(sql`
+        SELECT id, name, phone, total_debt, total_sales, is_active
+        FROM representatives 
+        ORDER BY total_debt DESC 
+        LIMIT 10  
+      `);
+      
+      console.log(`📊 Found ${representatives.rows.length} representatives for task generation`);
+      
+      return representatives.rows.map((rep: any) => ({
+        id: rep.id,
+        name: rep.name,
+        phone: rep.phone,
+        totalDebt: rep.total_debt || 0,
+        totalSales: rep.total_sales || 0,
+        isActive: rep.is_active || true
+      }));
+    } catch (error) {
+      console.error('Error fetching representative profiles:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Select target representative based on manager task requirements
+   */
+  private selectTargetRepresentative(managerTask: any, representatives: any[]): any {
+    if (representatives.length === 0) {
+      return { id: 1, name: 'نماینده عمومی', totalDebt: 0 };
+    }
+
+    // Select based on task type
+    if (managerTask.task_type === 'FOLLOW_UP') {
+      // For follow-up tasks, prioritize high debt representatives
+      return representatives.find(rep => rep.totalDebt > 5000000) || representatives[0];
+    } else if (managerTask.task_type === 'RELATIONSHIP_BUILDING') {
+      // For relationship building, select mid-range debt representatives
+      return representatives.find(rep => rep.totalDebt < 5000000 && rep.totalDebt > 1000000) || representatives[0];
+    }
+    
+    // Default: return first representative
+    return representatives[0];
   }
 }

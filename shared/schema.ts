@@ -795,6 +795,12 @@ export const representativeSupportLogs = pgTable("representative_support_logs", 
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// Support Logs - Alias for DA VINCI v2.0 compatibility
+export const supportLogs = representativeSupportLogs;
+
+// Reminders - Alias for DA VINCI v2.0 compatibility  
+export const reminders = workspaceReminders;
+
 // AI Test Results (نتایج تست AI) - برای نمایش لاگ‌های تست
 export const aiTestResults = pgTable("ai_test_results", {
   id: serial("id").primaryKey(),
@@ -1043,6 +1049,56 @@ export const dataIntegrityConstraintsRelations = relations(dataIntegrityConstrai
   })
 }));
 
+// DA VINCI v2.0 Relations  
+// export const taskReportsRelations = relations(taskReports, ({ one }) => ({
+//   task: one(workspaceTasks, {
+//     fields: [taskReports.taskId],
+//     references: [workspaceTasks.id]
+//   }),
+//   staff: one(supportStaff, {
+//     fields: [taskReports.staffId],
+//     references: [supportStaff.id]
+//   }),
+//   representative: one(representatives, {
+//     fields: [taskReports.representativeId],
+//     references: [representatives.id]
+//   })
+// }));
+
+// export const supportLogsRelations = relations(supportLogs, ({ one }) => ({
+//   representative: one(representatives, {
+//     fields: [supportLogs.representativeId],
+//     references: [representatives.id]
+//   }),
+//   staff: one(supportStaff, {
+//     fields: [supportLogs.staffId],
+//     references: [supportStaff.id]
+//   }),
+//   task: one(workspaceTasks, {
+//     fields: [supportLogs.taskId],
+//     references: [workspaceTasks.id]
+//   }),
+//   report: one(taskReports, {
+//     fields: [supportLogs.reportId],
+//     references: [taskReports.id]
+//   })
+// }));
+
+// export const remindersRelations = relations(reminders, ({ one }) => ({
+//   staff: one(supportStaff, {
+//     fields: [reminders.staffId],
+//     references: [supportStaff.id]
+//   }),
+//   representative: one(representatives, {
+//     fields: [reminders.representativeId],
+//     references: [representatives.id]
+//   }),
+//   task: one(workspaceTasks, {
+//     fields: [reminders.taskId],
+//     references: [workspaceTasks.id]
+//   })
+// }));
+
 // Insert Schemas
 export const insertRepresentativeSchema = createInsertSchema(representatives).omit({
   id: true,
@@ -1273,8 +1329,20 @@ export const insertWorkspaceTaskSchema = createInsertSchema(workspaceTasks).omit
 export const insertTaskReportSchema = createInsertSchema(taskReports).omit({
   id: true,
   aiAnalysis: true,
-  createdAt: true,
-  updatedAt: true
+  extractedInsights: true,
+  createdAt: true
+});
+
+export const insertSupportLogSchema = createInsertSchema(supportLogs).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertReminderSchema = createInsertSchema(reminders).omit({
+  id: true,
+  isCompleted: true,
+  completedAt: true,
+  createdAt: true
 });
 
 export const insertWorkspaceReminderSchema = createInsertSchema(workspaceReminders).omit({
@@ -1297,6 +1365,15 @@ export type InsertWorkspaceTask = z.infer<typeof insertWorkspaceTaskSchema>;
 
 export type TaskReport = typeof taskReports.$inferSelect;
 export type InsertTaskReport = z.infer<typeof insertTaskReportSchema>;
+
+export type SupportLog = typeof supportLogs.$inferSelect;
+export type InsertSupportLog = z.infer<typeof insertSupportLogSchema>;
+
+export type Reminder = typeof reminders.$inferSelect;
+export type InsertReminder = z.infer<typeof insertReminderSchema>;
+
+export type SupportStaff = typeof supportStaff.$inferSelect;
+export type InsertSupportStaff = z.infer<typeof insertSupportStaffSchema>;
 
 export type WorkspaceReminder = typeof workspaceReminders.$inferSelect;
 export type InsertWorkspaceReminder = z.infer<typeof insertWorkspaceReminderSchema>;
