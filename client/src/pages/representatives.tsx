@@ -1236,31 +1236,27 @@ function EditInvoiceDialog({
   const [issueDate, setIssueDate] = useState(invoice.issueDate);
   const [status, setStatus] = useState(invoice.status);
   const [usageData, setUsageData] = useState(JSON.stringify(invoice.usageData || {}, null, 2));
+  const [parsedUsageData, setParsedUsageData] = useState<any>(invoice.usageData || {});
   const [isLoading, setIsLoading] = useState(false);
+
+  const updateUsageField = (field: string, value: string) => {
+    const newData = { ...parsedUsageData, [field]: value };
+    setParsedUsageData(newData);
+    setUsageData(JSON.stringify(newData, null, 2));
+  };
 
   const handleSave = async () => {
     try {
       setIsLoading(true);
       
-      let parsedUsageData = {};
-      if (usageData.trim()) {
-        try {
-          parsedUsageData = JSON.parse(usageData);
-        } catch (e) {
-          toast({
-            title: "خطا",
-            description: "فرمت JSON نامعتبر است",
-            variant: "destructive"
-          });
-          return;
-        }
-      }
+      // Use the already parsed usage data
+      const finalUsageData = parsedUsageData;
 
       const updateData = {
         amount,
         issueDate,
         status,
-        usageData: parsedUsageData
+        usageData: finalUsageData
       };
 
       await apiRequest(`/api/invoices/${invoice.id}`, {
@@ -1300,72 +1296,137 @@ function EditInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg admin-glass-card border-white/20">
         <DialogHeader>
-          <DialogTitle>ویرایش جزئیات فاکتور</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-white text-xl flex items-center gap-2">
+            <Edit className="w-5 h-5 text-blue-400" />
+            ویرایش جزئیات فاکتور
+          </DialogTitle>
+          <DialogDescription className="text-blue-200">
             ویرایش اطلاعات فاکتور شماره {invoice.invoiceNumber}
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div>
-            <Label htmlFor="invoiceNumber">شماره فاکتور</Label>
+            <Label htmlFor="invoiceNumber" className="text-white">شماره فاکتور</Label>
             <Input
               id="invoiceNumber"
               value={invoice.invoiceNumber}
               disabled
-              className="bg-gray-50 dark:bg-gray-800"
+              className="bg-white/10 border-white/20 text-white mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="amount">مبلغ (ریال)</Label>
+            <Label htmlFor="amount" className="text-white">مبلغ (ریال)</Label>
             <Input
               id="amount"
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="مبلغ فاکتور"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="issueDate">تاریخ صدور</Label>
+            <Label htmlFor="issueDate" className="text-white">تاریخ صدور</Label>
             <Input
               id="issueDate"
               value={issueDate}
               onChange={(e) => setIssueDate(e.target.value)}
               placeholder="1403/01/01"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
             />
           </div>
 
           <div>
-            <Label htmlFor="status">وضعیت</Label>
+            <Label htmlFor="status" className="text-white">وضعیت</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unpaid">پرداخت نشده</SelectItem>
-                <SelectItem value="paid">پرداخت شده</SelectItem>
-                <SelectItem value="partial">پرداخت جزئی</SelectItem>
+              <SelectContent className="bg-gray-900 border-white/20">
+                <SelectItem value="unpaid" className="text-white hover:bg-white/10">پرداخت نشده</SelectItem>
+                <SelectItem value="paid" className="text-white hover:bg-white/10">پرداخت شده</SelectItem>
+                <SelectItem value="partial" className="text-white hover:bg-white/10">پرداخت جزئی</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label htmlFor="usageData">جزئیات مصرف (JSON)</Label>
-            <Textarea
-              id="usageData"
-              value={usageData}
-              onChange={(e) => setUsageData(e.target.value)}
-              placeholder='{"service": "hosting", "period": "monthly"}'
-              rows={6}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              جزئیات مصرف در فرمت JSON - این اطلاعات در پورتال عمومی نمایش داده می‌شود
+            <Label className="text-white">جزئیات مصرف</Label>
+            <div className="space-y-3 mt-2 admin-glass-card p-4 border-white/10">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="serviceType" className="text-sm text-blue-200">نوع سرویس</Label>
+                  <Input
+                    id="serviceType"
+                    value={parsedUsageData?.service || ""}
+                    onChange={(e) => updateUsageField("service", e.target.value)}
+                    placeholder="hosting، domain، ssl"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="servicePeriod" className="text-sm text-blue-200">دوره</Label>
+                  <Select 
+                    value={parsedUsageData?.period || ""} 
+                    onValueChange={(value) => updateUsageField("period", value)}
+                  >
+                    <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
+                      <SelectValue placeholder="انتخاب دوره" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/20">
+                      <SelectItem value="monthly" className="text-white hover:bg-white/10">ماهانه</SelectItem>
+                      <SelectItem value="yearly" className="text-white hover:bg-white/10">سالانه</SelectItem>
+                      <SelectItem value="quarterly" className="text-white hover:bg-white/10">فصلی</SelectItem>
+                      <SelectItem value="one-time" className="text-white hover:bg-white/10">یکبار</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="bandwidth" className="text-sm text-blue-200">پهنای باند (GB)</Label>
+                  <Input
+                    id="bandwidth"
+                    type="number"
+                    value={parsedUsageData?.bandwidth || ""}
+                    onChange={(e) => updateUsageField("bandwidth", e.target.value)}
+                    placeholder="100"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="storage" className="text-sm text-blue-200">فضای ذخیره (GB)</Label>
+                  <Input
+                    id="storage"
+                    type="number"
+                    value={parsedUsageData?.storage || ""}
+                    onChange={(e) => updateUsageField("storage", e.target.value)}
+                    placeholder="10"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="description" className="text-sm text-blue-200">توضیحات تکمیلی</Label>
+                <Textarea
+                  id="description"
+                  value={parsedUsageData?.description || ""}
+                  onChange={(e) => updateUsageField("description", e.target.value)}
+                  placeholder="توضیحات اضافی در مورد سرویس"
+                  rows={2}
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-blue-300 mt-2">
+              این اطلاعات در پورتال عمومی نمایش داده می‌شود
             </p>
           </div>
         </div>
@@ -1375,11 +1436,15 @@ function EditInvoiceDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
-            className="ml-2"
+            className="ml-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
           >
             انصراف
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
+          <Button 
+            onClick={handleSave} 
+            disabled={isLoading}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+          >
             {isLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
           </Button>
         </div>
