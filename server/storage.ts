@@ -67,6 +67,9 @@ export interface IStorage {
   getSalesPartner(id: number): Promise<SalesPartner | undefined>;
   createSalesPartner(partner: InsertSalesPartner): Promise<SalesPartner>;
   updateSalesPartner(id: number, partner: Partial<SalesPartner>): Promise<SalesPartner>;
+  deleteSalesPartner(id: number): Promise<void>;
+  getSalesPartnersStatistics(): Promise<any>;
+  getRepresentativesBySalesPartner(partnerId: number): Promise<Representative[]>;
 
   // فاز ۱: Invoice Batches - مدیریت دوره‌ای فاکتورها
   getInvoiceBatches(): Promise<InvoiceBatch[]>;
@@ -100,7 +103,10 @@ export interface IStorage {
   getPayments(): Promise<Payment[]>;
   getPaymentsByRepresentative(repId: number): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: number, payment: Partial<Payment>): Promise<Payment>;
   allocatePaymentToInvoice(paymentId: number, invoiceId: number): Promise<Payment>;
+  autoAllocatePaymentToInvoices(paymentId: number, representativeId: number): Promise<void>;
+  getPaymentStatistics(): Promise<any>;
 
   // Activity Logs
   getActivityLogs(limit?: number): Promise<ActivityLog[]>;
@@ -1960,6 +1966,168 @@ export class DatabaseStorage implements IStorage {
         .where(eq(aiConfiguration.isActive, true))
         .orderBy(aiConfiguration.configCategory, desc(aiConfiguration.updatedAt)),
       'getActiveAiConfiguration'
+    );
+  }
+
+  // Missing Sales Partners Methods
+  async deleteSalesPartner(id: number): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db.delete(salesPartners).where(eq(salesPartners.id, id));
+        if (result.rowCount === 0) {
+          throw new Error(`Sales partner with id ${id} not found`);
+        }
+        
+        await this.createActivityLog({
+          type: "sales_partner_deleted",
+          description: `همکار فروش حذف شد: ID ${id}`,
+          relatedId: id,
+          metadata: { deletedId: id }
+        });
+      },
+      'deleteSalesPartner'
+    );
+  }
+
+  async getSalesPartnersStatistics(): Promise<any> {
+    return await withDatabaseRetry(
+      async () => {
+        const totalCount = await db.select({ count: sql<number>`count(*)` }).from(salesPartners);
+        const activeCount = await db.select({ count: sql<number>`count(*)` }).from(salesPartners).where(eq(salesPartners.isActive, true));
+        const totalCommission = await db.select({ 
+          total: sql<string>`coalesce(sum(total_commission), '0')` 
+        }).from(salesPartners);
+
+        return {
+          totalPartners: totalCount[0]?.count || 0,
+          activePartners: activeCount[0]?.count || 0,
+          totalCommission: totalCommission[0]?.total || "0",
+          averageCommissionRate: "5.0" // Could be calculated
+        };
+      },
+      'getSalesPartnersStatistics'
+    );
+  }
+
+  async getRepresentativesBySalesPartner(partnerId: number): Promise<Representative[]> {
+    return await withDatabaseRetry(
+      () => db.select()
+        .from(representatives)
+        .where(eq(representatives.salesPartnerId, partnerId))
+        .orderBy(representatives.name),
+      'getRepresentativesBySalesPartner'
+    );
+  }
+
+  // Missing Payments Methods
+  async updatePayment(id: number, payment: Partial<Payment>): Promise<Payment> {
+    return await withDatabaseRetry(
+      async () => {
+        const [updated] = await db
+          .update(payments)
+          .set(payment)
+          .where(eq(payments.id, id))
+          .returning();
+
+        if (!updated) {
+          throw new Error(`Payment with id ${id} not found`);
+        }
+
+        await this.createActivityLog({
+          type: "payment_updated",
+          description: `پرداخت بروزرسانی شد: ${updated.amount}`,
+          relatedId: updated.id,
+          metadata: { paymentId: id, amount: updated.amount }
+        });
+
+        return updated;
+      },
+      'updatePayment'
+    );
+  }
+
+  async getPaymentStatistics(): Promise<any> {
+    return await withDatabaseRetry(
+      async () => {
+        const totalPayments = await db.select({ count: sql<number>`count(*)` }).from(payments);
+        const totalAmount = await db.select({ 
+          total: sql<string>`coalesce(sum(amount), '0')` 
+        }).from(payments);
+        const allocatedCount = await db.select({ count: sql<number>`count(*)` }).from(payments).where(eq(payments.isAllocated, true));
+
+        return {
+          totalPayments: totalPayments[0]?.count || 0,
+          totalAmount: totalAmount[0]?.total || "0",
+          allocatedPayments: allocatedCount[0]?.count || 0,
+          unallocatedPayments: (totalPayments[0]?.count || 0) - (allocatedCount[0]?.count || 0)
+        };
+      },
+      'getPaymentStatistics'
+    );
+  }
+
+  async autoAllocatePaymentToInvoices(paymentId: number, representativeId: number): Promise<void> {
+    return await withDatabaseRetry(
+      async () => {
+        // Get payment details
+        const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId));
+        if (!payment) {
+          throw new Error(`Payment with id ${paymentId} not found`);
+        }
+
+        // Get unpaid invoices for this representative, ordered by due date (oldest first)
+        const unpaidInvoices = await db.select()
+          .from(invoices)
+          .where(and(
+            eq(invoices.representativeId, representativeId),
+            eq(invoices.status, "unpaid")
+          ))
+          .orderBy(invoices.issueDate);
+
+        if (unpaidInvoices.length === 0) {
+          return; // No unpaid invoices to allocate to
+        }
+
+        // Find the oldest unpaid invoice and allocate payment to it
+        const oldestInvoice = unpaidInvoices[0];
+        
+        // Update payment to be allocated to this invoice
+        await db
+          .update(payments)
+          .set({
+            invoiceId: oldestInvoice.id,
+            isAllocated: true
+          })
+          .where(eq(payments.id, paymentId));
+
+        // Check if payment amount covers the invoice amount
+        const paymentAmount = parseFloat(payment.amount);
+        const invoiceAmount = parseFloat(oldestInvoice.amount);
+
+        if (paymentAmount >= invoiceAmount) {
+          // Mark invoice as paid
+          await db
+            .update(invoices)
+            .set({ status: "paid" })
+            .where(eq(invoices.id, oldestInvoice.id));
+        }
+
+        // Update representative financials
+        await this.updateRepresentativeFinancials(representativeId);
+
+        await this.createActivityLog({
+          type: "payment_auto_allocated",
+          description: `پرداخت خودکار تخصیص یافت: ${payment.amount} به فاکتور ${oldestInvoice.invoiceNumber}`,
+          relatedId: paymentId,
+          metadata: {
+            paymentId,
+            invoiceId: oldestInvoice.id,
+            amount: payment.amount,
+            representativeId
+          }
+        });
+      },
+      'autoAllocatePaymentToInvoices'
     );
   }
 }
