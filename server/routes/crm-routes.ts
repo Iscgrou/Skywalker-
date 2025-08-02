@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { groqAIEngine } from "../services/groq-ai-engine";
-import { xaiGrokEngine } from "../services/xai-grok-engine";
+import { XAIGrokEngine } from "../services/xai-grok-engine";
 import { eq, desc, and, or, like, gte, lte } from "drizzle-orm";
 import { representatives } from "@shared/schema";
 import { CrmService } from "../services/crm-service";
@@ -21,6 +21,9 @@ import multer from "multer";
 export function registerCrmRoutes(app: Express, requireAuth: any) {
   // Initialize CRM Service
   const crmService = new CrmService();
+  
+  // Initialize XAI Grok Engine with storage access for real config
+  const xaiGrokEngine = new XAIGrokEngine(storage);
   
   // Initialize multer for audio file uploads
   const upload = multer({ 

@@ -32,20 +32,48 @@ interface TaskRecommendation {
 export class XAIGrokEngine {
   private client: OpenAI;
   private isConfigured: boolean = false;
+  private storage: any;
 
-  constructor() {
+  constructor(storage?: any) {
     this.client = new OpenAI({
       baseURL: "https://api.x.ai/v1",
       apiKey: process.env.XAI_API_KEY || "dummy-key"
     });
     
     this.isConfigured = !!process.env.XAI_API_KEY;
+    this.storage = storage;
     
     if (!this.isConfigured) {
       console.warn('XAI Grok Engine: API key not configured, using pattern-based fallback');
     } else {
       console.log('✅ XAI Grok Engine initialized successfully');
     }
+  }
+
+  // Get current AI configuration from database
+  private async getAIConfig(category: string = 'GENERAL'): Promise<any> {
+    if (!this.storage) return this.getDefaultConfig();
+    
+    try {
+      const configs = await this.storage.getAiConfigurationsByCategory(category);
+      return configs[0] || this.getDefaultConfig();
+    } catch (error) {
+      console.warn('Failed to load AI config, using defaults:', error);
+      return this.getDefaultConfig();
+    }
+  }
+
+  private getDefaultConfig(): any {
+    return {
+      temperature: 0.7,
+      maxTokens: 300,
+      culturalSensitivity: 0.95,
+      religiousSensitivity: 0.90,
+      traditionalValuesWeight: 0.80,
+      languageFormality: 'RESPECTFUL',
+      persianPoetryIntegration: true,
+      culturalMetaphors: true
+    };
   }
 
   // Test API connection
@@ -127,7 +155,7 @@ export class XAIGrokEngine {
     }
   }
 
-  // Generate task recommendation using AI
+  // Generate task recommendation using AI (🔥 NOW WITH REAL CONFIG INTEGRATION)
   async generateTaskRecommendation(
     representative: Representative, 
     culturalProfile: PersianCulturalAnalysis
@@ -137,8 +165,16 @@ export class XAIGrokEngine {
     }
 
     try {
+      // 🔥 GET ACTUAL BEHAVIOR AND CULTURAL CONFIGS
+      const behaviorConfig = await this.getAIConfig('BEHAVIOR');
+      const culturalConfig = await this.getAIConfig('PERSIAN_CULTURAL');
+      
+      const creativityLevel = parseFloat(behaviorConfig.creativityLevel || '0.6');
+      const proactivityLevel = parseFloat(behaviorConfig.proactivityLevel || '0.8');
+      const formality = culturalConfig.languageFormality || 'RESPECTFUL';
+      
       const prompt = `
-تولید وظیفه هوشمند برای نماینده تجاری:
+تولید وظیفه هوشمند برای نماینده تجاری (خلاقیت: ${Math.round(creativityLevel * 100)}%, فعالیت: ${Math.round(proactivityLevel * 100)}%):
 
 اطلاعات نماینده:
 - نام: ${representative.name}
@@ -150,6 +186,10 @@ export class XAIGrokEngine {
 - سبک ارتباط: ${culturalProfile.communicationStyle}
 - حساسیت فرهنگی: ${culturalProfile.culturalSensitivity}
 - رویکرد کسب‌وکار: ${culturalProfile.businessApproach}
+
+سطح رسمیت: ${formality}
+${proactivityLevel > 0.7 ? 'وظیفه پیشگیرانه و فعال تولید کنید.' : 'وظیفه محافظه‌کارانه پیشنهاد دهید.'}
+${creativityLevel > 0.6 ? 'از ایده‌های خلاقانه و نوآورانه استفاده کنید.' : 'روش‌های سنتی و آزموده‌شده را ترجیح دهید.'}
 
 لطفا وظیفه مناسب با رعایت فرهنگ ایرانی پیشنهاد کن:
 {
@@ -169,7 +209,8 @@ export class XAIGrokEngine {
         model: "grok-2-1212",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        max_tokens: 500
+        max_tokens: parseInt(behaviorConfig.maxTokens || '500'),
+        temperature: parseFloat(behaviorConfig.temperature || '0.7')
       });
 
       const recommendation = JSON.parse(response.choices[0].message.content || '{}');
@@ -220,7 +261,7 @@ export class XAIGrokEngine {
     }
   }
 
-  // Generate cultural response with Persian context
+  // Generate cultural response with Persian context (NOW WITH REAL CONFIG)
   async generateCulturalResponse(
     prompt: string, 
     options: { temperature?: number; maxTokens?: number } = {}
@@ -230,9 +271,33 @@ export class XAIGrokEngine {
     }
 
     try {
+      // 🔥 GET ACTUAL CONFIG FROM DATABASE
+      const config = await this.getAIConfig('PERSIAN_CULTURAL');
+      const culturalSensitivity = parseFloat(config.culturalSensitivity || '0.95');
+      const religiousSensitivity = parseFloat(config.religiousSensitivity || '0.90');
+      const formality = config.languageFormality || 'RESPECTFUL';
+      
+      // Build culturally-aware prompt based on actual settings
+      let formalityInstruction = '';
+      switch (formality) {
+        case 'FORMAL':
+          formalityInstruction = 'با کمال احترام و بسیار رسمی پاسخ دهید.';
+          break;
+        case 'RESPECTFUL':
+          formalityInstruction = 'با احترام و ادب معمولی پاسخ دهید.';
+          break;
+        case 'CASUAL':
+          formalityInstruction = 'به شکل دوستانه و غیررسمی پاسخ دهید.';
+          break;
+      }
+
       const culturalPrompt = `
 شما یک دستیار هوشمند فارسی با درک عمیق از فرهنگ ایرانی هستید.
-لطفا با احترام، ادب و رعایت فرهنگ ایرانی پاسخ دهید.
+حساسیت فرهنگی: ${Math.round(culturalSensitivity * 100)}%
+حساسیت مذهبی: ${Math.round(religiousSensitivity * 100)}%
+${formalityInstruction}
+${config.persianPoetryIntegration ? 'در صورت مناسب بودن، از شعر فارسی استفاده کنید.' : ''}
+${config.culturalMetaphors ? 'از استعاره‌های فرهنگی ایرانی بهره ببرید.' : ''}
 
 سوال کاربر: ${prompt}
 
@@ -241,8 +306,8 @@ export class XAIGrokEngine {
       const response = await this.client.chat.completions.create({
         model: "grok-2-1212",
         messages: [{ role: "user", content: culturalPrompt }],
-        max_tokens: options.maxTokens || 300,
-        temperature: options.temperature || 0.7
+        max_tokens: options.maxTokens || parseInt(config.maxTokens || '300'),
+        temperature: options.temperature || parseFloat(config.temperature || '0.7')
       });
 
       return response.choices[0]?.message?.content || "متأسفانه پاسخی دریافت نشد.";

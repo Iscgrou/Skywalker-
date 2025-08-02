@@ -27,19 +27,12 @@ import PublicPortal from "@/pages/public-portal";
 import AdminLogin from "@/pages/admin-login";
 import NotFound from "@/pages/not-found";
 import CrmAuth from "@/pages/crm-auth";
-import CrmDashboard from "@/pages/crm-dashboard";
-import RepresentativeProfile from "@/pages/representative-profile";
-import RepresentativesList from "@/pages/representatives-list";
-import CrmTasks from "@/pages/crm-tasks";
-import CrmAnalytics from "@/pages/crm-analytics";
+// Legacy CRM imports removed - now using unified Modern CRM Dashboard
 import CrmNotifications from "@/pages/crm-notifications";
-import PerformanceAnalytics from "@/pages/performance-analytics";
 import UnifiedAuth from "@/pages/unified-auth";
 
-// Lazy load CRM components with proper Suspense fallback
-const DynamicAIWorkspace = lazy(() => import('./components/crm/dynamic-ai-workspace'));
-const AdminAIConfig = lazy(() => import('./components/crm/admin-ai-config-advanced'));
-const AdvancedAnalytics = lazy(() => import('./components/crm/advanced-analytics'));
+// Lazy load Modern CRM Dashboard (New Unified Architecture)
+const ModernCrmDashboard = lazy(() => import('./components/crm/modern-crm-dashboard'));
 
 // CRM Protected Routes Component
 function CrmProtectedRoutes() {
@@ -70,59 +63,24 @@ function CrmProtectedRoutes() {
     return null;
   }
 
-  // Render CRM routes if authenticated
+  // 🔥 NEW: Render Modern CRM Dashboard (Unified Interface)
   return (
     <Switch>
-      <Route path="/crm/dashboard" component={CrmDashboard} />
-      <Route path="/crm/representatives" component={RepresentativesList} />
-      <Route path="/crm/representatives/:id" component={RepresentativeProfile} />
-      <Route path="/crm/tasks" component={CrmTasks} />
-      <Route path="/crm/analytics" component={CrmAnalytics} />
-      <Route path="/crm/performance-analytics" component={PerformanceAnalytics} />
-      <Route path="/crm/ai-workspace">
+      <Route path="/crm">
         {() => (
           <Suspense fallback={
             <div className="min-h-screen clay-background relative flex items-center justify-center">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                <p className="text-white">در حال بارگذاری فضای کار AI...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                <p className="text-white text-lg">بارگذاری پنل CRM مدرن...</p>
+                <p className="text-blue-200 text-sm mt-2">معماری یکپارچه جدید</p>
               </div>
             </div>
           }>
-            <DynamicAIWorkspace />
+            <ModernCrmDashboard />
           </Suspense>
         )}
       </Route>
-      <Route path="/crm/admin/ai-config">
-        {() => (
-          <Suspense fallback={
-            <div className="min-h-screen clay-background relative flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                <p className="text-white">در حال بارگذاری تنظیمات AI...</p>
-              </div>
-            </div>
-          }>
-            <AdminAIConfig />
-          </Suspense>
-        )}
-      </Route>
-      <Route path="/crm/advanced-analytics">
-        {() => (
-          <Suspense fallback={
-            <div className="min-h-screen clay-background relative flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                <p className="text-white">در حال بارگذاری تحلیل پیشرفته...</p>
-              </div>
-            </div>
-          }>
-            <AdvancedAnalytics />
-          </Suspense>
-        )}
-      </Route>
-      <Route path="/crm/notifications" component={CrmNotifications} />
-      <Route path="/crm/*" component={NotFound} />
     </Switch>
   );
 }
