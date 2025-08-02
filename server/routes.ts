@@ -464,20 +464,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payments = await storage.getPaymentsByRepresentative(representative.id);
       
       // Fetch portal customization settings
-      const portalSettings = await storage.getSettings();
+      const [
+        portalTitle,
+        portalDescription,
+        showOwnerName,
+        showDetailedUsage,
+        customCss,
+        showUsageDetails,
+        showEventTimestamp,
+        showEventType,
+        showDescription,
+        showAdminUsername
+      ] = await Promise.all([
+        storage.getSetting('portal_title'),
+        storage.getSetting('portal_description'),
+        storage.getSetting('portal_show_owner_name'),
+        storage.getSetting('portal_show_detailed_usage'),
+        storage.getSetting('portal_custom_css'),
+        storage.getSetting('invoice_show_usage_details'),
+        storage.getSetting('invoice_show_event_timestamp'),
+        storage.getSetting('invoice_show_event_type'),
+        storage.getSetting('invoice_show_description'),
+        storage.getSetting('invoice_show_admin_username')
+      ]);
+      
       const portalConfig = {
-        title: portalSettings.find(s => s.key === 'portal_title')?.value || 'پرتال عمومی نماینده',
-        description: portalSettings.find(s => s.key === 'portal_description')?.value || 'مشاهده وضعیت مالی و فاکتورهای شما',
-        showOwnerName: portalSettings.find(s => s.key === 'portal_show_owner_name')?.value === 'true',
-        showDetailedUsage: portalSettings.find(s => s.key === 'portal_show_detailed_usage')?.value === 'true',
-        customCss: portalSettings.find(s => s.key === 'portal_custom_css')?.value || '',
+        title: portalTitle?.value || 'پرتال عمومی نماینده',
+        description: portalDescription?.value || 'مشاهده وضعیت مالی و فاکتورهای شما',
+        showOwnerName: showOwnerName?.value === 'true',
+        showDetailedUsage: showDetailedUsage?.value === 'true',
+        customCss: customCss?.value || '',
         
         // Invoice display settings
-        showUsageDetails: portalSettings.find(s => s.key === 'invoice_show_usage_details')?.value === 'true',
-        showEventTimestamp: portalSettings.find(s => s.key === 'invoice_show_event_timestamp')?.value === 'true',
-        showEventType: portalSettings.find(s => s.key === 'invoice_show_event_type')?.value === 'true',
-        showDescription: portalSettings.find(s => s.key === 'invoice_show_description')?.value === 'true',
-        showAdminUsername: portalSettings.find(s => s.key === 'invoice_show_admin_username')?.value === 'true'
+        showUsageDetails: showUsageDetails?.value === 'true',
+        showEventTimestamp: showEventTimestamp?.value === 'true',
+        showEventType: showEventType?.value === 'true',
+        showDescription: showDescription?.value === 'true',
+        showAdminUsername: showAdminUsername?.value === 'true'
       };
       
       // Sort invoices by date (newest first)

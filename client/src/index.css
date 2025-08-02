@@ -71,6 +71,37 @@
   --ring: hsl(258, 30%, 55%);
 }
 
+/* 🔒 SECURITY: Public Portal Isolation */
+.public-portal-isolated {
+  /* Hide all admin UI elements */
+  --admin-sidebar-display: none !important;
+  --admin-header-display: none !important;
+  --admin-nav-display: none !important;
+}
+
+.public-portal-isolated .admin-panel-background,
+.public-portal-isolated .sidebar,
+.public-portal-isolated .main-content,
+.public-portal-isolated .admin-header,
+.public-portal-isolated [data-admin-only],
+.public-portal-isolated [class*="admin"],
+.public-portal-isolated [class*="sidebar"],
+.public-portal-isolated [class*="nav"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Only allow portal-specific elements */
+.public-portal-isolated .portal-header,
+.public-portal-isolated .portal-content,
+.public-portal-isolated [class*="portal"] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 .dark {
   /* Dark Claymorphism Theme */
   --background: hsl(220, 30%, 8%);

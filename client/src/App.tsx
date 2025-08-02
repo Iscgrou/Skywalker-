@@ -109,8 +109,9 @@ function AuthenticatedRouter() {
   const isCrmRoute = location.startsWith('/crm');
   
   if (isPublicPortal) {
+    // 🔒 SECURITY: Completely isolated public portal - no admin access
     return (
-      <div className="dark">
+      <div className="dark public-portal-isolated">
         <Switch>
           <Route path="/portal/:publicId" component={PublicPortal} />
           <Route path="/representative/:publicId" component={PublicPortal} />
