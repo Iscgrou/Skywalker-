@@ -3,7 +3,7 @@ import {
   financialTransactions, dataIntegrityConstraints, invoiceBatches, crmUsers, telegramSendHistory,
   aiConfiguration,
   type Representative, type InsertRepresentative,
-  type SalesPartner, type InsertSalesPartner,
+  type SalesPartner, type InsertSalesPartner, type SalesPartnerWithCount,
   type Invoice, type InsertInvoice,
   type Payment, type InsertPayment,
   type ActivityLog, type InsertActivityLog,
@@ -63,7 +63,7 @@ export interface IStorage {
   deleteRepresentative(id: number): Promise<void>;
 
   // Sales Partners
-  getSalesPartners(): Promise<SalesPartner[]>;
+  getSalesPartners(): Promise<SalesPartnerWithCount[]>;
   getSalesPartner(id: number): Promise<SalesPartner | undefined>;
   createSalesPartner(partner: InsertSalesPartner): Promise<SalesPartner>;
   updateSalesPartner(id: number, partner: Partial<SalesPartner>): Promise<SalesPartner>;
@@ -278,8 +278,31 @@ export class DatabaseStorage implements IStorage {
     await db.delete(representatives).where(eq(representatives.id, id));
   }
 
-  async getSalesPartners(): Promise<SalesPartner[]> {
-    return await db.select().from(salesPartners).orderBy(desc(salesPartners.createdAt));
+  async getSalesPartners(): Promise<SalesPartnerWithCount[]> {
+    return await withDatabaseRetry(
+      async () => {
+        // Get all sales partners
+        const partners = await db.select().from(salesPartners).orderBy(desc(salesPartners.createdAt));
+        
+        // For each partner, calculate representativesCount
+        const partnersWithCounts = await Promise.all(
+          partners.map(async (partner) => {
+            const [countResult] = await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(representatives)
+              .where(eq(representatives.salesPartnerId, partner.id));
+            
+            return {
+              ...partner,
+              representativesCount: countResult?.count || 0
+            };
+          })
+        );
+        
+        return partnersWithCounts;
+      },
+      'getSalesPartners'
+    );
   }
 
   async getSalesPartner(id: number): Promise<SalesPartner | undefined> {

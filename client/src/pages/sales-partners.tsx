@@ -50,24 +50,10 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { SalesPartnerWithCount } from "@shared/schema";
 
-interface SalesPartner {
-  id: number;
-  name: string;
-  code: string;
-  contactPerson: string;
-  phone: string;
-  email: string;
-  address: string;
-  commissionRate: number;
-  isActive: boolean;
-  totalSales: string;
-  totalCommission: string;
-  representativesCount: number;
-  lastActivityDate: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Use the shared type instead of local interface
+type SalesPartner = SalesPartnerWithCount;
 
 interface SalesPartnerStats {
   totalCount: number;
@@ -376,7 +362,7 @@ export default function SalesPartners() {
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline">
-                            {toPersianDigits(partner.representativesCount.toString())}
+                            {toPersianDigits((partner.representativesCount || 0).toString())}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
@@ -624,7 +610,7 @@ export default function SalesPartners() {
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">تعداد نمایندگان:</span>
                     <span className="font-bold text-blue-600 dark:text-blue-400">
-                      {toPersianDigits(selectedPartner.representativesCount.toString())}
+                      {toPersianDigits((selectedPartner.representativesCount || 0).toString())}
                     </span>
                   </div>
                   <div className="flex justify-between">

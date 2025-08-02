@@ -643,6 +643,251 @@ ${config.culturalMetaphors ? 'از استعاره‌های فرهنگی ایرا
       xpReward: Math.min(100, Math.max(10, data.xpReward || 30))
     };
   }
+
+  // SHERLOCK v1.0 CRITICAL FIX - Add missing generatePsychologicalProfile method
+  async generatePsychologicalProfile(data: {
+    representative: Representative;
+    invoices?: any[];
+    payments?: any[];
+    culturalContext?: string;
+  }): Promise<any> {
+    if (!this.isConfigured) {
+      return this.getFallbackPsychologicalProfile(data.representative);
+    }
+
+    try {
+      const { representative, invoices = [], payments = [] } = data;
+      
+      const prompt = `
+شما یک روانشناس تجاری متخصص هستید. لطفا پروفایل روانشناختی کاملی برای این نماینده تجاری ایجاد کنید:
+
+اطلاعات نماینده:
+- نام: ${representative.name}
+- بدهی کل: ${representative.totalDebt || '0'} ریال
+- فروش کل: ${representative.totalSales || '0'} ریال  
+- وضعیت: ${representative.isActive ? 'فعال' : 'غیرفعال'}
+- تعداد فاکتورها: ${invoices.length}
+- تعداد پرداخت‌ها: ${payments.length}
+
+لطفا تحلیل روانشناختی کاملی در قالب JSON ارائه دهید:
+{
+  "communicationStyle": "formal|friendly|respectful|direct",
+  "trustLevel": "high|medium|low",
+  "businessAptitude": "excellent|good|average|poor",
+  "riskProfile": "conservative|moderate|aggressive",
+  "culturalAdaptation": "string",
+  "strengths": ["strength1", "strength2"],
+  "challenges": ["challenge1", "challenge2"],
+  "recommendations": ["rec1", "rec2"],
+  "confidence": 1-100
+}
+`;
+
+      const response = await this.client.chat.completions.create({
+        model: "grok-2-1212",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 500,
+        temperature: 0.7
+      });
+
+      const profile = JSON.parse(response.choices[0]?.message?.content || '{}');
+      return {
+        representativeId: representative.id,
+        profile,
+        generatedAt: new Date().toISOString(),
+        aiVersion: "grok-2-1212"
+      };
+    } catch (error) {
+      console.error('Psychological profile generation failed:', error);
+      return this.getFallbackPsychologicalProfile(data.representative);
+    }
+  }
+
+  private getFallbackPsychologicalProfile(representative: Representative): any {
+    return {
+      representativeId: representative.id,
+      profile: {
+        communicationStyle: "respectful",
+        trustLevel: "medium",
+        businessAptitude: "good",
+        riskProfile: "moderate", 
+        culturalAdaptation: "با احترام به فرهنگ ایرانی و رعایت ادب در گفتگو",
+        strengths: ["همکاری مناسب", "پتانسیل رشد"],
+        challenges: ["نیاز به پیگیری بیشتر", "بهبود ارتباطات"],
+        recommendations: ["پیگیری منظم", "حمایت بیشتر", "آموزش مهارت‌های فروش"],
+        confidence: 75
+      },
+      generatedAt: new Date().toISOString(),
+      aiVersion: "fallback-pattern"
+    };
+  }
+
+  // SHERLOCK v1.0 CRITICAL FIX - Add missing generateCulturalInsights with proper signature  
+  async generateCulturalInsights(data: {
+    representative: Representative;
+    context?: string;
+  }): Promise<any> {
+    const { representative, context = "business_relationship_management" } = data;
+    
+    if (!this.isConfigured) {
+      return this.getFallbackCulturalInsightsData(representative);
+    }
+
+    try {
+      const prompt = `
+شما متخصص فرهنگ کسب‌وکار ایران هستید. لطفا بینش‌های فرهنگی کاملی برای این نماینده ارائه دهید:
+
+نماینده: ${representative.name}
+زمینه: ${context}
+وضعیت مالی: بدهی ${representative.totalDebt || '0'} - فروش ${representative.totalSales || '0'}
+
+لطفا بینش‌های فرهنگی در قالب JSON ارائه دهید:
+{
+  "type": "cultural_business_insight",
+  "title": "عنوان بینش",
+  "description": "توضیح کامل",
+  "culturalFactors": ["عامل فرهنگی 1", "عامل فرهنگی 2"],
+  "communicationTips": ["نکته ارتباطی 1", "نکته ارتباطی 2"],
+  "businessApproach": "رویکرد کسب‌وکار پیشنهادی",
+  "sensitivityLevel": "high|medium|low",
+  "confidence": 1-100
+}
+`;
+
+      const response = await this.client.chat.completions.create({
+        model: "grok-2-1212",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 400,
+        temperature: 0.7
+      });
+
+      return JSON.parse(response.choices[0]?.message?.content || '{}');
+    } catch (error) {
+      console.error('Cultural insights generation failed:', error);
+      return this.getFallbackCulturalInsightsData(representative);
+    }
+  }
+
+  private getFallbackCulturalInsightsData(representative: Representative): any {
+    return {
+      type: "cultural_business_insight",
+      title: `بینش فرهنگی برای ${representative.name}`,
+      description: "تحلیل فرهنگی بر اساس الگوهای معمول کسب‌وکار ایرانی",
+      culturalFactors: [
+        "احترام به روابط شخصی در کسب‌وکار",
+        "اهمیت اعتماد و صداقت",
+        "تأکید بر گفتگوی صبورانه"
+      ],
+      communicationTips: [
+        "از زبان محترمانه و مؤدبانه استفاده کنید",
+        "به احوالپرسی و صحبت‌های عمومی زمان اختصاص دهید",
+        "صبر و حوصله در گفتگو داشته باشید"
+      ],
+      businessApproach: "رویکرد مبتنی بر اعتماد و احترام متقابل",
+      sensitivityLevel: "high",
+      confidence: 80
+    };
+  }
+
+  // SHERLOCK v1.0 CRITICAL FIX - Add missing analyzeFinancialData method
+  async analyzeFinancialData(
+    totalRevenue: number,
+    totalDebt: number,
+    activeRepresentatives: number,
+    overdueInvoices: number
+  ): Promise<any> {
+    if (!this.isConfigured) {
+      return this.getFallbackFinancialAnalysis(totalRevenue, totalDebt, activeRepresentatives, overdueInvoices);
+    }
+
+    try {
+      const prompt = `
+شما یک تحلیلگر مالی متخصص هستید. لطفا تحلیل کاملی از وضعیت مالی شرکت ارائه دهید:
+
+داده‌های مالی:
+- درآمد کل: ${totalRevenue.toLocaleString()} ریال
+- بدهی کل: ${totalDebt.toLocaleString()} ریال  
+- نمایندگان فعال: ${activeRepresentatives} نفر
+- فاکتورهای معوقه: ${overdueInvoices} عدد
+
+لطفا تحلیل مالی در قالب JSON ارائه دهید:
+{
+  "overallHealth": "excellent|good|fair|poor",
+  "riskLevel": "low|medium|high|critical",
+  "debtToRevenueRatio": "نسبت بدهی به درآمد",
+  "keyInsights": ["بینش کلیدی 1", "بینش کلیدی 2"],
+  "recommendations": ["توصیه 1", "توصیه 2"],
+  "priorityActions": ["اقدام اولویت‌دار 1", "اقدام اولویت‌دار 2"],
+  "score": 1-100,
+  "confidence": 1-100
+}
+`;
+
+      const response = await this.client.chat.completions.create({
+        model: "grok-2-1212", 
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 600,
+        temperature: 0.6
+      });
+
+      return JSON.parse(response.choices[0]?.message?.content || '{}');
+    } catch (error) {
+      console.error('Financial analysis failed:', error);
+      return this.getFallbackFinancialAnalysis(totalRevenue, totalDebt, activeRepresentatives, overdueInvoices);
+    }
+  }
+
+  private getFallbackFinancialAnalysis(
+    totalRevenue: number, 
+    totalDebt: number, 
+    activeRepresentatives: number, 
+    overdueInvoices: number
+  ): any {
+    const debtRatio = totalRevenue > 0 ? (totalDebt / totalRevenue) : 0;
+    
+    let healthScore = 70;
+    let riskLevel = "medium";
+    let overallHealth = "fair";
+    
+    if (debtRatio < 0.2) {
+      healthScore = 85;
+      riskLevel = "low";
+      overallHealth = "good";
+    } else if (debtRatio > 0.5) {
+      healthScore = 45;
+      riskLevel = "high";
+      overallHealth = "poor";
+    }
+
+    if (overdueInvoices > activeRepresentatives * 2) {
+      healthScore -= 15;
+      riskLevel = "high";
+    }
+
+    return {
+      overallHealth,
+      riskLevel,
+      debtToRevenueRatio: `${(debtRatio * 100).toFixed(1)}%`,
+      keyInsights: [
+        `نسبت بدهی به درآمد: ${(debtRatio * 100).toFixed(1)}%`,
+        `میانگین فاکتور معوقه به ازای هر نماینده: ${(overdueInvoices / Math.max(activeRepresentatives, 1)).toFixed(1)}`
+      ],
+      recommendations: [
+        "پیگیری فعال‌تر فاکتورهای معوقه",
+        "بهبود فرآیند وصول مطالبات",
+        "تقویت روابط با نمایندگان"
+      ],
+      priorityActions: [
+        "تماس با نمایندگان دارای بدهی بالا",
+        "بررسی و بهینه‌سازی شرایط پرداخت"
+      ],
+      score: healthScore,
+      confidence: 80
+    };
+  }
 }
 
 // Export singleton instance

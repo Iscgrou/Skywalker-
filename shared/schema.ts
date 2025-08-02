@@ -1349,6 +1349,11 @@ export type InsertRepresentative = z.infer<typeof insertRepresentativeSchema>;
 export type SalesPartner = typeof salesPartners.$inferSelect;
 export type InsertSalesPartner = z.infer<typeof insertSalesPartnerSchema>;
 
+// Extended SalesPartner with calculated fields (for API responses)
+export interface SalesPartnerWithCount extends SalesPartner {
+  representativesCount?: number;
+}
+
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 

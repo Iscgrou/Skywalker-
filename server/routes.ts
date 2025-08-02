@@ -104,7 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "✅ DA VINCI v2.0 AI Task Generator Test Successful",
         result: {
           tasksGenerated: result.tasks.length,
-          generationTime: result.generationMetadata.generatedAt,
+          generationTime: result.generationMetadata?.generatedAt || new Date().toISOString(),
           culturalContext: "Persian Business Culture",
           aiEngine: "xAI Grok-4"
         }
@@ -320,6 +320,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Representatives Statistics API - SHERLOCK v1.0 CRITICAL FIX (MOVED BEFORE :code route)
+  app.get("/api/representatives/statistics", requireAuth, async (req, res) => {
+    try {
+      const representatives = await storage.getRepresentatives();
+      
+      const stats = {
+        totalCount: representatives.length,
+        activeCount: representatives.filter(rep => rep.isActive).length,
+        inactiveCount: representatives.filter(rep => !rep.isActive).length,
+        totalSales: representatives.reduce((sum, rep) => sum + parseFloat(rep.totalSales || "0"), 0),
+        totalDebt: representatives.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || "0"), 0),
+        avgPerformance: representatives.length > 0 ? 
+          representatives.reduce((sum, rep) => sum + parseFloat(rep.totalSales || "0"), 0) / representatives.length : 0
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching representatives statistics:', error);
+      res.status(500).json({ error: "خطا در دریافت آمار نمایندگان" });
+    }
+  });
+
   app.get("/api/representatives/:code", requireAuth, async (req, res) => {
     try {
       const representative = await storage.getRepresentativeByCode(req.params.code);
@@ -375,27 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Representatives Statistics API - SHERLOCK v1.0 CRITICAL FIX
-  app.get("/api/representatives/statistics", requireAuth, async (req, res) => {
-    try {
-      const representatives = await storage.getRepresentatives();
-      
-      const stats = {
-        totalCount: representatives.length,
-        activeCount: representatives.filter(rep => rep.isActive).length,
-        inactiveCount: representatives.filter(rep => !rep.isActive).length,
-        totalSales: representatives.reduce((sum, rep) => sum + parseFloat(rep.totalSales || "0"), 0),
-        totalDebt: representatives.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || "0"), 0),
-        avgPerformance: representatives.length > 0 ? 
-          representatives.reduce((sum, rep) => sum + parseFloat(rep.totalSales || "0"), 0) / representatives.length : 0
-      };
-      
-      res.json(stats);
-    } catch (error) {
-      console.error('Error fetching representatives statistics:', error);
-      res.status(500).json({ error: "خطا در دریافت آمار نمایندگان" });
-    }
-  });
+
 
   // Admin Data Management API - Protected
   app.get("/api/admin/data-counts", requireAuth, async (req, res) => {
