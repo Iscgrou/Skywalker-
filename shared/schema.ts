@@ -214,6 +214,8 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+
+
 // CRM Users (کاربران CRM)
 export const crmUsers = pgTable("crm_users", {
   id: serial("id").primaryKey(),
