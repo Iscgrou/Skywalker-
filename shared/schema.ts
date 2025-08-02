@@ -1448,8 +1448,6 @@ export const insertSupportLogSchema = createInsertSchema(supportLogs).omit({
 
 export const insertReminderSchema = createInsertSchema(reminders).omit({
   id: true,
-  isCompleted: true,
-  completedAt: true,
   createdAt: true
 });
 
@@ -1480,8 +1478,7 @@ export type InsertSupportLog = z.infer<typeof insertSupportLogSchema>;
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = z.infer<typeof insertReminderSchema>;
 
-export type SupportStaff = typeof supportStaff.$inferSelect;
-export type InsertSupportStaff = z.infer<typeof insertSupportStaffSchema>;
+// SupportStaff types already defined above - removed duplicate
 
 export type WorkspaceReminder = typeof workspaceReminders.$inferSelect;
 export type InsertWorkspaceReminder = z.infer<typeof insertWorkspaceReminderSchema>;
