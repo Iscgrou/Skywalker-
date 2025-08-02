@@ -202,6 +202,7 @@ export default function Representatives() {
 
   const getDebtAlert = (debt: string) => {
     const debtAmount = parseFloat(debt);
+    console.log('Debt Alert Check:', { debt, debtAmount, isOver1M: debtAmount > 1000000 });
     if (debtAmount > 1000000) {
       return "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800";
     } else if (debtAmount > 500000) {
@@ -496,7 +497,7 @@ export default function Representatives() {
                       {formatCurrency(parseFloat(rep.totalSales))}
                     </TableCell>
                     <TableCell className="font-mono text-sm">
-                      <span className={parseFloat(rep.totalDebt) > 500000 ? "text-red-600 dark:text-red-400 font-semibold" : ""}>
+                      <span className={parseFloat(rep.totalDebt) > 1000000 ? "text-red-600 dark:text-red-400 font-semibold" : parseFloat(rep.totalDebt) > 500000 ? "text-orange-600 dark:text-orange-400 font-semibold" : ""}>
                         {formatCurrency(parseFloat(rep.totalDebt))}
                       </span>
                     </TableCell>
