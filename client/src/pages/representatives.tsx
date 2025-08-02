@@ -1374,7 +1374,7 @@ function EditInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] max-w-4xl max-h-[95vh] admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl overflow-y-auto" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
         <DialogHeader>
           <DialogTitle className="text-white text-xl flex items-center gap-2">
             <Edit className="w-5 h-5 text-blue-400" />
@@ -1385,7 +1385,7 @@ function EditInvoiceDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-4 p-1">
           <div>
             <Label htmlFor="invoiceNumber" className="text-white">شماره فاکتور</Label>
             <Input
@@ -1436,7 +1436,7 @@ function EditInvoiceDialog({
           <div>
             <Label className="text-white">ویرایش جزئیات مصرف (HTML Template)</Label>
             <div className="mt-2 admin-glass-card border-white/10">
-              <div className="max-h-96 overflow-y-auto p-4 space-y-4">
+              <div className="max-h-96 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20">
                 <div className="text-sm text-blue-200 mb-3">
                   ویرایش ریز جزئیات مصرف نماینده در قالب گرافیکی:
                 </div>

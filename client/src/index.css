@@ -255,6 +255,75 @@
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
   }
 
+  /* Enhanced dialog positioning and stability - Fixed Dialog Movement Issue */
+  [data-radix-dialog-content] {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    z-index: 1000 !important;
+  }
+
+  /* Dialog scroll styling */
+  [data-radix-dialog-content]::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  [data-radix-dialog-content]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  [data-radix-dialog-content]::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+  }
+
+  [data-radix-dialog-content]::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  /* Prevent dialog movement by fixing overlay and content positioning */
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important;
+    transform: none !important;
+  }
+
+  /* Additional dialog stability fixes */
+  [data-state="open"][data-side] {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  /* Custom scrollbar for dialog content */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-track-transparent {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .scrollbar-thumb-white\/20::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thumb-white\/20::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thumb-white\/20::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thumb-white\/20::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
   /* AI Chat Component Styling */
   .ai-assistant-card {
     background: linear-gradient(135deg, 
