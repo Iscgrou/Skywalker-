@@ -154,7 +154,7 @@ export function InvoiceManagement() {
                 <SelectValue placeholder="فیلتر وضعیت" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">همه وضعیت‌ها</SelectItem>
+                <SelectItem value="all">همه وضعیت‌ها</SelectItem>
                 <SelectItem value="unpaid">پرداخت نشده</SelectItem>
                 <SelectItem value="paid">پرداخت شده</SelectItem>
                 <SelectItem value="overdue">سررسید گذشته</SelectItem>

@@ -17,7 +17,7 @@ import Invoices from "@/pages/invoices";
 import InvoiceManagement from "@/pages/InvoiceManagement";
 import Representatives from "@/pages/representatives";
 import SalesPartners from "@/pages/sales-partners";
-import AIAssistant from "@/pages/ai-assistant";
+
 import Reports from "@/pages/reports";
 import Settings from "@/pages/settings";
 import PublicPortal from "@/pages/public-portal";
@@ -171,7 +171,6 @@ function AuthenticatedRouter() {
         <Route path="/invoices" component={Invoices} />
         <Route path="/invoice-management" component={InvoiceManagement} />
         <Route path="/sales-partners" component={SalesPartners} />
-        <Route path="/ai-assistant" component={AIAssistant} />
         <Route path="/reports" component={Reports} />
         <Route path="/settings" component={Settings} />
         <Route component={NotFound} />

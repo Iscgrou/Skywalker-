@@ -295,7 +295,7 @@ export function InvoiceManualForm({ onSuccess, editInvoice }: InvoiceManualFormP
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">بدون دسته</SelectItem>
+                      <SelectItem value="none">بدون دسته</SelectItem>
                       {(batches as any[]).map((batch: any) => (
                         <SelectItem key={batch.id} value={batch.id.toString()}>
                           {batch.batchName} - {batch.batchCode}
