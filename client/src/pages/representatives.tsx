@@ -1237,12 +1237,112 @@ function EditInvoiceDialog({
   const [status, setStatus] = useState(invoice.status);
   const [usageData, setUsageData] = useState(JSON.stringify(invoice.usageData || {}, null, 2));
   const [parsedUsageData, setParsedUsageData] = useState<any>(invoice.usageData || {});
+  const [usageItems, setUsageItems] = useState<any[]>(
+    Array.isArray(invoice.usageData?.items) ? invoice.usageData.items : 
+    [{ id: 1, description: "سرویس پایه", date: "1403/01/01", amount: parseFloat(invoice.amount) || 0 }]
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const updateUsageField = (field: string, value: string) => {
     const newData = { ...parsedUsageData, [field]: value };
     setParsedUsageData(newData);
     setUsageData(JSON.stringify(newData, null, 2));
+  };
+
+  const updateUsageItem = (index: number, field: string, value: string | number) => {
+    const updatedItems = [...usageItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    setUsageItems(updatedItems);
+    
+    // Update parsed usage data with items array
+    const newUsageData = { ...parsedUsageData, items: updatedItems };
+    setParsedUsageData(newUsageData);
+    setUsageData(JSON.stringify(newUsageData, null, 2));
+    
+    // Update total amount based on usage items
+    const newTotal = calculateUsageTotal(updatedItems);
+    setAmount(newTotal.toString());
+  };
+
+  const addNewUsageItem = () => {
+    const newItem = {
+      id: usageItems.length + 1,
+      description: "سرویس جدید",
+      date: new Date().toLocaleDateString('fa-IR'),
+      amount: 0
+    };
+    const updatedItems = [...usageItems, newItem];
+    setUsageItems(updatedItems);
+    
+    const newUsageData = { ...parsedUsageData, items: updatedItems };
+    setParsedUsageData(newUsageData);
+    setUsageData(JSON.stringify(newUsageData, null, 2));
+  };
+
+  const removeUsageItem = (index: number) => {
+    const updatedItems = usageItems.filter((_, i) => i !== index);
+    setUsageItems(updatedItems);
+    
+    const newUsageData = { ...parsedUsageData, items: updatedItems };
+    setParsedUsageData(newUsageData);
+    setUsageData(JSON.stringify(newUsageData, null, 2));
+    
+    // Update total amount
+    const newTotal = calculateUsageTotal(updatedItems);
+    setAmount(newTotal.toString());
+  };
+
+  const calculateUsageTotal = (items = usageItems) => {
+    return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  };
+
+  const renderUsageDetailsEditor = () => {
+    return usageItems.map((item, index) => (
+      <div key={item.id} className="grid grid-cols-12 gap-2 items-center p-2 bg-white/5 rounded-lg border border-white/10">
+        <div className="col-span-1 text-center text-blue-200 text-sm">
+          {index + 1}
+        </div>
+        
+        <div className="col-span-5">
+          <Input
+            value={item.description}
+            onChange={(e) => updateUsageItem(index, 'description', e.target.value)}
+            placeholder="شرح سرویس..."
+            className="bg-white/10 border-white/20 text-white text-sm"
+          />
+        </div>
+        
+        <div className="col-span-2">
+          <Input
+            value={item.date}
+            onChange={(e) => updateUsageItem(index, 'date', e.target.value)}
+            placeholder="1403/01/01"
+            className="bg-white/10 border-white/20 text-white text-sm"
+          />
+        </div>
+        
+        <div className="col-span-3">
+          <Input
+            type="number"
+            value={item.amount}
+            onChange={(e) => updateUsageItem(index, 'amount', parseFloat(e.target.value) || 0)}
+            placeholder="مبلغ"
+            className="bg-white/10 border-white/20 text-white text-sm"
+          />
+        </div>
+        
+        <div className="col-span-1">
+          <Button
+            type="button"
+            onClick={() => removeUsageItem(index)}
+            className="bg-red-600 hover:bg-red-700 text-white p-1 h-8 w-8"
+            disabled={usageItems.length === 1}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    ));
   };
 
   const handleSave = async () => {
@@ -1434,137 +1534,47 @@ function EditInvoiceDialog({
           </div>
 
           <div>
-            <Label className="text-white">ویرایش جزئیات مصرف (HTML Template)</Label>
+            <Label className="text-white">ویرایش ریزجزئیات مصرف نماینده</Label>
             <div className="mt-2 admin-glass-card border-white/10">
               <div className="max-h-96 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/20">
                 <div className="text-sm text-blue-200 mb-3">
-                  ویرایش ریز جزئیات مصرف نماینده در قالب گرافیکی:
+                  ویرایش سطر به سطر جزئیات مصرف و مبلغ هر قلم:
                 </div>
                 
-                {/* HTML Template for Usage Details */}
-                <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="serviceType" className="text-sm text-blue-200">نوع سرویس</Label>
-                      <Input
-                        id="serviceType"
-                        value={parsedUsageData?.service || ""}
-                        onChange={(e) => updateUsageField("service", e.target.value)}
-                        placeholder="میزبانی وب، دامنه، SSL"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="servicePlan" className="text-sm text-blue-200">پلن سرویس</Label>
-                      <Input
-                        id="servicePlan"
-                        value={parsedUsageData?.plan || ""}
-                        onChange={(e) => updateUsageField("plan", e.target.value)}
-                        placeholder="Basic، Pro، Enterprise"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                      />
+                {/* Usage Details Table */}
+                <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 px-4 py-2 border-b border-white/10">
+                    <div className="grid grid-cols-4 gap-4 text-sm font-medium text-blue-200">
+                      <div>ردیف</div>
+                      <div>شرح سرویس</div>
+                      <div>تاریخ</div>
+                      <div>مبلغ (ریال)</div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="usageAmount" className="text-sm text-blue-200">میزان مصرف</Label>
-                      <Input
-                        id="usageAmount"
-                        value={parsedUsageData?.amount || ""}
-                        onChange={(e) => updateUsageField("amount", e.target.value)}
-                        placeholder="GB، MB، ساعت"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="usageUnit" className="text-sm text-blue-200">واحد</Label>
-                      <Select 
-                        value={parsedUsageData?.unit || ""} 
-                        onValueChange={(value) => updateUsageField("unit", value)}
-                      >
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
-                          <SelectValue placeholder="واحد" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-white/20">
-                          <SelectItem value="GB" className="text-white hover:bg-white/10">گیگابایت (GB)</SelectItem>
-                          <SelectItem value="MB" className="text-white hover:bg-white/10">مگابایت (MB)</SelectItem>
-                          <SelectItem value="hour" className="text-white hover:bg-white/10">ساعت</SelectItem>
-                          <SelectItem value="day" className="text-white hover:bg-white/10">روز</SelectItem>
-                          <SelectItem value="request" className="text-white hover:bg-white/10">درخواست</SelectItem>
-                          <SelectItem value="unit" className="text-white hover:bg-white/10">واحد عمومی</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="servicePeriod" className="text-sm text-blue-200">دوره</Label>
-                      <Select 
-                        value={parsedUsageData?.period || ""}
-                        onValueChange={(value) => updateUsageField("period", value)}
-                      >
-                        <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
-                          <SelectValue placeholder="دوره" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-900 border-white/20">
-                          <SelectItem value="monthly" className="text-white hover:bg-white/10">ماهانه</SelectItem>
-                          <SelectItem value="yearly" className="text-white hover:bg-white/10">سالانه</SelectItem>
-                          <SelectItem value="quarterly" className="text-white hover:bg-white/10">فصلی</SelectItem>
-                          <SelectItem value="one-time" className="text-white hover:bg-white/10">یکبار</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  
+                  <div className="p-4 space-y-3">
+                    {renderUsageDetailsEditor()}
                   </div>
+                </div>
 
-                  <div>
-                    <Label htmlFor="pricePerUnit" className="text-sm text-blue-200">قیمت واحد (ریال)</Label>
-                    <Input
-                      id="pricePerUnit"
-                      type="number"  
-                      value={parsedUsageData?.price || ""}
-                      onChange={(e) => updateUsageField("price", e.target.value)}
-                      placeholder="قیمت به ریال"
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="description" className="text-sm text-blue-200">شرح تکمیلی مصرف</Label>
-                    <textarea
-                      id="description"
-                      value={parsedUsageData?.description || ""}
-                      onChange={(e) => updateUsageField("description", e.target.value)}
-                      placeholder="توضیحات کامل در مورد نحوه مصرف، محدودیت‌ها و جزئیات فنی سرویس..."
-                      className="w-full mt-1 p-3 bg-white/10 border border-white/20 rounded-md text-white placeholder:text-white/50 resize-none min-h-[100px]"
-                      rows={4}
-                    />
-                  </div>
-
-                  {/* Real-time Preview */}
-                  <div className="border-t border-white/10 pt-4">
-                    <Label className="text-sm text-green-300">پیش‌نمایش زنده:</Label>
-                    <div className="mt-2 p-3 bg-green-900/20 border border-green-500/30 rounded-lg text-sm">
-                      <div className="text-green-200">
-                        <strong>سرویس:</strong> {parsedUsageData?.service || "نامشخص"} - 
-                        <strong>پلن:</strong> {parsedUsageData?.plan || "نامشخص"}
-                      </div>
-                      <div className="text-green-200 mt-1">
-                        <strong>مصرف:</strong> {parsedUsageData?.amount || "0"} {parsedUsageData?.unit || "واحد"} - 
-                        <strong>دوره:</strong> {parsedUsageData?.period || "نامشخص"}
-                      </div>
-                      <div className="text-green-200 mt-1">
-                        <strong>مبلغ:</strong> {formatCurrency(parseFloat(parsedUsageData?.price || "0"))}
-                      </div>
-                      {parsedUsageData?.description && (
-                        <div className="text-green-200 mt-2 text-xs">
-                          <strong>شرح:</strong> {parsedUsageData.description}
-                        </div>
-                      )}
-                    </div>
+                {/* Add New Item Button */}
+                <div className="flex justify-between items-center pt-2 border-t border-white/10">
+                  <Button
+                    type="button"
+                    onClick={addNewUsageItem}
+                    className="bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    افزودن ردیف جدید
+                  </Button>
+                  
+                  <div className="text-sm text-blue-200">
+                    مجموع: {calculateUsageTotal().toLocaleString('fa-IR')} ریال
                   </div>
                 </div>
               </div>
               <p className="text-xs text-blue-300 mt-2 p-2">
-                🔄 این اطلاعات در پورتال عمومی نماینده نمایش داده می‌شود
+                💡 تغییر مبلغ هر ردیف، مبلغ کل فاکتور را بروزرسانی می‌کند
               </p>
             </div>
           </div>
