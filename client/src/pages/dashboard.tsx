@@ -56,26 +56,26 @@ function StatCard({
       <CardContent className="p-4 lg:p-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            <p className="text-sm font-medium text-blue-200">
               {title}
             </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+            <p className="text-2xl font-bold text-white mt-2">
               {toPersianDigits(value)}
             </p>
             {subtitle && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-sm text-blue-300 mt-1">
                 {subtitle}
               </p>
             )}
           </div>
-          <div className={`w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center`}>
+          <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
             <Icon className={`w-6 h-6 ${colorClass}`} />
           </div>
         </div>
         {trend && (
           <div className="mt-4 flex items-center text-sm">
-            <span className="text-green-600 dark:text-green-400">{trend}</span>
-            <span className="text-gray-500 dark:text-gray-400 mr-2">نسبت به ماه گذشته</span>
+            <span className="text-green-400">{trend}</span>
+            <span className="text-blue-200 mr-2">نسبت به ماه گذشته</span>
           </div>
         )}
       </CardContent>
@@ -202,12 +202,12 @@ export default function Dashboard() {
           <Card className="ai-assistant-card">
             <CardHeader>
               <CardTitle className="flex items-center text-lg">
-                <div className="w-10 h-10 bg-accent rounded-full flex items-center justify-center ml-3">
+                <div className="w-10 h-10 bg-purple-500/30 rounded-full flex items-center justify-center ml-3 backdrop-blur-sm">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">دستیار هوشمند مالی</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-normal">مبتنی بر xAI Grok</p>
+                  <h3 className="font-semibold text-white">دستیار هوشمند مالی</h3>
+                  <p className="text-sm text-blue-200 font-normal">مبتنی بر xAI Grok</p>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -231,14 +231,14 @@ export default function Dashboard() {
                     <ActivityItem key={activity.id} activity={activity} />
                   ))
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  <p className="text-sm text-blue-200 text-center py-4">
                     فعالیت اخیری وجود ندارد
                   </p>
                 )}
               </div>
               <Button 
                 variant="ghost" 
-                className="w-full mt-4 text-sm text-primary hover:text-primary/90"
+                className="w-full mt-4 text-sm text-blue-300 hover:text-white hover:bg-white/10"
                 onClick={() => window.location.href = '/activity-logs'}
               >
                 مشاهده همه فعالیت‌ها
@@ -254,25 +254,25 @@ export default function Dashboard() {
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">نرخ وصولی</span>
-                  <span className="text-sm font-semibold text-green-600">
+                  <span className="text-sm text-blue-200">نرخ وصولی</span>
+                  <span className="text-sm font-semibold text-green-400">
                     {toPersianDigits('87%')}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">میانگین زمان پرداخت</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm text-blue-200">میانگین زمان پرداخت</span>
+                  <span className="text-sm font-semibold text-white">
                     {toPersianDigits('12')} روز
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">همکاران فروش فعال</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm text-blue-200">همکاران فروش فعال</span>
+                  <span className="text-sm font-semibold text-white">
                     {toPersianDigits(dashboardData.totalSalesPartners.toString())} نفر
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">کل کمیسیون ماه</span>
+                  <span className="text-sm text-blue-200">کل کمیسیون ماه</span>
                   <span className="text-sm font-semibold text-accent">
                     {toPersianDigits('1,250,000')} ت
                   </span>

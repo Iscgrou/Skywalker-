@@ -47,9 +47,33 @@
   --marfanet-surface: hsl(290, 20%, 94%);
 }
 
+/* Force Dark Mode for Admin Panel */
+:root {
+  /* Override light mode with dark values */
+  --background: hsl(220, 30%, 8%);
+  --foreground: hsl(280, 15%, 85%);
+  --muted: hsl(270, 20%, 15%);
+  --muted-foreground: hsl(270, 10%, 60%);
+  --popover: hsl(265, 25%, 12%);
+  --popover-foreground: hsl(280, 15%, 85%);
+  --card: hsl(265, 25%, 10%);
+  --card-foreground: hsl(280, 15%, 85%);
+  --border: hsl(270, 15%, 20%);
+  --input: hsl(270, 20%, 18%);
+  --primary: hsl(258, 62%, 65%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(155, 35%, 35%);
+  --secondary-foreground: hsl(155, 45%, 85%);
+  --accent: hsl(195, 45%, 35%);
+  --accent-foreground: hsl(195, 55%, 85%);
+  --destructive: hsl(350, 55%, 45%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --ring: hsl(258, 30%, 55%);
+}
+
 .dark {
   /* Dark Claymorphism Theme */
-  --background: hsl(260, 25%, 8%);
+  --background: hsl(220, 30%, 8%);
   --foreground: hsl(280, 15%, 85%);
   --muted: hsl(270, 20%, 15%);
   --muted-foreground: hsl(270, 10%, 60%);
@@ -77,11 +101,11 @@
   --clay-rose: hsl(340, 40%, 45%);
   --clay-sage: hsl(85, 25%, 35%);
   
-  /* Ultra-Minimal Dark Shadow Variables */
-  --clay-shadow-outer: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --clay-shadow-inner: inset 0 1px 1px rgba(0, 0, 0, 0.02);
-  --clay-shadow-pressed: inset 0 1px 1px rgba(0, 0, 0, 0.03);
-  --clay-shadow-hover: 0 1px 3px rgba(0, 0, 0, 0.08);
+  /* Enhanced Dark Shadow Variables */
+  --clay-shadow-outer: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --clay-shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  --clay-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  --clay-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
   
   /* Dark mode MarFaNet colors */
   --marfanet-primary: var(--clay-lavender);
@@ -146,16 +170,17 @@
 
   /* Glassmorphism Cards for Admin Panel */
   .admin-glass-card {
-    background: rgba(30, 41, 59, 0.25);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(148, 163, 184, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    background: rgba(15, 23, 42, 0.4) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     border-radius: 16px;
+    color: white !important;
   }
 
   .admin-glass-card:hover {
-    background: rgba(30, 41, 59, 0.35);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(148, 163, 184, 0.25);
     transform: translateY(-2px);
     transition: all 0.3s ease;
   }
@@ -190,19 +215,20 @@
 
   /* Stat Cards with Gradients */
   .stat-card {
-    background: rgba(30, 41, 59, 0.25);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(148, 163, 184, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    background: rgba(15, 23, 42, 0.4) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(148, 163, 184, 0.15) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     border-radius: 16px;
     transition: all 0.3s ease;
+    color: white !important;
   }
 
   .stat-card:hover {
-    background: rgba(30, 41, 59, 0.35);
-    border: 1px solid rgba(148, 163, 184, 0.15);
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
     transform: translateY(-4px);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
   }
 
   /* AI Chat Component Styling */
