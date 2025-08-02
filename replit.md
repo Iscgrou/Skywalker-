@@ -57,16 +57,20 @@ The CRM system now contains four functional sections:
 ## Technical Decisions
 
 ### Recently Added (August 2, 2025)
+- **DA VINCI v3.0 Public Portal**: Complete redesign with 4 main sections as per user requirements
+  1. **Financial Overview Section**: Real-time debt/credit balance, total sales, net balance, payment summary
+  2. **Invoice List Section**: Chronologically sorted invoices with status badges and filtering
+  3. **Consumption Breakdown Section**: Detailed usage data with configurable column display
+  4. **Payment History Section**: Complete payment timeline with transaction details
+- **Security Enhancement**: Complete isolation of public portal from admin panel with CSS security layers
+- **Portal Customization**: Admin panel settings for portal title, description, display options, and custom CSS
+- **API Performance**: Fixed portal API from 500 errors to working 200ms response times
+- **Route Management**: Added /representative/ route support for public portal access
+- **Persian RTL Design**: Full right-to-left layout with Persian number formatting and cultural design elements
 - **DA VINCI v2.0 Workspace Tab**: Complete intelligent task management system
 - **AI Task Generator Engine**: xAI Grok-4 integration with Persian cultural intelligence
-- **Workspace Database Schema**: 4 new tables for task management, reports, reminders, and support logs
-- **17 New API Endpoints**: Full RESTful workspace functionality
-- **Persian Calendar Integration**: Full support for Persian dates and cultural scheduling
-- **Real-time Task Management**: CRUD operations with AI-powered insights
 - **Payment Management Consolidation**: Removed standalone payment tabs from admin panel - all payment functionality now integrated into representative profiles
 - **Invoice Pagination**: Complete 30-item pagination system with advanced controls for invoices section
-- **AI Assistant Removal**: Completely removed AI Assistant tab from admin panel to streamline interface and focus on core business functions
-- **Reports Tab Removal**: Completely removed Reports tab from admin panel to simplify interface and concentrate on essential operational functions
 
 ### Previously Removed Components
 - Performance analytics endpoints and components (cleaned up for focus)

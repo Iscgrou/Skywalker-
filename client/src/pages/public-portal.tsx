@@ -4,7 +4,6 @@ import { useState } from "react";
 import React from "react";
 import { 
   Shield, 
-  User, 
   DollarSign, 
   Calendar,
   FileText,
@@ -12,12 +11,12 @@ import {
   CheckCircle,
   Clock,
   CreditCard,
-  Eye,
   ChevronDown,
   ChevronUp,
-  Server,
   Database,
-  Cpu
+  TrendingUp,
+  Receipt,
+  Wallet
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,19 +29,6 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -72,7 +58,7 @@ interface PublicPortalData {
     issueDate: string;
     dueDate: string;
     status: string;
-    usageData?: any; // JSON usage data from uploaded file
+    usageData?: any;
     createdAt?: string;
   }>;
   payments: Array<{
@@ -84,23 +70,13 @@ interface PublicPortalData {
 
 export default function PublicPortal() {
   const { publicId } = useParams<{ publicId: string }>();
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
 
   const { data: portalData, isLoading, error } = useQuery<PublicPortalData>({
     queryKey: [`/api/portal/${publicId}`],
     enabled: !!publicId,
-    retry: (failureCount, error: any) => {
-      // Retry up to 3 times for network errors, but not for 404/403
-      const status = error?.response?.status;
-      if (status === 404 || status === 403) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (TanStack Query v5)
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const toggleInvoiceExpansion = (invoiceNumber: string) => {
@@ -113,170 +89,11 @@ export default function PublicPortal() {
     setExpandedInvoices(newExpanded);
   };
 
-  const formatUsageData = (usageData: any) => {
-    if (!usageData || typeof usageData !== 'object') return [];
-
-    console.log('Raw usage data:', usageData);
-
-    // Check if data is already an array of usage records
-    if (Array.isArray(usageData)) {
-      console.log('Data is array, length:', usageData.length);
-      return usageData;
-    }
-
-    // Handle the specific format from our database: {admin_username: "...", records: [...]}
-    if (usageData.records && Array.isArray(usageData.records)) {
-      console.log('Found records array, length:', usageData.records.length);
-      return usageData.records;
-    }
-
-    // If it's an object with admin_username property that contains the records
-    if (usageData.admin_username && typeof usageData === 'object') {
-      console.log('Single record with admin_username detected');
-      // If it has records property, use that
-      if (usageData.records && Array.isArray(usageData.records)) {
-        return usageData.records;
-      }
-      // Otherwise treat the whole object as a single record
-      return [usageData];
-    }
-
-    // Try to find array properties within the object
-    const arrayProperties = Object.entries(usageData).find(([key, value]) => Array.isArray(value));
-    if (arrayProperties && arrayProperties[1]) {
-      console.log('Found array property:', arrayProperties[0]);
-      return arrayProperties[1] as any[];
-    }
-
-    // Handle legacy format: object with multiple properties
-    if (typeof usageData === 'object') {
-      const records: any[] = [];
-      Object.entries(usageData).forEach(([key, value]) => {
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-          records.push({
-            admin_username: key,
-            event_timestamp: (value as any).timestamp || (value as any).event_timestamp || '-',
-            event_type: (value as any).type || (value as any).event_type || 'CREATE',
-            description: (value as any).description || (value as any).desc || `${key}: ${JSON.stringify(value)}`,
-            amount: (value as any).amount || (value as any).price || 0
-          });
-        } else if (key !== 'admin_username' && key !== 'records') {
-          records.push({
-            admin_username: usageData.admin_username || key,
-            event_timestamp: '-',
-            event_type: 'CREATE',
-            description: String(value || ''),
-            amount: typeof value === 'number' ? value : 0
-          });
-        }
-      });
-      console.log('Generated records from object properties:', records.length);
-      return records;
-    }
-
-    console.log('No valid data format found');
-    return [];
-  };
-
-  const renderUsageDetailsTable = (usageData: any) => {
-    const formattedData = formatUsageData(usageData);
-    
-    console.log('Rendering table with data:', formattedData);
-    
-    if (!formattedData || !Array.isArray(formattedData) || formattedData.length === 0) {
-      return (
-        <div className="text-center py-8 text-gray-400">
-          <Database className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>هیچ اطلاعات ریز جزئیاتی برای نمایش وجود ندارد</p>
-        </div>
-      );
-    }
-
-    const config = portalData?.portalConfig;
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-600">
-          <thead className="bg-gray-600">
-            <tr>
-              {config?.showAdminUsername && (
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                  نام کاربری ادمین
-                </th>
-              )}
-              {config?.showEventTimestamp && (
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                  زمان رویداد
-                </th>
-              )}
-              {config?.showEventType && (
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                  نوع رویداد
-                </th>
-              )}
-              {config?.showDescription && (
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                  توضیحات
-                </th>
-              )}
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-200 uppercase tracking-wider">
-                مبلغ
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-700 divide-y divide-gray-600">
-            {formattedData.map((record: any, index: number) => (
-              <tr key={index} className="hover:bg-gray-600/50">
-                {config?.showAdminUsername && (
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-white">
-                    {record.admin_username || 'نامشخص'}
-                  </td>
-                )}
-                {config?.showEventTimestamp && (
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
-                    {record.event_timestamp || record.timestamp || '-'}
-                  </td>
-                )}
-                {config?.showEventType && (
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-300">
-                    <Badge 
-                      className={`${
-                        record.event_type === 'CREATE' ? 'bg-green-600 hover:bg-green-700' :
-                        record.event_type === 'RENEWAL' ? 'bg-blue-600 hover:bg-blue-700' :
-                        record.event_type === 'EXPIRE' ? 'bg-red-600 hover:bg-red-700' :
-                        'bg-gray-600 hover:bg-gray-700'
-                      } text-white`}
-                    >
-                      {record.event_type || record.type || 'نامشخص'}
-                    </Badge>
-                  </td>
-                )}
-                {config?.showDescription && (
-                  <td className="px-4 py-4 text-sm text-gray-300 max-w-xs">
-                    <div className="truncate" title={record.description || record.desc || ''}>
-                      {record.description || record.desc || '-'}
-                    </div>
-                  </td>
-                )}
-                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-green-400">
-                  {record.amount ? `${formatCurrency(record.amount.toString())} تومان` : '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="bg-gray-600 px-4 py-2 text-sm text-gray-300">
-          مجموع رکوردها: {toPersianDigits(formattedData.length.toString())} رکورد
-        </div>
-      </div>
-    );
-  };
-
   const getInvoiceStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
         return (
-          <Badge className="bg-green-600 text-white hover:bg-green-700">
+          <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">
             <CheckCircle className="w-3 h-3 mr-1" />
             پرداخت شده
           </Badge>
@@ -290,7 +107,7 @@ export default function PublicPortal() {
         );
       default:
         return (
-          <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">
+          <Badge className="bg-amber-600 text-white hover:bg-amber-700">
             <Clock className="w-3 h-3 mr-1" />
             پرداخت نشده
           </Badge>
@@ -298,43 +115,35 @@ export default function PublicPortal() {
     }
   };
 
-  const getAccountStatus = () => {
-    if (!portalData) return { text: "نامشخص", color: "text-gray-400" };
-    
-    const debt = parseFloat(portalData.totalDebt);
-    if (debt > 100000) {
-      return { text: "بدهکار", color: "text-red-400" };
-    } else if (debt > 0) {
-      return { text: "نیاز به پرداخت", color: "text-yellow-400" };
-    } else {
-      return { text: "تسویه", color: "text-green-400" };
+  const formatUsageData = (usageData: any) => {
+    if (!usageData || typeof usageData !== 'object') return [];
+
+    if (Array.isArray(usageData)) {
+      return usageData;
     }
+
+    if (usageData.records && Array.isArray(usageData.records)) {
+      return usageData.records;
+    }
+
+    return [];
   };
 
-  const getLastPayment = () => {
-    if (!portalData?.payments || portalData.payments.length === 0) {
-      return { amount: "0", date: "---" };
-    }
-    
-    const lastPayment = portalData.payments[0]; // Assuming sorted by date
-    return {
-      amount: lastPayment.amount,
-      date: lastPayment.paymentDate
-    };
-  };
+  // Debug log
+  console.log('Portal Data:', portalData);
+  console.log('Loading:', isLoading);
+  console.log('Error:', error);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
         <div className="container mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <Skeleton className="h-16 w-full bg-gray-800" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-32 bg-gray-800" />
-              ))}
+          <div className="max-w-5xl mx-auto space-y-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+              <h2 className="text-xl font-semibold mb-2">در حال بارگذاری پورتال</h2>
+              <p className="text-gray-400">لطفاً صبر کنید...</p>
             </div>
-            <Skeleton className="h-64 w-full bg-gray-800" />
           </div>
         </div>
       </div>
@@ -343,55 +152,72 @@ export default function PublicPortal() {
 
   if (error || !portalData) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">پورتال یافت نشد</h1>
-          <p className="text-gray-400">
-            لینک پورتال نامعتبر است یا دسترسی شما محدود شده است
+          <AlertTriangle className="w-20 h-20 text-red-400 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold mb-4">خطا در بارگذاری پورتال</h1>
+          <p className="text-gray-300 mb-4">
+            {(error as any)?.response?.status === 404 
+              ? "پورتال یافت نشد. لطفاً لینک را بررسی کنید." 
+              : "خطا در اتصال به سرور. لطفاً مجدداً تلاش کنید."}
           </p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            تلاش مجدد
+          </Button>
         </div>
       </div>
     );
   }
 
-  const accountStatus = getAccountStatus();
-  const lastPayment = getLastPayment();
-
+  // Calculate financial overview
+  const totalDebt = parseFloat(portalData.totalDebt) || 0;
+  const totalSales = parseFloat(portalData.totalSales) || 0;
+  const credit = parseFloat(portalData.credit) || 0;
+  const netBalance = credit - totalDebt;
+  
+  const paidInvoices = portalData.invoices.filter(inv => inv.status === 'paid').length;
+  const unpaidInvoices = portalData.invoices.filter(inv => inv.status !== 'paid').length;
+  
+  const totalPayments = portalData.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+  
   // Add custom CSS if provided
   const customStyles = portalData?.portalConfig?.customCss ? (
     <style dangerouslySetInnerHTML={{ __html: portalData.portalConfig.customCss }} />
   ) : null;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white">
       {customStyles}
-      {/* Header */}
-      <div className="border-b border-gray-800 portal-header">
-        <div className="container mx-auto px-4 py-6">
+      
+      {/* 🔒 SECURE HEADER - DA VINCI v3.0 DESIGN */}
+      <div className="bg-gradient-to-r from-blue-800 to-indigo-800 border-b border-blue-700 shadow-xl">
+        <div className="container mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 space-x-reverse">
-              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
-                <Shield className="w-6 h-6 text-white" />
+            <div className="flex items-center space-x-6 space-x-reverse">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Shield className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">
-                  {portalData?.portalConfig?.title || 'پورتال مالی نماینده'}
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                  {portalData?.portalConfig?.title || 'پرتال مالی نماینده'}
                 </h1>
-                <div className="space-y-1">
-                  <p className="text-gray-400">{portalData.name}</p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-blue-200 text-lg font-medium">{portalData.name}</p>
                   {portalData?.portalConfig?.showOwnerName && portalData.shopOwnerName && (
-                    <p className="text-sm text-gray-500">صاحب فروشگاه: {portalData.shopOwnerName}</p>
+                    <p className="text-blue-300 text-sm">صاحب فروشگاه: {portalData.shopOwnerName}</p>
                   )}
-                  <p className="text-sm text-gray-500">
-                    {portalData?.portalConfig?.description || 'مشاهده وضعیت مالی و فاکتورهای شما'}
+                  <p className="text-blue-300 text-sm">
+                    {portalData?.portalConfig?.description || 'نمایش کامل وضعیت مالی و مدیریت فاکتورها'}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="text-left ltr">
-              <p className="text-sm text-gray-400">شناسه پنل</p>
-              <p className="font-mono text-yellow-400 text-lg">
+            <div className="text-left bg-blue-800/50 rounded-xl p-4 border border-blue-600">
+              <p className="text-blue-300 text-sm font-medium">شناسه پنل</p>
+              <p className="font-mono text-yellow-300 text-xl font-bold">
                 {portalData.panelUsername}
               </p>
             </div>
@@ -399,332 +225,349 @@ export default function PublicPortal() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto space-y-8">
+      {/* 📊 SECTION 1: FINANCIAL OVERVIEW (موجودی بدهی/اعتباری) */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto space-y-10">
           
-          {/* Financial Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Total Debt Card */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">بدهی کل</p>
-                    <p className="text-3xl font-bold text-red-400 mt-2">
-                      {formatCurrency(portalData.totalDebt)}
-                    </p>
-                    <p className="text-gray-500 text-sm mt-1">تومان</p>
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <Wallet className="w-6 h-6 ml-3 text-emerald-400" />
+              بخش اول: موجودی مالی و وضعیت حساب
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Total Debt */}
+              <Card className="bg-gradient-to-br from-red-600 to-red-800 border-red-500 shadow-xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-red-100 text-sm font-medium">بدهی کل</p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {formatCurrency(totalDebt.toString())}
+                      </p>
+                      <p className="text-red-200 text-sm">تومان</p>
+                    </div>
+                    <div className="w-12 h-12 bg-red-700 rounded-full flex items-center justify-center">
+                      <DollarSign className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-red-900 rounded-full flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-red-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Last Payment Card */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">آخرین پرداخت</p>
-                    <p className="text-3xl font-bold text-green-400 mt-2">
-                      {formatCurrency(lastPayment.amount)}
-                    </p>
-                    <p className="text-gray-500 text-sm mt-1">
-                      {lastPayment.date}
-                    </p>
+              {/* Total Sales */}
+              <Card className="bg-gradient-to-br from-blue-600 to-blue-800 border-blue-500 shadow-xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-100 text-sm font-medium">فروش کل</p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {formatCurrency(totalSales.toString())}
+                      </p>
+                      <p className="text-blue-200 text-sm">تومان</p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center">
+                      <TrendingUp className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-green-900 rounded-full flex items-center justify-center">
-                    <CreditCard className="w-6 h-6 text-green-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Account Status Card */}
-            <Card className="bg-gray-800 border-gray-700">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-gray-400 text-sm">وضعیت حساب</p>
-                    <p className={`text-2xl font-bold mt-2 ${accountStatus.color}`}>
-                      {accountStatus.text}
-                    </p>
-                    <p className="text-gray-500 text-sm mt-1">
-                      {parseFloat(portalData.totalDebt) > 0 ? "نیاز به پرداخت" : "تسویه شده"}
-                    </p>
+              {/* Net Balance */}
+              <Card className={`${netBalance >= 0 ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 border-emerald-500' : 'bg-gradient-to-br from-orange-600 to-orange-800 border-orange-500'} shadow-xl`}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`${netBalance >= 0 ? 'text-emerald-100' : 'text-orange-100'} text-sm font-medium`}>موجودی خالص</p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {formatCurrency(Math.abs(netBalance).toString())}
+                      </p>
+                      <p className={`${netBalance >= 0 ? 'text-emerald-200' : 'text-orange-200'} text-sm`}>
+                        {netBalance >= 0 ? 'بستانکار' : 'بدهکار'}
+                      </p>
+                    </div>
+                    <div className={`w-12 h-12 ${netBalance >= 0 ? 'bg-emerald-700' : 'bg-orange-700'} rounded-full flex items-center justify-center`}>
+                      <Wallet className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                  <div className="w-12 h-12 bg-yellow-900 rounded-full flex items-center justify-center">
-                    <User className="w-6 h-6 text-yellow-400" />
+                </CardContent>
+              </Card>
+
+              {/* Payment Summary */}
+              <Card className="bg-gradient-to-br from-purple-600 to-purple-800 border-purple-500 shadow-xl">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-100 text-sm font-medium">کل پرداختی</p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {formatCurrency(totalPayments.toString())}
+                      </p>
+                      <p className="text-purple-200 text-sm">تومان</p>
+                    </div>
+                    <div className="w-12 h-12 bg-purple-700 rounded-full flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-white" />
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* 📋 SECTION 2: INVOICES SORTED BY DATE (فاکتورهای مرتب شده) */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <Receipt className="w-6 h-6 ml-3 text-blue-400" />
+              بخش دوم: فاکتورهای مرتب شده بر اساس تاریخ
+            </h2>
+            
+            <Card className="bg-slate-800 border-slate-600 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center justify-between">
+                  <span className="flex items-center">
+                    <FileText className="w-5 h-5 ml-2" />
+                    لیست فاکتورها ({toPersianDigits(portalData.invoices.length.toString())} فاکتور)
+                  </span>
+                  <div className="flex space-x-2 space-x-reverse">
+                    <Badge className="bg-emerald-600 text-white">
+                      پرداخت شده: {toPersianDigits(paidInvoices.toString())}
+                    </Badge>
+                    <Badge className="bg-amber-600 text-white">
+                      پرداخت نشده: {toPersianDigits(unpaidInvoices.toString())}
+                    </Badge>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {portalData.invoices.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-600 hover:bg-slate-700">
+                          <TableHead className="text-slate-300">شماره فاکتور</TableHead>
+                          <TableHead className="text-slate-300">مبلغ</TableHead>
+                          <TableHead className="text-slate-300">تاریخ صدور</TableHead>
+                          <TableHead className="text-slate-300">سررسید</TableHead>
+                          <TableHead className="text-slate-300">وضعیت</TableHead>
+                          <TableHead className="text-slate-300">عملیات</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {portalData.invoices.map((invoice, index) => (
+                          <React.Fragment key={index}>
+                            <TableRow className="border-slate-600 hover:bg-slate-700/50">
+                              <TableCell className="font-mono text-white font-medium">
+                                {invoice.invoiceNumber}
+                              </TableCell>
+                              <TableCell className="font-semibold text-emerald-400">
+                                {formatCurrency(invoice.amount)} تومان
+                              </TableCell>
+                              <TableCell className="text-slate-300">
+                                {invoice.issueDate || 'نامشخص'}
+                              </TableCell>
+                              <TableCell className="text-slate-300">
+                                {invoice.dueDate || '-'}
+                              </TableCell>
+                              <TableCell>
+                                {getInvoiceStatusBadge(invoice.status)}
+                              </TableCell>
+                              <TableCell>
+                                {invoice.usageData && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => toggleInvoiceExpansion(invoice.invoiceNumber)}
+                                    className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white"
+                                  >
+                                    {expandedInvoices.has(invoice.invoiceNumber) ? (
+                                      <>
+                                        <ChevronUp className="w-4 h-4 ml-1" />
+                                        بستن جزئیات
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="w-4 h-4 ml-1" />
+                                        مشاهده جزئیات
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                            
+                            {/* بخش سوم: CONSUMPTION BREAKDOWN (ریز جزئیات مصرف) */}
+                            {expandedInvoices.has(invoice.invoiceNumber) && invoice.usageData && (
+                              <TableRow className="border-slate-600">
+                                <TableCell colSpan={6} className="p-0">
+                                  <div className="bg-slate-900 p-6 rounded-lg m-4">
+                                    <h3 className="text-lg font-bold text-white mb-4 flex items-center">
+                                      <Database className="w-5 h-5 ml-2 text-emerald-400" />
+                                      بخش سوم: ریز جزئیات مصرف - فاکتور {invoice.invoiceNumber}
+                                    </h3>
+                                    
+                                    {formatUsageData(invoice.usageData).length > 0 ? (
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-slate-600">
+                                          <thead className="bg-slate-700">
+                                            <tr>
+                                              {portalData.portalConfig.showAdminUsername && (
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-slate-200 uppercase">
+                                                  ادمین
+                                                </th>
+                                              )}
+                                              {portalData.portalConfig.showEventTimestamp && (
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-slate-200 uppercase">
+                                                  زمان
+                                                </th>
+                                              )}
+                                              {portalData.portalConfig.showEventType && (
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-slate-200 uppercase">
+                                                  نوع
+                                                </th>
+                                              )}
+                                              {portalData.portalConfig.showDescription && (
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-slate-200 uppercase">
+                                                  شرح
+                                                </th>
+                                              )}
+                                              <th className="px-4 py-3 text-right text-xs font-medium text-slate-200 uppercase">
+                                                مبلغ
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="bg-slate-800 divide-y divide-slate-600">
+                                            {formatUsageData(invoice.usageData).map((record: any, idx: number) => (
+                                              <tr key={idx} className="hover:bg-slate-700">
+                                                {portalData.portalConfig.showAdminUsername && (
+                                                  <td className="px-4 py-3 text-sm text-white">
+                                                    {record.admin_username || 'سیستم'}
+                                                  </td>
+                                                )}
+                                                {portalData.portalConfig.showEventTimestamp && (
+                                                  <td className="px-4 py-3 text-sm text-slate-300">
+                                                    {record.event_timestamp || record.timestamp || '-'}
+                                                  </td>
+                                                )}
+                                                {portalData.portalConfig.showEventType && (
+                                                  <td className="px-4 py-3 text-sm">
+                                                    <Badge className={`
+                                                      ${record.event_type === 'CREATE' ? 'bg-emerald-600' :
+                                                        record.event_type === 'RENEWAL' ? 'bg-blue-600' :
+                                                        record.event_type === 'EXPIRE' ? 'bg-red-600' :
+                                                        'bg-slate-600'} text-white
+                                                    `}>
+                                                      {record.event_type || 'نامشخص'}
+                                                    </Badge>
+                                                  </td>
+                                                )}
+                                                {portalData.portalConfig.showDescription && (
+                                                  <td className="px-4 py-3 text-sm text-slate-300">
+                                                    {record.description || record.desc || '-'}
+                                                  </td>
+                                                )}
+                                                <td className="px-4 py-3 text-sm font-medium text-emerald-400">
+                                                  {record.amount ? `${formatCurrency(record.amount.toString())} تومان` : '-'}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ) : (
+                                      <div className="text-center py-8 text-slate-400">
+                                        <Database className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                        <p>هیچ جزئیات مصرفی برای این فاکتور ثبت نشده است</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-400">
+                    <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">فاکتوری یافت نشد</h3>
+                    <p>هنوز هیچ فاکتوری برای این نماینده صادر نشده است</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Financial Summary */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">خلاصه مالی</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-4">آمار کلی</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">کل فروش:</span>
-                      <span className="font-semibold text-white">
-                        {formatCurrency(portalData.totalSales)} تومان
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">مانده بدهی:</span>
-                      <span className="font-semibold text-red-400">
-                        {formatCurrency(portalData.totalDebt)} تومان
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">اعتبار:</span>
-                      <span className="font-semibold text-green-400">
-                        {formatCurrency(portalData.credit)} تومان
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-4">آمار فاکتورها</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">کل فاکتورها:</span>
-                      <span className="font-semibold text-white">
-                        {toPersianDigits(portalData.invoices.length.toString())}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">پرداخت شده:</span>
-                      <span className="font-semibold text-green-400">
-                        {toPersianDigits(
-                          portalData.invoices.filter(inv => inv.status === 'paid').length.toString()
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">در انتظار:</span>
-                      <span className="font-semibold text-yellow-400">
-                        {toPersianDigits(
-                          portalData.invoices.filter(inv => inv.status === 'unpaid').length.toString()
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Invoices */}
-          <Card className="bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center">
-                <FileText className="w-5 h-5 ml-2" />
-                فاکتورهای اخیر
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-gray-700">
-                      <TableHead className="text-gray-300">شماره فاکتور</TableHead>
-                      <TableHead className="text-gray-300">مبلغ</TableHead>
-                      <TableHead className="text-gray-300">تاریخ صدور</TableHead>
-                      <TableHead className="text-gray-300">سررسید</TableHead>
-                      <TableHead className="text-gray-300">وضعیت</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {portalData.invoices.length > 0 ? (
-                      portalData.invoices.slice(0, 10).map((invoice, index) => (
-                        <React.Fragment key={index}>
-                          <TableRow className="border-gray-700 hover:bg-gray-700/50">
-                            <TableCell className="font-mono text-white">
-                              <div className="flex items-center space-x-2 space-x-reverse">
-                                {invoice.invoiceNumber}
-                                {invoice.usageData && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => toggleInvoiceExpansion(invoice.invoiceNumber)}
-                                    className="text-blue-400 hover:text-blue-300 hover:bg-gray-700"
-                                  >
-                                    {expandedInvoices.has(invoice.invoiceNumber) ? (
-                                      <ChevronUp className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronDown className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-semibold text-white">
-                              {formatCurrency(invoice.amount)} تومان
-                            </TableCell>
-                            <TableCell className="text-gray-300">
-                              <div className="flex items-center">
-                                <Calendar className="w-4 h-4 ml-1 text-gray-400" />
-                                {invoice.issueDate}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-gray-300">
-                              {invoice.dueDate || "-"}
-                            </TableCell>
-                            <TableCell>
-                              {getInvoiceStatusBadge(invoice.status)}
-                            </TableCell>
-                          </TableRow>
-                          
-                          {/* Usage Data Details Row */}
-                          {expandedInvoices.has(invoice.invoiceNumber) && (
-                            <TableRow className="border-gray-700 bg-gray-800/50">
-                              <TableCell colSpan={5} className="p-0">
-                                {/* Invoice Details Card - Mobile First Design */}
-                                <div className="bg-gradient-to-br from-gray-800 to-gray-900 m-4 rounded-xl shadow-xl border border-gray-600">
-                                  {/* Header Section */}
-                                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-xl">
-                                    <div className="flex items-center justify-between text-white">
-                                      <div className="flex items-center space-x-3 space-x-reverse">
-                                        <div className="bg-white/20 p-2 rounded-full">
-                                          <FileText className="w-6 h-6" />
-                                        </div>
-                                        <div>
-                                          <h3 className="text-lg font-bold">جزئیات مصرف فاکتور</h3>
-                                          <p className="text-blue-100 text-sm">فاکتور شماره {invoice.invoiceNumber}</p>
-                                        </div>
-                                      </div>
-                                      <Badge className="bg-white/20 text-white border-white/30">
-                                        INV-{invoice.invoiceNumber.slice(-4)}
-                                      </Badge>
-                                    </div>
-                                  </div>
-
-                                  {/* Invoice Summary Cards */}
-                                  <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-gray-700">
-                                    <div className="bg-gray-700 rounded-lg p-4 text-center">
-                                      <div className="text-2xl font-bold text-green-400 mb-1">
-                                        {formatCurrency(invoice.amount)} تومان
-                                      </div>
-                                      <div className="text-sm text-gray-300">مجموع مبلغ</div>
-                                    </div>
-                                    
-                                    <div className="bg-gray-700 rounded-lg p-4 text-center">
-                                      <div className="text-2xl font-bold text-white mb-1">
-                                        {toPersianDigits((formatUsageData(invoice.usageData) as any[]).length.toString())}
-                                      </div>
-                                      <div className="text-sm text-gray-300">تعداد رویدادها</div>
-                                    </div>
-
-                                    <div className="bg-gray-700 rounded-lg p-4 text-center">
-                                      <div className="mb-1">
-                                        {getInvoiceStatusBadge(invoice.status)}
-                                      </div>
-                                      <div className="text-sm text-gray-300">وضعیت فاکتور</div>
-                                    </div>
-                                  </div>
-
-                                  {/* Usage Details Table */}
-                                  <div className="p-6">
-                                    <div className="flex items-center mb-4">
-                                      <Database className="w-5 h-5 text-blue-400 ml-2" />
-                                      <h4 className="text-lg font-semibold text-white">ریز جزئیات مصرف</h4>
-                                    </div>
-                                    
-                                    <div className="bg-gray-800 rounded-lg overflow-hidden border border-gray-600">
-                                      {renderUsageDetailsTable(invoice.usageData)}
-                                    </div>
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      ))
-                    ) : (
-                      <TableRow className="border-gray-700">
-                        <TableCell colSpan={5} className="text-center py-8 text-gray-400">
-                          فاکتوری یافت نشد
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              {portalData.invoices.length > 10 && (
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-400">
-                    و {toPersianDigits((portalData.invoices.length - 10).toString())} فاکتور دیگر...
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Recent Payments */}
-          {portalData.payments.length > 0 && (
-            <Card className="bg-gray-800 border-gray-700">
+          {/* 💰 SECTION 4: PAYMENT HISTORY (تاریخچه پرداخت) */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+              <CreditCard className="w-6 h-6 ml-3 text-green-400" />
+              بخش چهارم: تاریخچه پرداخت‌ها
+            </h2>
+            
+            <Card className="bg-slate-800 border-slate-600 shadow-xl">
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
-                  <CreditCard className="w-5 h-5 ml-2" />
-                  پرداخت‌های اخیر
+                  <Wallet className="w-5 h-5 ml-2" />
+                  سوابق پرداخت ({toPersianDigits(portalData.payments.length.toString())} پرداخت)
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {portalData.payments.slice(0, 5).map((payment, index) => (
-                    <div 
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-gray-700 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-3 space-x-reverse">
-                        <div className="w-10 h-10 bg-green-900 rounded-full flex items-center justify-center">
-                          <CreditCard className="w-5 h-5 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-white">
-                            پرداخت {formatCurrency(payment.amount)} تومان
-                          </p>
-                          <p className="text-sm text-gray-400">
-                            {payment.paymentDate}
-                          </p>
-                          {payment.description && (
-                            <p className="text-xs text-gray-500">
-                              {payment.description}
+                {portalData.payments.length > 0 ? (
+                  <div className="space-y-4">
+                    {portalData.payments.map((payment, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-700 to-emerald-800 rounded-lg border border-emerald-600"
+                      >
+                        <div className="flex items-center space-x-4 space-x-reverse">
+                          <div className="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center">
+                            <CreditCard className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-lg">
+                              {formatCurrency(payment.amount)} تومان
                             </p>
-                          )}
+                            <p className="text-emerald-200 text-sm">
+                              تاریخ: {payment.paymentDate}
+                            </p>
+                            {payment.description && (
+                              <p className="text-emerald-300 text-xs mt-1">
+                                {payment.description}
+                              </p>
+                            )}
+                          </div>
                         </div>
+                        <Badge className="bg-emerald-500 text-white border-emerald-400">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          تأیید شده
+                        </Badge>
                       </div>
-                      <Badge className="bg-green-600 text-white">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        تأیید شده
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-400">
+                    <CreditCard className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">پرداختی یافت نشد</h3>
+                    <p>هنوز هیچ پرداختی از این نماینده دریافت نشده است</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+          </div>
 
           {/* Footer */}
-          <div className="text-center py-6 border-t border-gray-800">
-            <p className="text-gray-500 text-sm">
-              تولید شده توسط سیستم مدیریت مالی MarFaNet 🤖
-            </p>
-            <p className="text-gray-600 text-xs mt-1">
-              این پورتال به‌روزرسانی خودکار می‌شود
-            </p>
+          <div className="text-center py-8 border-t border-slate-700">
+            <div className="bg-gradient-to-r from-blue-800 to-purple-800 rounded-xl p-6 border border-blue-600">
+              <p className="text-blue-200 text-lg font-medium mb-2">
+                🚀 سیستم مدیریت مالی پیشرفته DA VINCI v3.0
+              </p>
+              <p className="text-blue-300 text-sm">
+                این پورتال به‌صورت خودکار و لحظه‌ای بروزرسانی می‌شود | MarFaNet CRM
+              </p>
+              <p className="text-blue-400 text-xs mt-2">
+                🔒 پورتال امن و محافظت شده - هیچ اطلاعات ادمین در دسترس نیست
+              </p>
+            </div>
           </div>
         </div>
       </div>
