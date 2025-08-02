@@ -13,8 +13,6 @@ import Header from "@/components/layout/header";
 
 // Pages
 import Dashboard from "@/pages/dashboard";
-import Representatives from "@/pages/representatives";
-import RepresentativeDetails from "@/pages/representative-details";
 import Invoices from "@/pages/invoices";
 import InvoiceManagement from "@/pages/InvoiceManagement";
 import PaymentManagement from "@/pages/PaymentManagement";
@@ -26,9 +24,6 @@ import Settings from "@/pages/settings";
 import PublicPortal from "@/pages/public-portal";
 import AdminLogin from "@/pages/admin-login";
 import NotFound from "@/pages/not-found";
-import CrmAuth from "@/pages/crm-auth";
-// Legacy CRM imports removed - now using unified Modern CRM Dashboard
-import CrmNotifications from "@/pages/crm-notifications";
 import UnifiedAuth from "@/pages/unified-auth";
 
 // Lazy load Modern CRM Dashboard (New Unified Architecture)
@@ -173,8 +168,7 @@ function AuthenticatedRouter() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/dashboard" component={Dashboard} />
-        <Route path="/representatives" component={Representatives} />
-        <Route path="/representatives/:code" component={RepresentativeDetails} />
+        {/* Representatives routes removed - now handled in SHERLOCK v3.0 CRM */}
         <Route path="/invoices" component={Invoices} />
         <Route path="/invoice-management" component={InvoiceManagement} />
         <Route path="/payment-management" component={PaymentManagement} />
