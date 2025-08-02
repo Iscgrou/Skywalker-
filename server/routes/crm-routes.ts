@@ -1056,33 +1056,7 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  app.post("/api/crm/ai-workspace/chat", crmAuthMiddleware, async (req, res) => {
-    try {
-      const { message, context } = req.body;
-      
-      if (!message) {
-        return res.status(400).json({ error: 'پیام ضروری است' });
-      }
-      
-      const aiResponse = {
-        id: `msg_${Date.now()}`,
-        message: `پاسخ هوشمند: درباره "${message}" - این پیام با در نظر گیری فرهنگ ایرانی و داده‌های CRM تحلیل شده است.`,
-        timestamp: new Date().toISOString(),
-        confidence: 0.89,
-        culturalContext: 'ایرانی',
-        relatedInsights: [
-          { type: 'recommendation', text: 'پیشنهاد مبتنی بر تحلیل داده‌ها' }
-        ],
-        actionable: true,
-        responseTime: Math.floor(Math.random() * 300) + 100
-      };
-      
-      res.json({ success: true, data: aiResponse });
-    } catch (error) {
-      console.error('Error processing AI chat:', error);
-      res.status(500).json({ error: 'خطا در پردازش چت AI' });
-    }
-  });
+  // REMOVED OLD ENDPOINT - XAI GROK VERSION IS USED INSTEAD
 
   app.get("/api/crm/advanced-analytics", crmAuthMiddleware, async (req, res) => {
     try {
@@ -2283,13 +2257,80 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       // Get real data context for AI
       const representativesData = await db.select().from(representatives).limit(10);
       
-      // Generate intelligent response based on message content
+      // Generate intelligent response using XAI Grok API
       let aiResponse = '';
       let confidence = 94;
       let suggestions = [];
 
-      // Smart response generation based on keywords
-      if (message.includes('سلام') || message.includes('hello') || message.includes('hi')) {
+      try {
+        // Use XAI Grok for enhanced AI processing
+        const xaiResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'grok-2-1212',
+            messages: [
+              { 
+                role: 'system', 
+                content: `شما "معاف کنگ یار" هستید - دستیار هوشمند CRM فارسی با قابلیت‌های پیشرفته. شما متخصص در:
+
+🧠 تحلیل رفتار نمایندگان ایرانی
+📊 بهینه‌سازی فرایندهای فروش
+🎯 ارائه پیشنهادات عملی مبتنی بر فرهنگ ایرانی
+❤️ درک عمیق ارزش‌های فرهنگی و مذهبی
+
+حالت فعلی: ${mode || 'collaborative'}
+آمار فعلی سیستم:
+- تعداد نمایندگان: ${representativesData.length}
+- آخرین بروزرسانی: ${new Date().toLocaleDateString('fa-IR')}
+
+لطفاً پاسخ شما:
+✅ مفصل، کاربردی و حرفه‌ای باشد
+✅ مناسب فرهنگ ایرانی و احترام به ارزش‌های سنتی  
+✅ شامل پیشنهادات عملی و قابل اجرا
+✅ با لحن دوستانه و محترمانه`
+              },
+              { role: 'user', content: message }
+            ],
+            temperature: 0.7,
+            max_tokens: 800
+          })
+        });
+
+        if (xaiResponse.ok) {
+          const xaiData = await xaiResponse.json();
+          aiResponse = xaiData.choices[0]?.message?.content || 'متأسفانه نتوانستم پاسخ مناسبی تولید کنم.';
+          confidence = 94;
+          
+          // Generate contextual suggestions based on message content
+          if (message.includes('نماینده') || message.includes('representative')) {
+            suggestions = ['مشاهده لیست نمایندگان', 'تحلیل عملکرد نمایندگان', 'گزارش عملکرد ماهانه'];
+          } else if (message.includes('وظیفه') || message.includes('تسک') || message.includes('task')) {
+            suggestions = ['ایجاد وظیفه جدید', 'بررسی وظایف معوقه', 'اولویت‌بندی هوشمند'];
+          } else if (message.includes('گزارش') || message.includes('report')) {
+            suggestions = ['گزارش عملکرد ماهانه', 'تحلیل ترندها', 'خروجی Excel'];
+          } else if (message.includes('فروش') || message.includes('sales')) {
+            suggestions = ['آنالیز فروش', 'بهترین نمایندگان', 'راهکارهای افزایش فروش'];
+          } else if (message.includes('بدهی') || message.includes('debt')) {
+            suggestions = ['بررسی بدهی‌ها', 'برنامه وصول', 'تحلیل ریسک'];
+          } else {
+            suggestions = ['راهنمای سیستم', 'نمایش آمار کلی', 'تنظیمات شخصی'];
+          }
+        } else {
+          throw new Error(`XAI API error: ${xaiResponse.status}`);
+        }
+      } catch (xaiError) {
+        console.error('XAI API error:', xaiError);
+        confidence = 78;
+        suggestions = ['تلاش مجدد', 'درخواست پشتیبانی'];
+        
+        // Fallback to intelligent local responses
+
+        // Fallback: Smart response generation based on keywords
+        if (message.includes('سلام') || message.includes('hello') || message.includes('hi')) {
         aiResponse = `سلام و وقت بخیر! 🌟
 
 من معاف کنگ یار هستم، دستیار هوشمند CRM شما. در حال حاضر ${representativesData.length} نماینده در سیستم داریم.
@@ -2378,9 +2419,9 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
 • یکپارچه‌سازی با پلتفرم‌های دیگر`;
         suggestions = ['جزئیات سیستم follow-up', 'طراحی dashboard', 'برنامه آموزشی'];
       }
-      else {
-        // Default intelligent response
-        aiResponse = `متوجه درخواست شما شدم. در حال حاضر ${representativesData.length} نماینده در سیستم داریم.
+        else {
+          // Default intelligent response
+          aiResponse = `متوجه درخواست شما شدم. در حال حاضر ${representativesData.length} نماینده در سیستم داریم.
 
 🔍 برای کمک بهتر، لطفاً از این گزینه‌ها استفاده کنید:
 • "آمار نمایندگان" - برای مشاهده آمار کامل
@@ -2389,7 +2430,8 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
 • "پیشنهادات بهبود" - برای راهکارهای بهینه‌سازی
 
 همچنین می‌توانید سوال مشخص‌تری بپرسید.`;
-        suggestions = ['آمار نمایندگان', 'تحلیل سیستم', 'گزارش ماهانه', 'پیشنهادات بهبود'];
+          suggestions = ['آمار نمایندگان', 'تحلیل سیستم', 'گزارش ماهانه', 'پیشنهادات بهبود'];
+        }
       }
 
       const processingTime = Date.now() - startTime;
@@ -2405,10 +2447,11 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
           processingTime,
           metadata: {
             mode: mode || 'collaborative',
-            aiEngine: 'SHERLOCK-v3-Enhanced',
+            aiEngine: confidence > 90 ? 'XAI-Grok-2-1212' : 'Local-Fallback',
             culturalContext: 'Persian-Iranian',
             timestamp: new Date().toISOString(),
-            dataSourced: true
+            dataSourced: true,
+            apiConnected: confidence > 90
           }
         }
       });
