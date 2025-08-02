@@ -133,6 +133,9 @@ export default function PublicPortal() {
   console.log('Portal Data:', portalData);
   console.log('Loading:', isLoading);
   console.log('Error:', error);
+  console.log('Invoices length:', portalData?.invoices?.length);
+  console.log('Payments length:', portalData?.payments?.length);
+  console.log('Portal Config:', portalData?.portalConfig);
 
   if (isLoading) {
     return (
@@ -150,16 +153,15 @@ export default function PublicPortal() {
     );
   }
 
-  if (error || !portalData) {
+  if (error) {
+    console.error('Portal Error:', error);
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 text-white flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-20 h-20 text-red-400 mx-auto mb-6" />
           <h1 className="text-3xl font-bold mb-4">خطا در بارگذاری پورتال</h1>
           <p className="text-gray-300 mb-4">
-            {(error as any)?.response?.status === 404 
-              ? "پورتال یافت نشد. لطفاً لینک را بررسی کنید." 
-              : "خطا در اتصال به سرور. لطفاً مجدداً تلاش کنید."}
+            خطا در اتصال به سرور: {(error as any)?.message || 'خطای نامشخص'}
           </p>
           <Button 
             onClick={() => window.location.reload()} 
@@ -172,16 +174,44 @@ export default function PublicPortal() {
     );
   }
 
-  // Calculate financial overview
-  const totalDebt = parseFloat(portalData.totalDebt) || 0;
-  const totalSales = parseFloat(portalData.totalSales) || 0;
-  const credit = parseFloat(portalData.credit) || 0;
+  if (!portalData) {
+    console.log('No portal data available');
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-red-900 to-slate-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="w-20 h-20 text-red-400 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold mb-4">داده‌ای یافت نشد</h1>
+          <p className="text-gray-300 mb-4">
+            هیچ داده‌ای برای این پورتال در دسترس نیست
+          </p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            تلاش مجدد
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate financial overview - FORCE VALUES TO SHOW
+  const totalDebt = parseFloat(portalData.totalDebt || '0') || 0;
+  const totalSales = parseFloat(portalData.totalSales || '0') || 0;
+  const credit = parseFloat(portalData.credit || '0') || 0;
   const netBalance = credit - totalDebt;
   
-  const paidInvoices = portalData.invoices.filter(inv => inv.status === 'paid').length;
-  const unpaidInvoices = portalData.invoices.filter(inv => inv.status !== 'paid').length;
+  console.log('Financial calculations:', { totalDebt, totalSales, credit, netBalance });
   
-  const totalPayments = portalData.payments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+  const invoicesArray = portalData.invoices || [];
+  const paymentsArray = portalData.payments || [];
+  
+  const paidInvoices = invoicesArray.filter(inv => inv.status === 'paid').length;
+  const unpaidInvoices = invoicesArray.filter(inv => inv.status !== 'paid').length;
+  
+  const totalPayments = paymentsArray.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
+  
+  console.log('Arrays:', { invoicesArray: invoicesArray.length, paymentsArray: paymentsArray.length, totalPayments });
   
   // Add custom CSS if provided
   const customStyles = portalData?.portalConfig?.customCss ? (
@@ -236,16 +266,16 @@ export default function PublicPortal() {
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Total Debt */}
+              {/* Total Debt - FORCE DISPLAY */}
               <Card className="bg-gradient-to-br from-red-600 to-red-800 border-red-500 shadow-xl">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-red-100 text-sm font-medium">بدهی کل</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {formatCurrency(totalDebt.toString())}
+                        {totalDebt === 0 ? "0" : formatCurrency(totalDebt.toString())} تومان
                       </p>
-                      <p className="text-red-200 text-sm">تومان</p>
+                      <p className="text-red-200 text-sm">وضعیت: {totalDebt === 0 ? "بدون بدهی" : "دارای بدهی"}</p>
                     </div>
                     <div className="w-12 h-12 bg-red-700 rounded-full flex items-center justify-center">
                       <DollarSign className="w-6 h-6 text-white" />
@@ -254,16 +284,16 @@ export default function PublicPortal() {
                 </CardContent>
               </Card>
 
-              {/* Total Sales */}
+              {/* Total Sales - FORCE DISPLAY */}
               <Card className="bg-gradient-to-br from-blue-600 to-blue-800 border-blue-500 shadow-xl">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-blue-100 text-sm font-medium">فروش کل</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {formatCurrency(totalSales.toString())}
+                        {totalSales === 0 ? "0" : formatCurrency(totalSales.toString())} تومان
                       </p>
-                      <p className="text-blue-200 text-sm">تومان</p>
+                      <p className="text-blue-200 text-sm">Raw: {portalData.totalSales}</p>
                     </div>
                     <div className="w-12 h-12 bg-blue-700 rounded-full flex items-center justify-center">
                       <TrendingUp className="w-6 h-6 text-white" />
@@ -272,36 +302,36 @@ export default function PublicPortal() {
                 </CardContent>
               </Card>
 
-              {/* Net Balance */}
-              <Card className={`${netBalance >= 0 ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 border-emerald-500' : 'bg-gradient-to-br from-orange-600 to-orange-800 border-orange-500'} shadow-xl`}>
+              {/* Net Balance - FORCE DISPLAY */}
+              <Card className="bg-gradient-to-br from-emerald-600 to-emerald-800 border-emerald-500 shadow-xl">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className={`${netBalance >= 0 ? 'text-emerald-100' : 'text-orange-100'} text-sm font-medium`}>موجودی خالص</p>
+                      <p className="text-emerald-100 text-sm font-medium">موجودی خالص</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {formatCurrency(Math.abs(netBalance).toString())}
+                        {netBalance === 0 ? "0" : formatCurrency(Math.abs(netBalance).toString())} تومان
                       </p>
-                      <p className={`${netBalance >= 0 ? 'text-emerald-200' : 'text-orange-200'} text-sm`}>
-                        {netBalance >= 0 ? 'بستانکار' : 'بدهکار'}
+                      <p className="text-emerald-200 text-sm">
+                        {netBalance >= 0 ? 'بستانکار' : 'بدهکار'} | اعتبار: {credit}
                       </p>
                     </div>
-                    <div className={`w-12 h-12 ${netBalance >= 0 ? 'bg-emerald-700' : 'bg-orange-700'} rounded-full flex items-center justify-center`}>
+                    <div className="w-12 h-12 bg-emerald-700 rounded-full flex items-center justify-center">
                       <Wallet className="w-6 h-6 text-white" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Payment Summary */}
+              {/* Payment Summary - FORCE DISPLAY */}
               <Card className="bg-gradient-to-br from-purple-600 to-purple-800 border-purple-500 shadow-xl">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-purple-100 text-sm font-medium">کل پرداختی</p>
                       <p className="text-3xl font-bold text-white mt-2">
-                        {formatCurrency(totalPayments.toString())}
+                        {totalPayments === 0 ? "0" : formatCurrency(totalPayments.toString())} تومان
                       </p>
-                      <p className="text-purple-200 text-sm">تومان</p>
+                      <p className="text-purple-200 text-sm">تعداد: {paymentsArray.length} پرداخت</p>
                     </div>
                     <div className="w-12 h-12 bg-purple-700 rounded-full flex items-center justify-center">
                       <CreditCard className="w-6 h-6 text-white" />
@@ -324,7 +354,7 @@ export default function PublicPortal() {
                 <CardTitle className="text-white flex items-center justify-between">
                   <span className="flex items-center">
                     <FileText className="w-5 h-5 ml-2" />
-                    لیست فاکتورها ({toPersianDigits(portalData.invoices.length.toString())} فاکتور)
+                    لیست فاکتورها ({toPersianDigits(invoicesArray.length.toString())} فاکتور)
                   </span>
                   <div className="flex space-x-2 space-x-reverse">
                     <Badge className="bg-emerald-600 text-white">
@@ -337,7 +367,7 @@ export default function PublicPortal() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {portalData.invoices.length > 0 ? (
+                {invoicesArray.length > 0 ? (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -351,7 +381,7 @@ export default function PublicPortal() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {portalData.invoices.map((invoice, index) => (
+                        {invoicesArray.map((invoice, index) => (
                           <React.Fragment key={index}>
                             <TableRow className="border-slate-600 hover:bg-slate-700/50">
                               <TableCell className="font-mono text-white font-medium">
@@ -508,13 +538,13 @@ export default function PublicPortal() {
               <CardHeader>
                 <CardTitle className="text-white flex items-center">
                   <Wallet className="w-5 h-5 ml-2" />
-                  سوابق پرداخت ({toPersianDigits(portalData.payments.length.toString())} پرداخت)
+                  سوابق پرداخت ({toPersianDigits(paymentsArray.length.toString())} پرداخت)
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {portalData.payments.length > 0 ? (
+                {paymentsArray.length > 0 ? (
                   <div className="space-y-4">
-                    {portalData.payments.map((payment, index) => (
+                    {paymentsArray.map((payment, index) => (
                       <div 
                         key={index}
                         className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-700 to-emerald-800 rounded-lg border border-emerald-600"
