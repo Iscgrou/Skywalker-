@@ -1239,7 +1239,7 @@ function EditInvoiceDialog({
   const [parsedUsageData, setParsedUsageData] = useState<any>(invoice.usageData || {});
   // Parse actual usage data from invoice - Enhanced for real data structures
   const parseUsageData = (usageData: any) => {
-    console.log('Parsing usage data:', usageData, 'Type:', typeof usageData);
+    // console.log('Parsing usage data:', usageData, 'Type:', typeof usageData);
     
     if (!usageData) {
       // Return single item with invoice amount if no usage data
@@ -1267,7 +1267,22 @@ function EditInvoiceDialog({
       }));
     }
 
-    // If it contains items array
+    // If it contains records array (main usage data structure)
+    if (typeof usageData === 'object' && usageData.records && Array.isArray(usageData.records)) {
+      return usageData.records.map((record: any, index: number) => ({
+        id: index + 1,
+        description: record.description || 
+                    `${record.event_type || 'سرویس'}: ${record.admin_username || record.username || ''} ${record.description ? '' : '(واردات سیستم)'}`,
+        date: record.event_timestamp ? 
+              new Date(record.event_timestamp).toLocaleDateString('fa-IR') : 
+              record.period_start ? 
+              new Date(record.period_start).toLocaleDateString('fa-IR') :
+              invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+        amount: parseFloat(record.amount || record.usage_amount || 0)
+      }));
+    }
+
+    // If it contains items array (alternative structure)
     if (typeof usageData === 'object' && usageData.items && Array.isArray(usageData.items)) {
       return usageData.items.map((item: any, index: number) => ({
         id: index + 1,
@@ -1277,21 +1292,34 @@ function EditInvoiceDialog({
       }));
     }
     
-    // If it's a single usage object, convert to array
+    // If it's a single usage object with specific structure, convert to array
     if (typeof usageData === 'object' && !Array.isArray(usageData)) {
+      // Check for summary object with usage info
+      if (usageData.admin_username && usageData.usage_amount) {
+        return [{
+          id: 1,
+          description: `کاربر: ${usageData.admin_username} - مجموع مصرف`,
+          date: usageData.period_start ? 
+                new Date(usageData.period_start).toLocaleDateString('fa-IR') : 
+                invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+          amount: parseFloat(usageData.usage_amount || usageData.amount || invoice.amount || 0)
+        }];
+      }
+
       // Try to extract multiple services from object properties
       const entries = Object.entries(usageData);
       if (entries.length > 1) {
         return entries
-          .filter(([key, value]) => key !== 'total' && key !== 'summary' && value)
+          .filter(([key, value]) => key !== 'total' && key !== 'summary' && key !== 'totalRecords' && value)
           .map(([key, value], index) => ({
             id: index + 1,
-            description: (typeof value === 'object' && value.description) || 
-                        (typeof value === 'object' && value.service) || 
-                        key || `ردیف ${index + 1}`,
-            date: (typeof value === 'object' && value.date) || 
+            description: (typeof value === 'object' && value !== null && ((value as any).description || (value as any).service)) || 
+                        (typeof value === 'string' ? value : key) || 
+                        `ردیف ${index + 1}`,
+            date: (typeof value === 'object' && value !== null && ((value as any).date || (value as any).event_timestamp || (value as any).period_start)) ? 
+                  new Date((value as any).date || (value as any).event_timestamp || (value as any).period_start).toLocaleDateString('fa-IR') :
                   invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
-            amount: (typeof value === 'object' && parseFloat(value.amount || value.price || 0)) ||
+            amount: (typeof value === 'object' && value !== null && parseFloat((value as any).amount || (value as any).price || (value as any).usage_amount || 0)) ||
                    (typeof value === 'number' ? value : 0) ||
                    Math.round(parseFloat(invoice.amount) / entries.length)
           }));
@@ -1300,9 +1328,12 @@ function EditInvoiceDialog({
       // Single object fallback
       return [{
         id: 1,
-        description: usageData.service || usageData.description || usageData.name || "سرویس پایه",
-        date: usageData.date || usageData.issueDate || invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
-        amount: parseFloat(usageData.amount || usageData.price || usageData.cost || invoice.amount || 0)
+        description: usageData.service || usageData.description || usageData.name || 
+                    usageData.admin_username ? `کاربر: ${usageData.admin_username}` : "سرویس پایه",
+        date: usageData.date || usageData.event_timestamp || usageData.period_start ? 
+              new Date(usageData.date || usageData.event_timestamp || usageData.period_start).toLocaleDateString('fa-IR') :
+              invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+        amount: parseFloat(usageData.amount || usageData.price || usageData.usage_amount || invoice.amount || 0)
       }];
     }
 
