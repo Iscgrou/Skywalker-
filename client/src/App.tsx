@@ -20,8 +20,7 @@ import SalesPartners from "@/pages/sales-partners";
 
 
 import Settings from "@/pages/settings";
-import PublicPortal from "@/pages/public-portal";
-import PublicPortalNew from "@/pages/public-portal-new";
+import Portal from "@/pages/portal";
 import AdminLogin from "@/pages/admin-login";
 import NotFound from "@/pages/not-found";
 import UnifiedAuth from "@/pages/unified-auth";
@@ -114,8 +113,8 @@ function AuthenticatedRouter() {
     return (
       <div className="dark public-portal-isolated">
         <Switch>
-          <Route path="/portal/:publicId" component={PublicPortalNew} />
-          <Route path="/representative/:publicId" component={PublicPortalNew} />
+          <Route path="/portal/:publicId" component={Portal} />
+          <Route path="/representative/:publicId" component={Portal} />
           <Route path="/portal/*">
             {() => (
               <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">

@@ -57,6 +57,14 @@ The CRM system now contains four functional sections:
 ## Technical Decisions
 
 ### Recently Added (August 2, 2025)
+- **COMPLETE PORTAL REFACTOR**: Total redesign of public representative portal from scratch
+  - Removed all legacy portal code (public-portal.tsx, public-portal-new.tsx)
+  - Created new portal.tsx with completely different architecture
+  - Fixed critical UI rendering issues where data wasn't displaying despite API working
+  - Implemented proper data flow from API to UI components
+  - Added sectioned layout with numbered headers (1-4) for clear navigation
+  - Enhanced visual design with gradient cards and proper spacing
+  - Ensured all financial data displays correctly (1,019,000 تومان etc.)
 - **DA VINCI v3.0 Public Portal**: Complete redesign with 4 main sections as per user requirements
   1. **Financial Overview Section**: Real-time debt/credit balance, total sales, net balance, payment summary
   2. **Invoice List Section**: Chronologically sorted invoices with status badges and filtering
