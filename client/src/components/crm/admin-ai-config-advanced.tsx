@@ -57,7 +57,7 @@ interface AiConfig {
   culturalSensitivity: number;
   religiousSensitivity: number;
   traditionalValuesWeight: number;
-  languageFormality: number;
+  languageFormality: string;
   persianPoetryIntegration: boolean;
   culturalMetaphors: boolean;
   proactivityLevel: number;
@@ -124,7 +124,7 @@ export default function AdminAiConfigAdvanced() {
     culturalSensitivity: 85,
     religiousSensitivity: 80,
     traditionalValuesWeight: 70,
-    languageFormality: 80,
+    languageFormality: "RESPECTFUL",
     persianPoetryIntegration: true,
     culturalMetaphors: true,
     proactivityLevel: 70,
@@ -293,15 +293,50 @@ export default function AdminAiConfigAdvanced() {
   // Start editing
   const startEditing = (config: AiConfig) => {
     setEditingConfig(config.configName);
-    setEditFormData(config);
+    
+    // Convert decimal values back to percentage for UI display
+    const uiData = { ...config };
+    const percentageFields = ['traditionalValuesWeight', 'culturalSensitivity', 'religiousSensitivity', 
+                             'proactivityLevel', 'confidenceThreshold', 'learningRate', 
+                             'creativityLevel', 'riskTolerance'];
+    
+    percentageFields.forEach(field => {
+      if (uiData[field] !== undefined && typeof uiData[field] === 'number' && uiData[field] <= 1) {
+        uiData[field] = Math.round(uiData[field] * 100);
+      }
+    });
+    
+    setEditFormData(uiData);
   };
 
   // Save edits
   const saveEdits = () => {
     if (editingConfig && editFormData) {
+      // Convert percentage values to decimals for database storage
+      const processedData = { ...editFormData };
+      
+      // Convert percentage fields to decimal (0-1) range
+      const percentageFields = ['traditionalValuesWeight', 'culturalSensitivity', 'religiousSensitivity', 
+                               'proactivityLevel', 'confidenceThreshold', 'learningRate', 
+                               'creativityLevel', 'riskTolerance'];
+      
+      percentageFields.forEach(field => {
+        if (processedData[field] !== undefined && typeof processedData[field] === 'number') {
+          processedData[field] = (processedData[field] / 100).toFixed(2);
+        }
+      });
+      
+      // Convert decimal fields (temperature, topP, etc.) to proper string format
+      const decimalFields = ['temperature', 'topP', 'frequencyPenalty', 'presencePenalty'];
+      decimalFields.forEach(field => {
+        if (processedData[field] !== undefined && typeof processedData[field] === 'number') {
+          processedData[field] = processedData[field].toFixed(2);
+        }
+      });
+      
       updateConfigMutation.mutate({
         configName: editingConfig,
-        updates: editFormData
+        updates: processedData
       });
     }
   };
@@ -828,16 +863,27 @@ function ConfigFields({ category, data, isEditing, onUpdateField }: ConfigFields
             )}
           </div>
           <div className="space-y-2">
-            <Label>رسمی بودن زبان: {data.languageFormality || 80}%</Label>
+            <Label>رسمی بودن زبان</Label>
             {isEditing ? (
-              <Slider
-                value={[data.languageFormality || 80]}
-                onValueChange={([value]) => onUpdateField('languageFormality', value)}
-                max={100}
-                min={0}
-              />
+              <Select 
+                value={data.languageFormality || "RESPECTFUL"} 
+                onValueChange={(value) => onUpdateField('languageFormality', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="انتخاب سطح رسمیت" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FORMAL">رسمی</SelectItem>
+                  <SelectItem value="RESPECTFUL">محترمانه</SelectItem>
+                  <SelectItem value="CASUAL">غیررسمی</SelectItem>
+                </SelectContent>
+              </Select>
             ) : (
-              <Progress value={data.languageFormality || 80} className="h-2" />
+              <div className="p-2 bg-muted rounded text-sm">
+                {data.languageFormality === "FORMAL" ? "رسمی" : 
+                 data.languageFormality === "RESPECTFUL" ? "محترمانه" : 
+                 data.languageFormality === "CASUAL" ? "غیررسمی" : "محترمانه"}
+              </div>
             )}
           </div>
           <div className="space-y-2">
