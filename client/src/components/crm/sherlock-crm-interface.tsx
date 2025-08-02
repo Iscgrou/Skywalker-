@@ -53,6 +53,7 @@ import {
   Shield,
   Lock
 } from 'lucide-react';
+import EnhancedRepresentativesManager from './enhanced-representatives-manager';
 import { CurrencyFormatter } from '@/lib/currency-formatter';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -290,6 +291,7 @@ function RepresentativesSection() {
           </Card>
         ))}
       </div>
+      <EnhancedRepresentativesManager />
     </div>
   );
 }

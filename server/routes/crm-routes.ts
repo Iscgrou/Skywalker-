@@ -653,6 +653,100 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
+  // ==================== SHERLOCK v3.0 REPRESENTATIVES ENDPOINTS ====================
+  
+  // Get representatives data with enhanced filtering
+  app.get("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { sortBy = 'name', order = 'asc', status = 'all', search = '', limit = 1000 } = req.query;
+      
+      let query = db.select().from(representatives);
+      
+      // Apply filters
+      if (status === 'active') {
+        query = query.where(eq((representatives as any).isActive, true));
+      } else if (status === 'inactive') {
+        query = query.where(eq((representatives as any).isActive, false));
+      }
+      
+      // Apply search
+      if (search) {
+        query = query.where(
+          or(
+            like((representatives as any).name, `%${search}%`),
+            like((representatives as any).code, `%${search}%`),
+            like((representatives as any).ownerName, `%${search}%`)
+          )
+        );
+      }
+      
+      // Apply sorting
+      const orderDirection = order === 'desc' ? desc : asc;
+      switch (sortBy) {
+        case 'name':
+          query = query.orderBy(orderDirection((representatives as any).name));
+          break;
+        case 'totalSales':
+          query = query.orderBy(orderDirection((representatives as any).totalSales));
+          break;
+        case 'totalDebt':
+          query = query.orderBy(orderDirection((representatives as any).totalDebt));
+          break;
+        case 'created':
+          query = query.orderBy(orderDirection((representatives as any).createdAt));
+          break;
+        default:
+          query = query.orderBy((representatives as any).name);
+      }
+      
+      // Apply limit
+      query = query.limit(Number(limit));
+      
+      const repsData = await query;
+      res.json(repsData);
+    } catch (error) {
+      console.error('Error fetching representatives:', error);
+      res.status(500).json({ error: 'خطا در دریافت نمایندگان' });
+    }
+  });
+
+  // Get representative statistics
+  app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
+    try {
+      const allReps = await db.select().from(representatives);
+      
+      const stats = {
+        totalCount: allReps.length,
+        activeCount: allReps.filter(rep => rep.isActive).length,
+        inactiveCount: allReps.filter(rep => !rep.isActive).length,
+        totalSales: allReps.reduce((sum, rep) => sum + parseFloat(rep.totalSales || '0'), 0),
+        totalDebt: allReps.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || '0'), 0),
+        totalCredit: allReps.reduce((sum, rep) => sum + parseFloat(rep.credit || '0'), 0),
+        topPerformers: allReps
+          .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
+          .slice(0, 5),
+        riskAlerts: allReps.filter(rep => parseFloat(rep.totalDebt || '0') > 5000000).length,
+        performanceMetrics: {
+          excellentPerformers: allReps.filter(rep => parseFloat(rep.totalSales || '0') > 10000000).length,
+          goodPerformers: allReps.filter(rep => {
+            const sales = parseFloat(rep.totalSales || '0');
+            return sales >= 5000000 && sales <= 10000000;
+          }).length,
+          needsImprovement: allReps.filter(rep => parseFloat(rep.totalSales || '0') < 5000000).length
+        }
+      };
+      
+      res.json({
+        success: true,
+        data: stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error fetching representative statistics:', error);
+      res.status(500).json({ error: 'خطا در دریافت آمار نمایندگان' });
+    }
+  });
+
   // ==================== REPRESENTATIVE ANALYSIS ====================
   
   app.get("/api/crm/representative/:id/analysis", async (req, res) => {
