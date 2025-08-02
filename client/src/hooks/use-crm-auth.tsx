@@ -72,10 +72,11 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
       }
     },
     retry: false,
-    staleTime: 5000, // Cache for 5 seconds to avoid rapid re-fetching
-    placeholderData: null, // Use null as placeholder to avoid undefined
-    refetchOnWindowFocus: false, // Prevent excessive refetching
-    refetchOnMount: true // Always check on mount
+    staleTime: 0, // No caching - always check authentication
+    placeholderData: null, // Use null as placeholder 
+    refetchOnWindowFocus: true, // Always recheck when window gets focus
+    refetchOnMount: true, // Always check on mount
+    refetchInterval: false // Don't auto-refetch in background
   });
 
   const loginMutation = useMutation({

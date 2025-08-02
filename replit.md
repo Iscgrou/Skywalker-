@@ -5,7 +5,14 @@ MarFaNet is a comprehensive financial management system designed for managing in
 
 ## Recent Changes (2025-08-02)
 
-**🔧 SHERLOCK v3.0 AUTHENTICATION ARCHITECTURE FIX (01:08 AM):**
+**🔧 SHERLOCK v3.0 AUTHENTICATION ARCHITECTURE FIX (01:16 AM):**
+- **✅ Manual Login Required**: Removed auto-redirect - users must login every time
+- **✅ Session Management**: Cleared all cached authentication states  
+- **✅ Force Login Flow**: No automatic authentication - always show login page first
+- **✅ Stability Fixed**: Infinite redirect loops completely resolved
+- **🔧 User Flow**: Home → Login Form → Enter Credentials → Dashboard Access
+
+**🔧 PREVIOUS: SHERLOCK v3.0 AUTHENTICATION ARCHITECTURE FIX (01:08 AM):**
 - **✅ Root Cause Resolution**: Fixed fundamental routing conflict between admin and CRM authentication
 - **✅ Redirect Logic Overhaul**: Implemented window.location.href for guaranteed navigation after login
 - **✅ State Management Fix**: Resolved authentication state conflicts in unified auth page

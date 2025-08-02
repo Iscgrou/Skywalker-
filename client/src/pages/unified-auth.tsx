@@ -138,17 +138,7 @@ export default function UnifiedAuth() {
     }
   };
 
-  // SHERLOCK v3.0 FIX: Auto-redirect already authenticated users (PREVENT INFINITE LOOP)
-  useEffect(() => {
-    // Only redirect if we're on the main login page, not already on a dashboard
-    if (location === '/' && adminAuth.isAuthenticated) {
-      console.log('Admin already authenticated, redirecting to dashboard');
-      setLocation('/dashboard');
-    } else if (location === '/' && crmAuth.user) {
-      console.log('CRM user already authenticated, redirecting to CRM');
-      setLocation('/crm');
-    }
-  }, [adminAuth.isAuthenticated, crmAuth.user, location, setLocation]);
+  // REMOVED: Auto-redirect logic - Users must login manually each time
 
   return (
     <div className="min-h-screen clay-background relative">

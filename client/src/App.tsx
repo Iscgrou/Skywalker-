@@ -39,14 +39,13 @@ function CrmProtectedRoutes() {
   const { user, isLoading } = useCrmAuth();
   const [, setLocation] = useLocation();
 
-  // Use useEffect to handle redirect - avoid setState during render
+  // FORCE LOGIN EVERY TIME - No auto-authentication
   useEffect(() => {
     if (!isLoading && !user) {
-      console.log('CRM Authentication failed, redirecting to unified login...');
-      console.log('Auth state:', { user, isLoading }); // Debug logging
-      setLocation('/'); // ✅ Redirect to unified auth page (main login)
+      console.log('CRM Authentication required, redirecting to login...');
+      setLocation('/'); // Always redirect to login page
     } else if (user) {
-      console.log('CRM User authenticated:', user); // Debug logging
+      console.log('CRM User authenticated:', user);
     }
   }, [user, isLoading, setLocation]);
 
@@ -138,7 +137,7 @@ function AuthenticatedRouter() {
     );
   }
 
-  // SHERLOCK v3.0 FIX: Handle CRM routes with proper authentication
+  // SHERLOCK v3.0 FIX: Always require login for CRM routes
   if (isCrmRoute) {
     return (
       <CrmAuthProvider>
