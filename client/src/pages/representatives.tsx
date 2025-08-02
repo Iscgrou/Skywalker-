@@ -1249,9 +1249,21 @@ function EditInvoiceDialog({
     try {
       setIsLoading(true);
       
-      // Use the already parsed usage data
+      if (!amount || !issueDate) {
+        toast({
+          title: "خطا",
+          description: "مبلغ و تاریخ صدور الزامی است",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const oldAmount = parseFloat(invoice.amount);
+      const newAmount = parseFloat(amount);
+      const amountDifference = newAmount - oldAmount;
       const finalUsageData = parsedUsageData;
 
+      // Update invoice with complete financial synchronization
       const updateData = {
         amount,
         issueDate,
@@ -1264,22 +1276,15 @@ function EditInvoiceDialog({
         data: updateData
       });
 
-      // Update representative's total debt if amount changed
-      if (representative && amount !== invoice.amount) {
-        const oldAmount = parseFloat(invoice.amount);
-        const newAmount = parseFloat(amount);
-        const currentDebt = parseFloat(representative.totalDebt);
-        const newDebt = currentDebt - oldAmount + newAmount;
-        
-        await apiRequest(`/api/representatives/${representative.id}`, {
-          method: "PUT",
-          data: { totalDebt: newDebt.toString() }
-        });
+      // Complete financial synchronization if amount changed
+      if (representative && amountDifference !== 0) {
+        await performFinancialSynchronization(representative.id, amountDifference, newAmount, oldAmount);
       }
 
       toast({
         title: "موفقیت",
-        description: "فاکتور با موفقیت بروزرسانی شد"
+        description: `فاکتور بروزرسانی شد${amountDifference !== 0 ? ' - همگام‌سازی مالی کامل انجام شد' : ''}`,
+        variant: "default"
       });
       
       onSave();
@@ -1291,6 +1296,79 @@ function EditInvoiceDialog({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Complete Financial Synchronization System
+  const performFinancialSynchronization = async (representativeId: number, amountDifference: number, newAmount: number, oldAmount: number) => {
+    try {
+      // 1. Update representative's total debt
+      const currentTotalDebt = parseFloat(representative!.totalDebt);
+      const newTotalDebt = currentTotalDebt + amountDifference;
+      
+      await apiRequest(`/api/representatives/${representativeId}`, {
+        method: "PUT",
+        data: { 
+          totalDebt: Math.max(0, newTotalDebt).toString(),
+          lastActivityAt: new Date().toISOString()
+        }
+      });
+
+      // 2. Recalculate invoice payment status if needed
+      if (status === 'paid' && newAmount > oldAmount) {
+        // If invoice amount increased and was marked as paid, check if it's still fully paid
+        const payments = await apiRequest(`/api/payments?invoiceId=${invoice.id}`);
+        const totalPaid = payments.reduce((sum: number, p: any) => sum + parseFloat(p.amount), 0);
+        
+        if (totalPaid < newAmount) {
+          // Update status to partial since payment is no longer sufficient
+          await apiRequest(`/api/invoices/${invoice.id}`, {
+            method: "PUT", 
+            data: { status: totalPaid > 0 ? 'partial' : 'unpaid' }
+          });
+        }
+      }
+
+      // 3. Synchronize with CRM system
+      await apiRequest(`/api/crm/representatives/${representativeId}/sync-debt`, {
+        method: "POST",
+        data: {
+          totalDebt: Math.max(0, newTotalDebt).toString(),
+          invoiceId: invoice.id,
+          amountChange: amountDifference,
+          syncReason: "invoice_amount_changed"
+        }
+      });
+
+      // 4. Create comprehensive activity log 
+      await apiRequest(`/api/activity-logs`, {
+        method: "POST",
+        data: {
+          type: "invoice_amount_changed",
+          description: `مبلغ فاکتور ${invoice.invoiceNumber} از ${oldAmount.toLocaleString()} به ${newAmount.toLocaleString()} ریال تغییر کرد`,
+          relatedId: representativeId,
+          metadata: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            oldAmount: oldAmount,
+            newAmount: newAmount,
+            amountDifference: amountDifference,
+            newTotalDebt: Math.max(0, newTotalDebt),
+            synchronizedSystems: ["main_system", "crm_system"],
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+
+      // 5. Trigger dashboard statistics refresh
+      await apiRequest(`/api/dashboard/refresh-stats`, {
+        method: "POST",
+        data: { reason: "invoice_amount_changed" }
+      });
+
+    } catch (error) {
+      console.error('Financial synchronization error:', error);
+      throw new Error('خطا در همگام‌سازی مالی سیستم');
     }
   };
 
@@ -1409,11 +1487,12 @@ function EditInvoiceDialog({
                           <SelectValue placeholder="واحد" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-white/20">
-                          <SelectItem value="GB">گیگابایت (GB)</SelectItem>
-                          <SelectItem value="MB">مگابایت (MB)</SelectItem>
-                          <SelectItem value="hour">ساعت</SelectItem>
-                          <SelectItem value="day">روز</SelectItem>
-                          <SelectItem value="request">درخواست</SelectItem>
+                          <SelectItem value="GB" className="text-white hover:bg-white/10">گیگابایت (GB)</SelectItem>
+                          <SelectItem value="MB" className="text-white hover:bg-white/10">مگابایت (MB)</SelectItem>
+                          <SelectItem value="hour" className="text-white hover:bg-white/10">ساعت</SelectItem>
+                          <SelectItem value="day" className="text-white hover:bg-white/10">روز</SelectItem>
+                          <SelectItem value="request" className="text-white hover:bg-white/10">درخواست</SelectItem>
+                          <SelectItem value="unit" className="text-white hover:bg-white/10">واحد عمومی</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1427,9 +1506,10 @@ function EditInvoiceDialog({
                           <SelectValue placeholder="دوره" />
                         </SelectTrigger>
                         <SelectContent className="bg-gray-900 border-white/20">
-                          <SelectItem value="monthly">ماهانه</SelectItem>
-                          <SelectItem value="yearly">سالانه</SelectItem>
-                          <SelectItem value="quarterly">فصلی</SelectItem>
+                          <SelectItem value="monthly" className="text-white hover:bg-white/10">ماهانه</SelectItem>
+                          <SelectItem value="yearly" className="text-white hover:bg-white/10">سالانه</SelectItem>
+                          <SelectItem value="quarterly" className="text-white hover:bg-white/10">فصلی</SelectItem>
+                          <SelectItem value="one-time" className="text-white hover:bg-white/10">یکبار</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

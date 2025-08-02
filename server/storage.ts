@@ -167,6 +167,13 @@ export interface IStorage {
     recentActivities: ActivityLog[];
   }>;
 
+  // Financial Synchronization Methods
+  getTotalRevenue(): Promise<string>;
+  getTotalDebt(): Promise<string>;
+  getActiveRepresentativesCount(): Promise<number>;
+  getUnpaidInvoicesCount(): Promise<number>;
+  getOverdueInvoicesCount(): Promise<number>;
+
   // Financial calculations
   updateRepresentativeFinancials(repId: number): Promise<void>;
 
@@ -2151,6 +2158,80 @@ export class DatabaseStorage implements IStorage {
         });
       },
       'autoAllocatePaymentToInvoices'
+    );
+  }
+
+  // Financial Synchronization Methods Implementation
+  async getTotalRevenue(): Promise<string> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .select({
+            total: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)`
+          })
+          .from(invoices)
+          .where(eq(invoices.status, 'paid'));
+        
+        return result[0]?.total || "0";
+      },
+      'getTotalRevenue'
+    );
+  }
+
+  async getTotalDebt(): Promise<string> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .select({
+            total: sql<string>`COALESCE(SUM(CAST(total_debt as DECIMAL)), 0)`
+          })
+          .from(representatives);
+        
+        return result[0]?.total || "0";
+      },
+      'getTotalDebt'
+    );
+  }
+
+  async getActiveRepresentativesCount(): Promise<number> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(representatives)
+          .where(eq(representatives.isActive, true));
+        
+        return result[0]?.count || 0;
+      },
+      'getActiveRepresentativesCount'
+    );
+  }
+
+  async getUnpaidInvoicesCount(): Promise<number> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(invoices)
+          .where(eq(invoices.status, 'unpaid'));
+        
+        return result[0]?.count || 0;
+      },
+      'getUnpaidInvoicesCount'
+    );
+  }
+
+  async getOverdueInvoicesCount(): Promise<number> {
+    return await withDatabaseRetry(
+      async () => {
+        const result = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(invoices)
+          .where(eq(invoices.status, 'overdue'));
+        
+        return result[0]?.count || 0;
+      },
+      'getOverdueInvoicesCount'
     );
   }
 }

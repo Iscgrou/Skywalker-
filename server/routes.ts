@@ -1194,7 +1194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/crm/representatives/:id/sync-debt", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { totalDebt, credit } = req.body;
+      const { totalDebt, credit, invoiceId, amountChange, syncReason } = req.body;
       
       // Update representative debt in main system
       await storage.updateRepresentative(parseInt(id), {
@@ -1202,16 +1202,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         credit: credit || "0"
       });
 
-      // Log the synchronization
+      // Log the synchronization with detailed information
       await storage.createActivityLog({
         type: "debt_synchronized",
-        description: `همگام‌سازی بدهی: ${totalDebt} ریال${credit ? ` - اعتبار: ${credit} ریال` : ''}`,
-        relatedId: parseInt(id)
+        description: syncReason === "invoice_amount_changed" 
+          ? `همگام‌سازی مالی پس از تغییر مبلغ فاکتور: ${totalDebt} ریال`
+          : `همگام‌سازی بدهی: ${totalDebt} ریال${credit ? ` - اعتبار: ${credit} ریال` : ''}`,
+        relatedId: parseInt(id),
+        metadata: {
+          invoiceId: invoiceId || null,
+          amountChange: amountChange || 0,
+          syncReason: syncReason || "manual_sync",
+          timestamp: new Date().toISOString()
+        }
       });
 
-      res.json({ success: true, message: "بدهی همگام‌سازی شد" });
+      res.json({ 
+        success: true, 
+        message: "همگام‌سازی مالی کامل انجام شد",
+        data: { totalDebt, credit, invoiceId, amountChange }
+      });
     } catch (error) {
       res.status(500).json({ error: "خطا در همگام‌سازی بدهی" });
+    }
+  });
+
+  // Dashboard statistics refresh endpoint
+  app.post("/api/dashboard/refresh-stats", requireAuth, async (req, res) => {
+    try {
+      const { reason } = req.body;
+
+      // Recalculate all statistics
+      const totalRevenue = await storage.getTotalRevenue();
+      const totalDebt = await storage.getTotalDebt();
+      const activeRepresentatives = await storage.getActiveRepresentativesCount();
+      const unpaidInvoices = await storage.getUnpaidInvoicesCount();
+      const overdueInvoices = await storage.getOverdueInvoicesCount();
+
+      // Log the refresh
+      await storage.createActivityLog({
+        type: "dashboard_stats_refreshed",
+        description: `آمار داشبورد بروزرسانی شد - دلیل: ${reason}`,
+        metadata: {
+          totalRevenue: totalRevenue.toString(),
+          totalDebt: totalDebt.toString(),
+          activeRepresentatives,
+          unpaidInvoices,
+          overdueInvoices,
+          refreshReason: reason,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      res.json({ 
+        success: true, 
+        message: "آمار داشبورد بروزرسانی شد",
+        stats: {
+          totalRevenue,
+          totalDebt,
+          activeRepresentatives,
+          unpaidInvoices,
+          overdueInvoices
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "خطا در بروزرسانی آمار داشبورد" });
     }
   });
 
