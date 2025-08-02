@@ -2122,32 +2122,7 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  // Missing Payments Methods
-  async updatePayment(id: number, payment: Partial<Payment>): Promise<Payment> {
-    return await withDatabaseRetry(
-      async () => {
-        const [updated] = await db
-          .update(payments)
-          .set(payment)
-          .where(eq(payments.id, id))
-          .returning();
 
-        if (!updated) {
-          throw new Error(`Payment with id ${id} not found`);
-        }
-
-        await this.createActivityLog({
-          type: "payment_updated",
-          description: `پرداخت بروزرسانی شد: ${updated.amount}`,
-          relatedId: updated.id,
-          metadata: { paymentId: id, amount: updated.amount }
-        });
-
-        return updated;
-      },
-      'updatePayment'
-    );
-  }
 
   async getPaymentStatistics(): Promise<any> {
     return await withDatabaseRetry(
