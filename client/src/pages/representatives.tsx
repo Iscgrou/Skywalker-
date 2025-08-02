@@ -994,6 +994,20 @@ function CreateRepresentativeDialog({
               />
             </div>
 
+            <FormField
+              control={form.control}
+              name="telegramId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>آی‌دی تلگرام</FormLabel>
+                  <FormControl>
+                    <Input placeholder="@username" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="flex justify-end space-x-2 pt-4">
               <Button
                 type="button"
