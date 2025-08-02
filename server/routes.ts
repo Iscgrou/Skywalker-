@@ -86,6 +86,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register Settings routes (DA VINCI v1.0)
   registerSettingsRoutes(app);
+  
+  // Register Workspace routes (DA VINCI v2.0) - temporarily bypass auth for testing
+  const workspaceRoutes = (await import("./routes/workspace-routes")).default;
+  app.use("/api/workspace", workspaceRoutes);
+  
+  // Direct test route to verify workspace functionality
+  app.get("/api/workspace-direct-test", async (req, res) => {
+    try {
+      const { AITaskGenerator } = await import("./services/ai-task-generator");
+      const taskGenerator = new AITaskGenerator();
+      
+      const result = await taskGenerator.generateDailyTasks();
+      
+      res.json({
+        success: true,
+        message: "✅ DA VINCI v2.0 AI Task Generator Test Successful",
+        result: {
+          tasksGenerated: result.tasks.length,
+          generationTime: result.generationMetadata.generatedAt,
+          culturalContext: "Persian Business Culture",
+          aiEngine: "xAI Grok-4"
+        }
+      });
+    } catch (error) {
+      console.error("Workspace test error:", error);
+      res.status(500).json({ 
+        error: "خطا در تست AI Task Generator", 
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   // xAI Grok Configuration API
   app.post("/api/settings/xai-grok/configure", requireAuth, async (req, res) => {

@@ -143,7 +143,7 @@ export class SettingsStorage {
 
   async createAiKnowledge(knowledge: InsertAiKnowledge): Promise<AiKnowledge> {
     try {
-      const result = await db.insert(aiKnowledgeDatabase).values(knowledge).returning();
+      const result = await db.insert(aiKnowledgeDatabase).values([knowledge]).returning();
       return result[0];
     } catch (error) {
       console.error('Error creating AI knowledge:', error);
@@ -169,6 +169,10 @@ export class SettingsStorage {
   }
 
   // ==================== OFFERS & INCENTIVES ====================
+
+  async getOfferIncentives(): Promise<OfferIncentive[]> {
+    return this.getOffers();
+  }
 
   async getOffers(): Promise<OfferIncentive[]> {
     try {

@@ -707,6 +707,94 @@ export const managerTaskExecutions = pgTable("manager_task_executions", {
   updatedAt: timestamp("updated_at").defaultNow()
 });
 
+// ==================== DA VINCI v2.0 WORKSPACE SCHEMAS ====================
+
+// Workspace Tasks (وظایف میز کار) - برای DA VINCI v2.0
+export const workspaceTasks = pgTable("workspace_tasks", {
+  id: text("id").primaryKey(), // TASK-YYYY-MM-DD-XXX format
+  staffId: integer("staff_id").notNull(),
+  representativeId: integer("representative_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  priority: text("priority").notNull(), // "URGENT", "HIGH", "MEDIUM", "LOW"
+  status: text("status").default("ASSIGNED"), // "ASSIGNED", "READ", "IN_PROGRESS", "COMPLETED", "VERIFIED"
+  
+  // Persian datetime tracking
+  assignedAt: text("assigned_at").notNull(), // Persian date/time
+  deadline: text("deadline").notNull(), // Persian date/time
+  readAt: text("read_at"), // When staff marked as read
+  completedAt: text("completed_at"), // When staff marked as completed
+  
+  // AI-generated context
+  aiContext: json("ai_context").notNull(),
+  
+  // Manager workspace source
+  managerTaskId: text("manager_task_id"),
+  generatedFromSettings: json("generated_from_settings").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Task Reports (گزارش وظایف) - برای DA VINCI v2.0
+export const taskReports = pgTable("task_reports", {
+  id: text("id").primaryKey(),
+  taskId: text("task_id").notNull(),
+  staffId: integer("staff_id").notNull(),
+  content: text("content").notNull(), // Staff's detailed report
+  submittedAt: text("submitted_at").notNull(), // Persian datetime
+  
+  // AI analysis results
+  aiAnalysis: json("ai_analysis"),
+  
+  status: text("status").default("PENDING_REVIEW"), // "PENDING_REVIEW", "AI_PROCESSED", "MANAGER_APPROVED"
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Workspace Reminders (یادآورهای میز کار) - برای DA VINCI v2.0
+export const workspaceReminders = pgTable("workspace_reminders", {
+  id: text("id").primaryKey(),
+  staffId: integer("staff_id").notNull(),
+  representativeId: integer("representative_id").notNull(),
+  type: text("type").notNull(), // "FOLLOW_UP_CALL", "ISSUE_CHECK", "OFFER_RENEWAL", "CUSTOM"
+  message: text("message").notNull(),
+  scheduledFor: text("scheduled_for").notNull(), // Persian datetime
+  
+  // Context from previous interactions
+  context: json("context").notNull(),
+  
+  priority: text("priority").notNull(), // "HIGH", "MEDIUM", "LOW"
+  status: text("status").default("ACTIVE"), // "ACTIVE", "SNOOZED", "COMPLETED"
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Representative Support Logs (لاگ پشتیبانی نمایندگان) - برای DA VINCI v2.0
+export const representativeSupportLogs = pgTable("representative_support_logs", {
+  id: text("id").primaryKey(),
+  representativeId: integer("representative_id").notNull(),
+  staffId: integer("staff_id").notNull(),
+  interactionDate: text("interaction_date").notNull(), // Persian date
+  taskId: text("task_id"),
+  reportId: text("report_id"),
+  
+  summary: text("summary").notNull(),
+  issues: json("issues"),
+  resolution: text("resolution"),
+  nextSteps: json("next_steps"),
+  
+  // Performance tracking
+  responseTime: integer("response_time"), // Minutes to first contact
+  satisfactionLevel: text("satisfaction_level"), // "HIGH", "MEDIUM", "LOW"
+  followUpRequired: boolean("follow_up_required").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
 // AI Test Results (نتایج تست AI) - برای نمایش لاگ‌های تست
 export const aiTestResults = pgTable("ai_test_results", {
   id: serial("id").primaryKey(),
@@ -1172,3 +1260,46 @@ export type InsertCrmSystemEvent = z.infer<typeof insertCrmSystemEventSchema>;
 
 export type TelegramSendHistory = typeof telegramSendHistory.$inferSelect;
 export type InsertTelegramSendHistory = z.infer<typeof insertTelegramSendHistorySchema>;
+
+
+
+// DA VINCI v2.0 Insert Schemas
+export const insertWorkspaceTaskSchema = createInsertSchema(workspaceTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertTaskReportSchema = createInsertSchema(taskReports).omit({
+  id: true,
+  aiAnalysis: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertWorkspaceReminderSchema = createInsertSchema(workspaceReminders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertRepresentativeSupportLogSchema = createInsertSchema(representativeSupportLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+
+
+// DA VINCI v2.0 Types
+export type WorkspaceTask = typeof workspaceTasks.$inferSelect;
+export type InsertWorkspaceTask = z.infer<typeof insertWorkspaceTaskSchema>;
+
+export type TaskReport = typeof taskReports.$inferSelect;
+export type InsertTaskReport = z.infer<typeof insertTaskReportSchema>;
+
+export type WorkspaceReminder = typeof workspaceReminders.$inferSelect;
+export type InsertWorkspaceReminder = z.infer<typeof insertWorkspaceReminderSchema>;
+
+export type RepresentativeSupportLog = typeof representativeSupportLogs.$inferSelect;
+export type InsertRepresentativeSupportLog = z.infer<typeof insertRepresentativeSupportLogSchema>;
