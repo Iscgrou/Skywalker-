@@ -75,19 +75,25 @@ export default function NewRepresentativesManager() {
   // Fetch statistics
   const { data: stats, isLoading: statsLoading } = useQuery<RepresentativeStats>({
     queryKey: ['/api/crm/representatives/statistics'],
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: false, // Disable auto-refresh to prevent constant re-renders
   });
 
   // Fetch representatives with pagination
-  const { data: repsData, isLoading: repsLoading } = useQuery({
+  const { data: repsData, isLoading: repsLoading, error: repsError } = useQuery({
     queryKey: ['/api/crm/representatives', { 
       page: currentPage, 
       search: searchTerm, 
       status: statusFilter,
       sortBy 
     }],
-    refetchInterval: 30000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchInterval: false, // Disable auto-refresh to prevent constant re-renders
   });
+
+  // Extract representatives and pagination from response
+  const representatives = (repsData as any)?.data || [];
+  const pagination = (repsData as any)?.pagination || { page: 1, totalPages: 1, totalCount: 0 };
 
   // Create representative mutation
   const createMutation = useMutation({
@@ -178,9 +184,7 @@ export default function NewRepresentativesManager() {
     }
   };
 
-  // Filter and paginate representatives
-  const representatives = (repsData as any)?.data || [];
-  const pagination = (repsData as any)?.pagination || { page: 1, limit: 9, total: 0, totalPages: 1 };
+
 
   if (statsLoading || repsLoading) {
     return (
@@ -395,9 +399,44 @@ export default function NewRepresentativesManager() {
             </CardContent>
           </Card>
 
+          {/* Loading State */}
+          {repsLoading && (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p className="text-white">در حال بارگذاری نمایندگان...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {repsError && (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <p className="text-red-400 mb-4">خطا در دریافت اطلاعات نمایندگان</p>
+                <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/crm/representatives'] })}>
+                  تلاش مجدد
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!repsLoading && !repsError && representatives.length === 0 && (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <p className="text-gray-400 mb-4">هیچ نماینده‌ای یافت نشد</p>
+                <Button onClick={() => setShowCreateModal(true)}>
+                  افزودن نماینده جدید
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Representatives Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {representatives.map((rep: Representative) => (
+          {!repsLoading && !repsError && representatives.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {representatives.map((rep: Representative) => (
               <Card key={rep.id} className="bg-black/20 border-white/10 hover:bg-black/30 transition-all">
                 <CardContent className="p-4">
                   <div className="space-y-3">
@@ -462,8 +501,9 @@ export default function NewRepresentativesManager() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
