@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users, 
-  Brain
+  Brain,
+  Settings
 } from 'lucide-react';
 import NewRepresentativesManager from './new-representatives-manager';
 import EnhancedAIHelper from './enhanced-ai-helper';
+import { SettingsHub } from './settings/SettingsHub';
 
 
 export default function ModernCrmDashboard() {
@@ -23,7 +25,11 @@ export default function ModernCrmDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-black/30 border border-gray-700">
+          <TabsList className="grid w-full grid-cols-3 bg-black/30 border border-gray-700">
+            <TabsTrigger value="settings" className="data-[state=active]:bg-blue-600">
+              <Settings className="w-4 h-4 ml-2" />
+              تنظیمات
+            </TabsTrigger>
             <TabsTrigger value="representatives" className="data-[state=active]:bg-purple-600">
               <Users className="w-4 h-4 ml-2" />
               مدیریت نمایندگان
@@ -33,6 +39,10 @@ export default function ModernCrmDashboard() {
               دستیار هوش مصنوعی
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="settings" className="mt-6">
+            <SettingsHub />
+          </TabsContent>
 
           <TabsContent value="representatives" className="mt-6">
             <NewRepresentativesManager />

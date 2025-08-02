@@ -39,6 +39,7 @@ import {
 
 import { xaiGrokEngine } from "./services/xai-grok-engine";
 import { registerCrmRoutes } from "./routes/crm-routes";
+import { registerSettingsRoutes } from "./routes/settings-routes";
 import bcrypt from "bcryptjs";
 // Commented out temporarily - import { generateFinancialReport } from "./services/report-generator";
 
@@ -82,6 +83,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register CRM routes
   registerCrmRoutes(app, storage);
+  
+  // Register Settings routes (DA VINCI v1.0)
+  registerSettingsRoutes(app);
 
   // xAI Grok Configuration API
   app.post("/api/settings/xai-grok/configure", requireAuth, async (req, res) => {
