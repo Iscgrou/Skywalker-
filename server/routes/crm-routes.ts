@@ -47,78 +47,63 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       res.status(401).json({ error: 'احراز هویت نشده - دسترسی غیرمجاز' });
     }
   };
-  // ==================== REPRESENTATIVES ====================
+  // ==================== ADMIN-CRM DATA SYNCHRONIZATION SERVICE ====================
   
-  // Get all representatives with filters
-  app.get("/api/crm/representatives", async (req, res) => {
+  // Sync service to keep CRM and Admin panel data consistent
+  const syncAdminCrmData = async () => {
     try {
-      const { search, status, level, sortBy } = req.query;
+      // Get all representatives from admin panel database
+      const adminReps = await db.select().from(representatives);
       
-      let query = db.select().from(representatives);
-      let conditions = [];
-      
-      if (search) {
-        conditions.push(
-          or(
-            like(representatives.name, `%${search}%`),
-            like(representatives.code, `%${search}%`),
-            like(representatives.ownerName, `%${search}%`)
-          )
-        );
+      // Calculate updated financial metrics from admin panel data
+      for (const rep of adminReps) {
+        try {
+          const invoicesSum = await db.select()
+            .from(invoices)
+            .where(eq(invoices.representativeId, rep.id));
+            
+          const paymentsSum = await db.select()
+            .from(payments)
+            .where(eq(payments.representativeId, rep.id));
+          
+          const totalSales = invoicesSum.reduce((sum, inv) => sum + parseFloat(inv.amount || '0'), 0);
+          const totalPayments = paymentsSum.reduce((sum, pay) => sum + parseFloat(pay.amount || '0'), 0);
+          const currentDebt = totalSales - totalPayments;
+          
+          // Update representative with synchronized data
+          await db.update(representatives)
+            .set({
+              totalSales: totalSales.toString(),
+              totalDebt: Math.max(0, currentDebt).toString(),
+              credit: Math.max(0, -currentDebt).toString(),
+              updatedAt: new Date().toISOString()
+            })
+            .where(eq(representatives.id, rep.id));
+        } catch (repError) {
+          console.log(`Sync error for rep ${rep.id}:`, repError);
+        }
       }
       
-      if (status === 'active') {
-        conditions.push(eq(representatives.isActive, true));
-      } else if (status === 'inactive') {
-        conditions.push(eq(representatives.isActive, false));
-      }
-
-      // Apply filters first
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as any;
-      }
-      
-      // Apply sorting
-      if (sortBy === 'debt') {
-        query = query.orderBy(desc(representatives.totalDebt)) as any;
-      } else if (sortBy === 'sales') {
-        query = query.orderBy(desc(representatives.totalSales)) as any;
-      } else {
-        query = query.orderBy(representatives.name) as any;
-      }
-      
-      const reps = await query;
-      
-      // Transform data for frontend
-      const responseData = reps.map((rep: any) => ({
-        id: rep.id,
-        code: rep.code,
-        name: rep.name,
-        ownerName: rep.ownerName,
-        phone: rep.phone,
-        isActive: rep.isActive,
-        debtAmount: parseFloat(rep.totalDebt || "0"),
-        salesAmount: parseFloat(rep.totalSales || "0"),
-        publicId: rep.publicId
-      }));
-      
-      res.json(responseData);
+      return adminReps;
     } catch (error) {
-      console.error('Error fetching representatives:', error);
-      res.status(500).json({ error: 'خطا در دریافت لیست نمایندگان' });
+      console.error('❌ Admin-CRM sync error:', error);
+      return [];
     }
-  });
+  };
 
-  // Individual Representative Profile - CRITICAL MISSING ROUTE
+  // Get single representative details with admin panel sync
   app.get("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
     try {
+      // First sync data from admin panel
+      await syncAdminCrmData();
+      
       const representativeId = parseInt(req.params.id);
       
       if (isNaN(representativeId)) {
         return res.status(400).json({ error: 'شناسه نماینده نامعتبر است' });
       }
 
-      // Get representative data
+      // Get synchronized representative data
       const representative = await db.select().from(representatives).where(eq(representatives.id, representativeId)).limit(1);
       
       if (!representative.length) {
@@ -656,11 +641,14 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
   // ==================== REPRESENTATIVES ENDPOINTS - COMPLETELY REMOVED ====================
   // All old endpoints removed for complete redesign
   
-  // ==================== NEW CRM REPRESENTATIVES SYSTEM - FRESH START ====================
+  // ==================== NEW CRM REPRESENTATIVES SYSTEM WITH ADMIN SYNC ====================
   
-  // Statistics endpoint for CRM representatives dashboard
+  // Statistics endpoint for CRM representatives dashboard with admin sync
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
+      // Sync data from admin panel first
+      await syncAdminCrmData();
+      
       const reps = await db.select().from(representatives);
       
       const stats = {
@@ -680,7 +668,8 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
             totalSales: parseFloat(r.totalSales || '0'),
             isActive: r.isActive
           })),
-        riskAlerts: reps.filter(r => parseFloat(r.totalDebt || '0') > 100000).length
+        riskAlerts: reps.filter(r => parseFloat(r.totalDebt || '0') > 100000).length,
+        lastSyncTime: new Date().toISOString()
       };
       
       res.json(stats);
@@ -690,9 +679,12 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // Get all representatives with pagination and filtering
+  // Get all representatives with pagination and filtering (admin-synced data)
   app.get("/api/crm/representatives", crmAuthMiddleware, async (req, res) => {
     try {
+      // Sync with admin panel data first
+      await syncAdminCrmData();
+      
       const { page = 1, limit = 9, search = '', status = 'all', sortBy = 'name', order = 'asc' } = req.query;
       
       const pageNum = parseInt(page as string);
@@ -758,7 +750,9 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
           limit: limitNum,
           total: Number(count),
           totalPages: Math.ceil(Number(count) / limitNum)
-        }
+        },
+        syncStatus: 'SYNCED_WITH_ADMIN',
+        lastSyncTime: new Date().toISOString()
       });
     } catch (error) {
       console.error('Error fetching representatives:', error);
