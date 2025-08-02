@@ -1,64 +1,103 @@
-# Financial Management System - MarFaNet
+# MarFaNet - Streamlined Financial CRM System
 
 ## Overview
-MarFaNet is a comprehensive financial management system for managing invoices, payments, and sales representatives. It streamlines financial operations through detailed tracking of debts, payments, and commissions, offering efficient invoice generation, representative financial oversight, and automated reporting. The system supports both administrative and public-facing portals, incorporating AI analysis, Telegram integration for notifications, and bulk invoice processing. Its vision is to become a production-ready financial management system with integrated intelligent reporting, analytics, and gamification, optimized for performance and security.
+MarFaNet is a simplified financial management system focused on core business needs: invoice management, representative oversight, and AI-powered assistance. The system has been streamlined to eliminate unnecessary features while maintaining robust financial tracking and intelligent representative management capabilities.
 
 ## User Preferences
-Preferred communication style: Simple, everyday language.
-- **Security Requirements**: 
-  - Admin panel (mgr/8679) for financial management with full access
-  - CRM panel (crm/8679) for customer relationship management with restricted access (debt amounts and profiles only)
-  - Public representative portal remains accessible without login
-- **Authentication**: Dual-panel username and password system with role-based access control
-- **CRM Integration**: Intelligent Persian Cultural AI system for representative management
-- **Development Approach**: DA VINCI v6.0 Adaptive Systems Architecture with Tier-based development
-- **Recent Achievement**: Complete SHERLOCK v3.0 CRM dashboard restoration (Aug 2025) - Full 5-tab dashboard with working API integration, data synchronization, modal components, and fully functional representatives list displaying all 237 representatives with stable data loading
+- **Communication Style**: Simple, everyday Persian language for non-technical users
+- **Security Model**: 
+  - Admin panel (mgr/8679) - Full financial access and management
+  - CRM panel (crm/8679) - Representative management with debt/profile visibility only
+  - Public representative portal - No authentication required
+- **Development Philosophy**: Clean, focused architecture without bloated features
+- **Recent Cleanup**: Complete removal of performance analytics, task management, and overview dashboard sections (August 2025)
 
-## System Architecture
-The application features a modern full-stack architecture with distinct client and server components.
+## Current System Architecture
 
-### Frontend Architecture
+### Frontend (Client)
 - **Framework**: React with TypeScript and Vite
-- **UI Library**: Shadcn/UI components with Radix UI primitives
-- **Styling**: Tailwind CSS with custom MarFaNet branding
-- **State Management**: TanStack React Query for server state
-- **Routing**: Wouter for client-side routing
-- **Form Handling**: React Hook Form with Zod validation
-- **UI/UX Decisions**: Persian (Farsi) UI with RTL support, professional table displays, and Claymorphism design.
-- **CRM Dashboard**: Complete SHERLOCK v3.0 dashboard with 5 integrated tabs (Representatives, Performance Analytics, Task Management, AI Helper, Overview).
+- **UI Components**: Shadcn/UI with Radix primitives and Tailwind CSS
+- **State Management**: TanStack React Query for server state only
+- **Routing**: Wouter for lightweight client-side routing
+- **Design**: Persian RTL support with professional styling
 
-### Backend Architecture
+### CRM Dashboard (Simplified)
+The CRM system now contains only two functional sections:
+1. **Representatives Management**: Complete list of 237 representatives with full CRUD operations
+2. **AI Assistant**: Persian cultural intelligence for representative insights and support
+
+**Removed Components**: Performance Analytics, Task Management, Overview Dashboard, and all related UI components have been completely eliminated.
+
+### Backend (Server)
 - **Framework**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Core Features**:
-    - **Invoice Management**: Bulk JSON upload processing, automatic calculation, Persian date handling, and Telegram notifications.
-    - **Representative Portal**: Public access via unique public IDs, displaying invoices and usage data.
-    - **Financial Tracking**: Comprehensive debt, payment, and commission tracking.
-    - **CRM Intelligence System**: Persian Cultural AI for psychological profiling, intelligent task generation, representative classification, performance analytics, and an AI Knowledge Base.
-    - **Unified CRM Dashboard**: Complete SHERLOCK v3.0 dashboard with integrated tabs: Representatives Management (237 active reps with full list functionality), Performance Analytics, Task Management, AI Helper, and System Overview. All data loading issues resolved and system stability achieved.
-    - **Dual Authentication System**: Admin panel with full financial access and CRM panel with restricted access, featuring role-based access control and data segmentation.
-    - **Clock Mechanism Architecture**: Synchronized system with "Hour Hand" (Financial Management), "Minute Hand" (Representative Management + CRM), and "Second Hand" (Automation & Monitoring + AI Decision Logging).
-    - **Data Reset System**: Selective data deletion with referential integrity preservation and activity logging.
-    - **JSON Processing**: Support for various PHPMyAdmin export formats with intelligent detection and dynamic data extraction.
-    - **Reporting & Analytics**: Intelligent reporting service for executive reports, ROI analysis, forecasting, and multi-format export (PDF, Excel, CSV, PowerPoint, JSON). Includes scheduled reports system.
-    - **Gamification Engine**: XP system, achievements, leaderboards, and daily challenges.
+- **Authentication**: Dual-panel system with session-based auth
+- **Core Services**:
+  - Financial data synchronization between admin and CRM panels
+  - XAI Grok engine for Persian AI assistance
+  - Representative management with debt tracking
+  - Invoice processing and Telegram notifications
 
-### System Design Choices
-- **Data Flow**: Defined flows for invoice processing, payment allocation, and AI analysis.
-- **Security**: Conditional security headers, session middleware optimization, and robust authentication.
-- **Error Handling & Stability**: Enhanced database connection pooling, retry logic, graceful error recovery, process monitoring, and graceful shutdown.
-- **Performance**: Optimized for large file processing with extended timeouts, memory optimization, and batch processing.
-- **Multi-Format JSON Architecture**: Adaptive processing for various JSON formats.
+### Key Features
+- **Invoice Management**: Bulk JSON processing, automatic calculations, Persian date handling
+- **Representative Portal**: Public access with unique IDs for invoice viewing
+- **Financial Tracking**: Real-time debt, payment, and sales calculations
+- **AI Integration**: Persian cultural intelligence for representative profiling and assistance
+- **Data Synchronization**: Seamless sync between admin and CRM data
+
+### Database Schema
+- **representatives**: Core representative data with financial metrics
+- **invoices**: Invoice records with status tracking
+- **payments**: Payment allocation and tracking
+- **admin_users**: Admin panel authentication
+- **crm_users**: CRM panel authentication
+
+## Technical Decisions
+
+### Recently Removed (August 2025)
+- Performance analytics endpoints and components
+- Task management system and related APIs
+- Dashboard overview with charts and statistics
+- Bulk analysis endpoints
+- Chart.js/Recharts dependencies
+- Unused service files (performance-analytics-service, gamification-engine, task-management-service)
+
+### Current API Endpoints
+**CRM Routes**:
+- `/api/crm/representatives` - List/create/update representatives
+- `/api/crm/representatives/statistics` - Basic representative statistics
+- `/api/crm/auth/*` - CRM authentication system
+
+**AI Routes**:
+- `/api/ai/profile/:id` - Generate psychological profiles
+- `/api/ai/insights/:id` - Cultural insights
+- `/api/ai/status` - AI engine status
+
+**Admin Routes**: Full financial management (unchanged)
 
 ## External Dependencies
-- **Neon Database**: PostgreSQL hosting.
-- **XAI Grok API**: Primary AI engine for Persian cultural intelligence, task generation, and financial analysis.
-- **Groq API**: Speech-to-text conversion and audio transcription.
-- **Telegram Bot API**: For automated notifications and messaging.
-- **Drizzle ORM**: Type-safe database operations with PostgreSQL.
-- **TanStack Query**: For server state management and caching.
-- **Zod**: For runtime type validation and schema definition.
-- **React Hook Form**: For form state management with validation.
-- **date-fns**: For date manipulation and formatting.
-- **Multer**: For file upload handling (JSON processing).
-- **Express-session with connect-pg-simple**: For PostgreSQL-backed session management.
+- **Neon Database**: PostgreSQL hosting
+- **XAI Grok API**: Persian AI intelligence
+- **Telegram Bot API**: Automated notifications
+- **Drizzle ORM**: Type-safe database operations
+
+## Performance & Stability
+- Clean, optimized codebase with removed bloat
+- Stable 237 representative list with proper data loading
+- No continuous re-rendering issues
+- Memory-efficient API calls
+- Streamlined authentication flow
+
+## Development Status
+- **Phase**: Production-ready simplified system
+- **Focus**: Core business functionality only
+- **Maintenance**: Clean architecture for easy future development
+- **Documentation**: Updated to reflect current minimal system (August 2025)
+
+## Security
+- Role-based access control maintained
+- Session management with PostgreSQL backend
+- Admin panel isolation from CRM operations
+- Secure representative data handling
+
+This streamlined version focuses on essential business needs while maintaining reliability and performance.

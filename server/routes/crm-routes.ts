@@ -6,13 +6,10 @@ import { IStorage } from "../storage";
 import { db } from "../db";
 import { representatives, invoices, payments, crmUsers } from "../../shared/schema";
 import { XAIGrokEngine } from "../services/xai-grok-engine";
-import { TaskManagementService } from "../services/task-management-service";
-// VoiceProcessingService removed for clean system
+// Cleaned CRM routes for representatives management and AI helper only
 
 export function registerCrmRoutes(app: Express, storage: IStorage) {
-  // Initialize services
-  const taskManagementService = new TaskManagementService();
-  // Voice processing service removed for clean system
+  // Initialize only essential services for clean CRM
   const xaiGrokEngine = new XAIGrokEngine(storage);
   
   // Initialize multer for audio file uploads
@@ -309,43 +306,7 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   });
 
-  // ==================== CRM DASHBOARD ====================
-  
-  app.get("/api/crm/dashboard", crmAuthMiddleware, async (req, res) => {
-    try {
-      const reps = await db.select().from(representatives);
-      const responseData = reps.map((rep: any) => ({
-        id: rep.id,
-        code: rep.code,
-        name: rep.name,
-        debtAmount: parseFloat(rep.totalDebt || "0"),
-        totalSales: parseFloat(rep.totalSales || "0"),
-        isActive: rep.isActive
-      }));
-      
-      const summary = {
-        totalRepresentatives: reps.length,
-        activeRepresentatives: reps.filter((r: any) => r.isActive).length,
-        totalDebt: reps.reduce((sum: number, r: any) => sum + parseFloat(r.totalDebt || "0"), 0),
-        totalSales: reps.reduce((sum: number, r: any) => sum + parseFloat(r.totalSales || "0"), 0),
-        pendingTasks: 12,
-        completedTasksToday: 8,
-        aiInsights: [
-          { id: '1', type: 'improvement', title: 'بهبود عملکرد' },
-          { id: '2', type: 'alert', title: 'نماینده نیازمند توجه' }
-        ],
-        recentActivities: [
-          { id: '1', type: 'task_completed', description: 'وظیفه پیگیری تکمیل شد' },
-          { id: '2', type: 'level_change', description: 'نماینده به سطح فعال ارتقا یافت' }
-        ]
-      };
-      
-      res.json({ summary, representatives: responseData.slice(0, 10) });
-    } catch (error) {
-      console.error('Error fetching CRM dashboard:', error);
-      res.status(500).json({ error: 'خطا در دریافت داشبورد CRM' });
-    }
-  });
+
 
   // ==================== CRM AUTHENTICATION ====================
   
