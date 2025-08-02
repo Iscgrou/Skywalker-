@@ -108,12 +108,12 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AuthenticatedRouter() {
-  const { isAuthenticated, isLoading, login } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   
   // Check if this is a public portal route
   const isPublicPortal = location.startsWith('/portal/');
-  const isCrmRoute = location.startsWith('/crm/');
+  const isCrmRoute = location.startsWith('/crm');
   
   if (isPublicPortal) {
     return (
@@ -138,7 +138,7 @@ function AuthenticatedRouter() {
     );
   }
 
-  // Handle CRM routes with authentication check
+  // SHERLOCK v3.0 FIX: Handle CRM routes with proper authentication
   if (isCrmRoute) {
     return (
       <CrmAuthProvider>
@@ -159,7 +159,7 @@ function AuthenticatedRouter() {
     );
   }
   
-  // Show unified login page if not authenticated
+  // SHERLOCK v3.0 FIX: Always show unified auth for non-authenticated users
   if (!isAuthenticated) {
     return (
       <CrmAuthProvider>

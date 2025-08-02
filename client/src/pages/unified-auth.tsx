@@ -1,4 +1,4 @@
-// 🔐 UNIFIED AUTHENTICATION PAGE - Admin & CRM Login
+// 🔐 UNIFIED AUTHENTICATION PAGE - Admin & CRM Login (SHERLOCK v3.0 FIXED)
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,9 +35,10 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function UnifiedAuth() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [loginType, setLoginType] = useState<'detecting' | 'admin' | 'crm'>('detecting');
+  const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Get both auth contexts
@@ -58,31 +59,43 @@ export default function UnifiedAuth() {
     }
   });
 
+  // Detect intended destination from URL
+  useEffect(() => {
+    if (location.startsWith('/crm')) {
+      setPendingRedirect('/crm');
+    } else if (location.startsWith('/dashboard') || location === '/') {
+      setPendingRedirect('/dashboard');
+    }
+  }, [location]);
+
   // Set panel type without auto-filling credentials
   const selectAdminPanel = () => {
     setLoginType('admin');
+    setPendingRedirect('/dashboard');
   };
 
   const selectCrmPanel = () => {
     setLoginType('crm');
+    setPendingRedirect('/crm');
   };
 
   const onSubmit = async (data: LoginForm) => {
     try {
       // Determine login type based on username
       const targetLoginType = data.username === 'mgr' ? 'admin' : 'crm';
+      const targetRedirect = targetLoginType === 'admin' ? '/dashboard' : '/crm';
       
       if (targetLoginType === 'admin') {
         // Admin login
         adminAuth.loginMutation.mutate(data, {
           onSuccess: () => {
-            console.log('Admin login successful, redirecting to admin dashboard');
+            console.log('Admin login successful, redirecting to:', targetRedirect);
             toast({
               title: "ورود موفق",
               description: "به پنل ادمین خوش آمدید",
             });
-            // Immediate redirect after successful login
-            setLocation('/dashboard');
+            // SHERLOCK v3.0 FIX: Force page navigation
+            window.location.href = targetRedirect;
           },
           onError: (error: any) => {
             console.error('Admin login error:', error);
@@ -97,13 +110,13 @@ export default function UnifiedAuth() {
         // CRM login
         crmAuth.loginMutation.mutate(data, {
           onSuccess: (response: any) => {
-            console.log('CRM login successful, redirecting to CRM dashboard');
+            console.log('CRM login successful, redirecting to:', targetRedirect);
             toast({
               title: "ورود موفق",
               description: "به پنل CRM خوش آمدید",
             });
-            // Immediate redirect after successful login
-            setLocation('/crm');
+            // SHERLOCK v3.0 FIX: Force page navigation
+            window.location.href = targetRedirect;
           },
           onError: (error: any) => {
             console.error('CRM login error:', error);
@@ -125,19 +138,16 @@ export default function UnifiedAuth() {
     }
   };
 
-  // Check if user is already authenticated and redirect accordingly
+  // SHERLOCK v3.0 FIX: Auto-redirect already authenticated users
   useEffect(() => {
-    // Only redirect if we're in detecting mode and user is authenticated
-    if (loginType === 'detecting') {
-      if (adminAuth.isAuthenticated) {
-        console.log('Admin already authenticated, redirecting...');
-        setLocation('/dashboard');
-      } else if (crmAuth.user) {
-        console.log('CRM user already authenticated, redirecting...');
-        setLocation('/crm');
-      }
+    if (adminAuth.isAuthenticated) {
+      console.log('Admin already authenticated, forcing redirect to dashboard');
+      window.location.href = '/dashboard';
+    } else if (crmAuth.user) {
+      console.log('CRM user already authenticated, forcing redirect to CRM');
+      window.location.href = '/crm';
     }
-  }, [adminAuth.isAuthenticated, crmAuth.user, setLocation, loginType]);
+  }, [adminAuth.isAuthenticated, crmAuth.user]);
 
   return (
     <div className="min-h-screen clay-background relative">
