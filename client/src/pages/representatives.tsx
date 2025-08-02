@@ -14,7 +14,14 @@ import {
   CheckCircle,
   PhoneCall,
   User,
-  ShoppingBag
+  ShoppingBag,
+  Copy,
+  ExternalLink,
+  Calendar,
+  Settings,
+  FileText,
+  CreditCard,
+  History
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,9 +53,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { 
   Form, 
@@ -69,6 +76,7 @@ interface Representative {
   ownerName: string;
   panelUsername: string;
   phone: string;
+  telegramId?: string;
   publicId: string;
   salesPartnerId: number;
   isActive: boolean;
@@ -102,6 +110,7 @@ interface Invoice {
   status: string;
   sentToTelegram: boolean;
   telegramSentAt?: string;
+  usageData?: any;
 }
 
 interface Payment {
@@ -120,6 +129,7 @@ const representativeFormSchema = z.object({
   ownerName: z.string().optional(),
   panelUsername: z.string().min(1, "نام کاربری پنل الزامی است"),
   phone: z.string().optional(),
+  telegramId: z.string().optional(),
   salesPartnerId: z.number().optional(),
   isActive: z.boolean().default(true)
 });
@@ -131,6 +141,9 @@ export default function Representatives() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isInvoiceEditOpen, setIsInvoiceEditOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isPaymentCreateOpen, setIsPaymentCreateOpen] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -202,7 +215,7 @@ export default function Representatives() {
     mutationFn: async (data: z.infer<typeof representativeFormSchema>) => {
       return apiRequest("/api/representatives", {
         method: "POST",
-        body: data
+        data: data
       });
     },
     onSuccess: () => {
@@ -228,7 +241,7 @@ export default function Representatives() {
     mutationFn: async ({ id, data }: { id: number, data: Partial<z.infer<typeof representativeFormSchema>> }) => {
       return apiRequest(`/api/representatives/${id}`, {
         method: "PUT",
-        body: data
+        data: data
       });
     },
     onSuccess: () => {
@@ -271,6 +284,34 @@ export default function Representatives() {
     setSelectedRep(rep);
     setIsEditOpen(true);
   };
+
+  const handleCopyPortalLink = (publicId: string) => {
+    const portalLink = `${window.location.origin}/representative/${publicId}`;
+    navigator.clipboard.writeText(portalLink);
+    toast({
+      title: "کپی شد",
+      description: "لینک پورتال عمومی نماینده کپی شد"
+    });
+  };
+
+  const handleEditInvoice = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setIsInvoiceEditOpen(true);
+  };
+
+  // Update representative debt after invoice edit
+  const updateRepresentativeDebtMutation = useMutation({
+    mutationFn: async ({ id, newDebt }: { id: number, newDebt: string }) => {
+      return apiRequest(`/api/representatives/${id}`, {
+        method: "PUT",
+        data: { totalDebt: newDebt }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+    }
+  });
 
   if (isLoading) {
     return (
@@ -523,27 +564,50 @@ export default function Representatives() {
                       <span className="font-mono">{selectedRep.phone || '-'}</span>
                     </div>
                     <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">آی‌دی تلگرام:</span>
+                      <span className="font-mono">{selectedRep.telegramId || '-'}</span>
+                    </div>
+                    <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">نام کاربری پنل:</span>
                       <span className="font-mono">{selectedRep.panelUsername}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-600 dark:text-gray-400">شناسه عمومی:</span>
-                      <span className="font-mono text-xs">{selectedRep.publicId}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs max-w-32 truncate">{selectedRep.publicId}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCopyPortalLink(selectedRep.publicId)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">وضعیت:</span>
                       {getStatusBadge(selectedRep.isActive)}
                     </div>
                     <Separator />
-                    <div className="pt-2">
+                    <div className="pt-2 space-y-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
                         className="w-full"
                         onClick={() => window.open(`/representative/${selectedRep.publicId}`, '_blank')}
                       >
-                        <PhoneCall className="w-4 h-4 ml-2" />
+                        <ExternalLink className="w-4 h-4 ml-2" />
                         نمایش پورتال عمومی
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => handleCopyPortalLink(selectedRep.publicId)}
+                      >
+                        <Copy className="w-4 h-4 ml-2" />
+                        کپی لینک پورتال
                       </Button>
                     </div>
                   </CardContent>
@@ -595,9 +659,19 @@ export default function Representatives() {
               {/* Invoices Section */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center">
-                    <ShoppingBag className="w-5 h-5 ml-2" />
-                    فاکتورها ({selectedRep.invoices?.length || 0})
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FileText className="w-5 h-5 ml-2" />
+                      تاریخچه فاکتورها ({selectedRep.invoices?.length || 0})
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setIsPaymentCreateOpen(true)}
+                    >
+                      <Plus className="w-4 h-4 ml-2" />
+                      ثبت پرداخت
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -611,6 +685,7 @@ export default function Representatives() {
                             <TableHead>تاریخ صدور</TableHead>
                             <TableHead>وضعیت</TableHead>
                             <TableHead>تلگرام</TableHead>
+                            <TableHead>عملیات</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -635,6 +710,16 @@ export default function Representatives() {
                                   </Badge>
                                 )}
                               </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditInvoice(invoice)}
+                                  title="ویرایش جزئیات فاکتور"
+                                >
+                                  <Settings className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -652,8 +737,8 @@ export default function Representatives() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center">
-                    <TrendingUp className="w-5 h-5 ml-2" />
-                    پرداخت‌ها ({selectedRep.payments?.length || 0})
+                    <CreditCard className="w-5 h-5 ml-2" />
+                    تاریخچه پرداخت‌ها ({selectedRep.payments?.length || 0})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -666,18 +751,30 @@ export default function Representatives() {
                             <TableHead>تاریخ پرداخت</TableHead>
                             <TableHead>شرح</TableHead>
                             <TableHead>وضعیت تخصیص</TableHead>
+                            <TableHead>فاکتور مرتبط</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {selectedRep.payments.map((payment) => (
                             <TableRow key={payment.id}>
-                              <TableCell>{formatCurrency(parseFloat(payment.amount))}</TableCell>
+                              <TableCell className="font-bold text-green-600">
+                                {formatCurrency(parseFloat(payment.amount))}
+                              </TableCell>
                               <TableCell>{payment.paymentDate}</TableCell>
                               <TableCell>{payment.description || '-'}</TableCell>
                               <TableCell>
                                 <Badge variant={payment.isAllocated ? 'default' : 'secondary'}>
                                   {payment.isAllocated ? 'تخصیص یافته' : 'تخصیص نیافته'}
                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {payment.invoiceId ? (
+                                  <span className="font-mono text-sm">
+                                    {selectedRep.invoices?.find(inv => inv.id === payment.invoiceId)?.invoiceNumber || `#${payment.invoiceId}`}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-500">عمومی</span>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -689,6 +786,38 @@ export default function Representatives() {
                       هیچ پرداختی یافت نشد
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Financial Summary Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <History className="w-5 h-5 ml-2" />
+                    خلاصه مالی و تراز حساب
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">کل پرداخت‌ها</div>
+                      <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                        {formatCurrency(selectedRep.payments?.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) || 0)}
+                      </div>
+                    </div>
+                    <div className="text-center p-4 bg-red-50 dark:bg-red-950 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">کل فاکتورها</div>
+                      <div className="text-xl font-bold text-red-600 dark:text-red-400">
+                        {formatCurrency(selectedRep.invoices?.reduce((sum, invoice) => sum + parseFloat(invoice.amount), 0) || 0)}
+                      </div>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">باقیمانده</div>
+                      <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                        {formatCurrency(parseFloat(selectedRep.totalDebt))}
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -715,6 +844,37 @@ export default function Representatives() {
         })}
         isLoading={updateRepresentativeMutation.isPending}
       />
+
+      {/* Edit Invoice Dialog */}
+      {selectedInvoice && (
+        <EditInvoiceDialog
+          open={isInvoiceEditOpen}
+          onOpenChange={setIsInvoiceEditOpen}
+          invoice={selectedInvoice}
+          representative={selectedRep}
+          onSave={() => {
+            // Refresh representative details
+            if (selectedRep) {
+              handleViewDetails(selectedRep);
+            }
+            setIsInvoiceEditOpen(false);
+          }}
+        />
+      )}
+
+      {/* Create Payment Dialog */}
+      {selectedRep && (
+        <CreatePaymentDialog
+          open={isPaymentCreateOpen}
+          onOpenChange={setIsPaymentCreateOpen}
+          representative={selectedRep}
+          onSave={() => {
+            // Refresh representative details
+            handleViewDetails(selectedRep);
+            setIsPaymentCreateOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -739,6 +899,7 @@ function CreateRepresentativeDialog({
       ownerName: "",
       panelUsername: "",
       phone: "",
+      telegramId: "",
       salesPartnerId: undefined,
       isActive: true
     }
@@ -876,6 +1037,7 @@ function EditRepresentativeDialog({
       ownerName: representative?.ownerName || "",
       panelUsername: representative?.panelUsername || "",
       phone: representative?.phone || "",
+      telegramId: representative?.telegramId || "",
       isActive: representative?.isActive || true
     }
   });
@@ -889,6 +1051,7 @@ function EditRepresentativeDialog({
         ownerName: representative.ownerName || "",
         panelUsername: representative.panelUsername,
         phone: representative.phone || "",
+        telegramId: representative.telegramId || "",
         isActive: representative.isActive
       });
     }
@@ -984,6 +1147,20 @@ function EditRepresentativeDialog({
 
             <FormField
               control={form.control}
+              name="telegramId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>آی‌دی تلگرام</FormLabel>
+                  <FormControl>
+                    <Input placeholder="@username" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="isActive"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
@@ -1021,6 +1198,363 @@ function EditRepresentativeDialog({
             </div>
           </form>
         </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Edit Invoice Dialog Component
+function EditInvoiceDialog({
+  open,
+  onOpenChange,
+  invoice,
+  representative,
+  onSave
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  invoice: Invoice;
+  representative: RepresentativeWithDetails | null;
+  onSave: () => void;
+}) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState(invoice.amount);
+  const [issueDate, setIssueDate] = useState(invoice.issueDate);
+  const [status, setStatus] = useState(invoice.status);
+  const [usageData, setUsageData] = useState(JSON.stringify(invoice.usageData || {}, null, 2));
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      let parsedUsageData = {};
+      if (usageData.trim()) {
+        try {
+          parsedUsageData = JSON.parse(usageData);
+        } catch (e) {
+          toast({
+            title: "خطا",
+            description: "فرمت JSON نامعتبر است",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      const updateData = {
+        amount,
+        issueDate,
+        status,
+        usageData: parsedUsageData
+      };
+
+      await apiRequest(`/api/invoices/${invoice.id}`, {
+        method: "PUT",
+        data: updateData
+      });
+
+      // Update representative's total debt if amount changed
+      if (representative && amount !== invoice.amount) {
+        const oldAmount = parseFloat(invoice.amount);
+        const newAmount = parseFloat(amount);
+        const currentDebt = parseFloat(representative.totalDebt);
+        const newDebt = currentDebt - oldAmount + newAmount;
+        
+        await apiRequest(`/api/representatives/${representative.id}`, {
+          method: "PUT",
+          data: { totalDebt: newDebt.toString() }
+        });
+      }
+
+      toast({
+        title: "موفقیت",
+        description: "فاکتور با موفقیت بروزرسانی شد"
+      });
+      
+      onSave();
+    } catch (error: any) {
+      toast({
+        title: "خطا",
+        description: error?.message || "خطا در بروزرسانی فاکتور",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>ویرایش جزئیات فاکتور</DialogTitle>
+          <DialogDescription>
+            ویرایش اطلاعات فاکتور شماره {invoice.invoiceNumber}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="invoiceNumber">شماره فاکتور</Label>
+            <Input
+              id="invoiceNumber"
+              value={invoice.invoiceNumber}
+              disabled
+              className="bg-gray-50 dark:bg-gray-800"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="amount">مبلغ (ریال)</Label>
+            <Input
+              id="amount"
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="مبلغ فاکتور"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="issueDate">تاریخ صدور</Label>
+            <Input
+              id="issueDate"
+              value={issueDate}
+              onChange={(e) => setIssueDate(e.target.value)}
+              placeholder="1403/01/01"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="status">وضعیت</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unpaid">پرداخت نشده</SelectItem>
+                <SelectItem value="paid">پرداخت شده</SelectItem>
+                <SelectItem value="partial">پرداخت جزئی</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="usageData">جزئیات مصرف (JSON)</Label>
+            <Textarea
+              id="usageData"
+              value={usageData}
+              onChange={(e) => setUsageData(e.target.value)}
+              placeholder='{"service": "hosting", "period": "monthly"}'
+              rows={6}
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              جزئیات مصرف در فرمت JSON - این اطلاعات در پورتال عمومی نمایش داده می‌شود
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+            className="ml-2"
+          >
+            انصراف
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading ? "در حال ذخیره..." : "ذخیره تغییرات"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Create Payment Dialog Component
+function CreatePaymentDialog({
+  open,
+  onOpenChange,
+  representative,
+  onSave
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  representative: Representative;
+  onSave: () => void;
+}) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (!amount || !paymentDate) {
+        toast({
+          title: "خطا",
+          description: "مبلغ و تاریخ پرداخت الزامی است",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const paymentData = {
+        representativeId: representative.id,
+        amount,
+        paymentDate,
+        description: description || `پرداخت برای ${representative.name}`,
+        invoiceId: selectedInvoiceId ? parseInt(selectedInvoiceId) : null,
+        isAllocated: !!selectedInvoiceId
+      };
+
+      await apiRequest("/api/payments", {
+        method: "POST",
+        data: paymentData
+      });
+
+      // Update representative's debt
+      const currentDebt = parseFloat(representative.totalDebt);
+      const paymentAmount = parseFloat(amount);
+      const newDebt = Math.max(0, currentDebt - paymentAmount);
+      
+      await apiRequest(`/api/representatives/${representative.id}`, {
+        method: "PUT",
+        data: { totalDebt: newDebt.toString() }
+      });
+
+      toast({
+        title: "موفقیت",
+        description: "پرداخت با موفقیت ثبت شد"
+      });
+      
+      // Reset form
+      setAmount("");
+      setPaymentDate("");
+      setDescription("");
+      setSelectedInvoiceId("");
+      
+      onSave();
+    } catch (error: any) {
+      toast({
+        title: "خطا",
+        description: error?.message || "خطا در ثبت پرداخت",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get today's date in Persian format
+  const getCurrentPersianDate = () => {
+    const today = new Date();
+    return today.toLocaleDateString('fa-IR');
+  };
+
+  React.useEffect(() => {
+    if (open && !paymentDate) {
+      setPaymentDate(getCurrentPersianDate());
+    }
+  }, [open, paymentDate]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>ثبت پرداخت جدید</DialogTitle>
+          <DialogDescription>
+            ثبت پرداخت برای {representative.name}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="amount">مبلغ پرداخت (ریال) *</Label>
+            <Input
+              id="amount"
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="مبلغ پرداخت"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="paymentDate">تاریخ پرداخت *</Label>
+            <Input
+              id="paymentDate"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              placeholder="1403/01/01"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">شرح پرداخت</Label>
+            <Input
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="شرح پرداخت"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="invoiceId">تخصیص به فاکتور (اختیاری)</Label>
+            <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
+              <SelectTrigger>
+                <SelectValue placeholder="انتخاب فاکتور برای تخصیص" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">عمومی (بدون تخصیص)</SelectItem>
+                {representative && (representative as any).invoices?.map((invoice: Invoice) => (
+                  <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                    {invoice.invoiceNumber} - {formatCurrency(parseFloat(invoice.amount))}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <div className="flex justify-between">
+                <span>بدهی فعلی:</span>
+                <span className="font-bold">{formatCurrency(parseFloat(representative.totalDebt))}</span>
+              </div>
+              {amount && (
+                <div className="flex justify-between mt-1">
+                  <span>بدهی پس از پرداخت:</span>
+                  <span className="font-bold">
+                    {formatCurrency(Math.max(0, parseFloat(representative.totalDebt) - parseFloat(amount || "0")))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+            className="ml-2"
+          >
+            انصراف
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading}>
+            {isLoading ? "در حال ثبت..." : "ثبت پرداخت"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

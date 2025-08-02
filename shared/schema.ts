@@ -11,6 +11,7 @@ export const representatives = pgTable("representatives", {
   ownerName: text("owner_name"), // صاحب فروشگاه
   panelUsername: text("panel_username").notNull(), // یوزرنیم ادمین پنل - admin_username from JSON
   phone: text("phone"),
+  telegramId: text("telegram_id"), // آی‌دی تلگرام با @
   publicId: text("public_id").notNull().unique(), // For public portal access - based on panelUsername
   salesPartnerId: integer("sales_partner_id"), // همکار فروش معرف
   isActive: boolean("is_active").default(true),
