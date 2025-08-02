@@ -135,10 +135,13 @@ export default function NewRepresentativesManager() {
   // Handle representative actions
   const handleViewRep = async (rep: Representative) => {
     try {
-      const detailData = await apiRequest(`/api/crm/representatives/${rep.id}`);
-      setSelectedRep({ ...rep, ...detailData });
+      setSelectedRep(rep);
       setIsEditing(false);
       setShowModal(true);
+      
+      // Optionally fetch additional details if needed
+      // const detailData = await apiRequest(`/api/crm/representatives/${rep.id}`);
+      // setSelectedRep({ ...rep, ...detailData });
     } catch (error) {
       toast({ 
         title: 'خطا در دریافت اطلاعات', 
