@@ -1237,10 +1237,118 @@ function EditInvoiceDialog({
   const [status, setStatus] = useState(invoice.status);
   const [usageData, setUsageData] = useState(JSON.stringify(invoice.usageData || {}, null, 2));
   const [parsedUsageData, setParsedUsageData] = useState<any>(invoice.usageData || {});
-  const [usageItems, setUsageItems] = useState<any[]>(
-    Array.isArray(invoice.usageData?.items) ? invoice.usageData.items : 
-    [{ id: 1, description: "سرویس پایه", date: "1403/01/01", amount: parseFloat(invoice.amount) || 0 }]
-  );
+  // Parse actual usage data from invoice - Enhanced for real data structures
+  const parseUsageData = (usageData: any) => {
+    console.log('Parsing usage data:', usageData, 'Type:', typeof usageData);
+    
+    if (!usageData) {
+      // Return single item with invoice amount if no usage data
+      return [{
+        id: 1,
+        description: "سرویس پایه",
+        date: invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+        amount: parseFloat(invoice.amount) || 0
+      }];
+    }
+    
+    // If it's already an array (items format)
+    if (Array.isArray(usageData)) {
+      return usageData.map((item: any, index: number) => ({
+        id: index + 1,
+        description: (typeof item === 'string' ? item : 
+                    item.description || item.service || item.name || 
+                    item.username || `سرویس ${index + 1}`),
+        date: (typeof item === 'object' ? 
+              item.date || item.issueDate || item.created_at : '') || 
+              invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+        amount: (typeof item === 'object' ? 
+                parseFloat(item.amount || item.price || item.cost || 0) : 
+                Math.round(parseFloat(invoice.amount) / usageData.length)) || 0
+      }));
+    }
+
+    // If it contains items array
+    if (typeof usageData === 'object' && usageData.items && Array.isArray(usageData.items)) {
+      return usageData.items.map((item: any, index: number) => ({
+        id: index + 1,
+        description: item.description || item.service || item.name || item.username || `سرویس ${index + 1}`,
+        date: item.date || item.issueDate || item.created_at || invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+        amount: parseFloat(item.amount || item.price || item.cost || 0)
+      }));
+    }
+    
+    // If it's a single usage object, convert to array
+    if (typeof usageData === 'object' && !Array.isArray(usageData)) {
+      // Try to extract multiple services from object properties
+      const entries = Object.entries(usageData);
+      if (entries.length > 1) {
+        return entries
+          .filter(([key, value]) => key !== 'total' && key !== 'summary' && value)
+          .map(([key, value], index) => ({
+            id: index + 1,
+            description: (typeof value === 'object' && value.description) || 
+                        (typeof value === 'object' && value.service) || 
+                        key || `ردیف ${index + 1}`,
+            date: (typeof value === 'object' && value.date) || 
+                  invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+            amount: (typeof value === 'object' && parseFloat(value.amount || value.price || 0)) ||
+                   (typeof value === 'number' ? value : 0) ||
+                   Math.round(parseFloat(invoice.amount) / entries.length)
+          }));
+      }
+      
+      // Single object fallback
+      return [{
+        id: 1,
+        description: usageData.service || usageData.description || usageData.name || "سرویس پایه",
+        date: usageData.date || usageData.issueDate || invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+        amount: parseFloat(usageData.amount || usageData.price || usageData.cost || invoice.amount || 0)
+      }];
+    }
+
+    // If it's a string (HTML, JSON, or text), try to parse or extract info
+    if (typeof usageData === 'string') {
+      try {
+        const parsed = JSON.parse(usageData);
+        return parseUsageData(parsed);
+      } catch {
+        // Try to extract information from HTML or structured text
+        const lines = usageData.split(/[\n\r<br>]/).filter(line => line.trim());
+        if (lines.length > 1) {
+          return lines.map((line, index) => {
+            // Try to extract amount from line if present
+            const amountMatch = line.match(/(\d+[,\d]*)/g);
+            const extractedAmount = amountMatch ? parseFloat(amountMatch[amountMatch.length - 1].replace(/,/g, '')) : 0;
+            
+            return {
+              id: index + 1,
+              description: line.replace(/(\d+[,\d]*)/g, '').trim() || `سرویس ${index + 1}`,
+              date: invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+              amount: extractedAmount || Math.round(parseFloat(invoice.amount) / lines.length) || 0
+            };
+          });
+        }
+        
+        // Single line fallback
+        return [{
+          id: 1,
+          description: usageData.trim() || "سرویس پایه",
+          date: invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+          amount: parseFloat(invoice.amount) || 0
+        }];
+      }
+    }
+
+    // Default fallback
+    return [{
+      id: 1,
+      description: "سرویس پایه", 
+      date: invoice.issueDate || new Date().toLocaleDateString('fa-IR'),
+      amount: parseFloat(invoice.amount) || 0
+    }];
+  };
+
+  const [usageItems, setUsageItems] = useState<any[]>(parseUsageData(invoice.usageData));
   const [isLoading, setIsLoading] = useState(false);
 
   const updateUsageField = (field: string, value: string) => {
@@ -1297,46 +1405,55 @@ function EditInvoiceDialog({
   };
 
   const renderUsageDetailsEditor = () => {
+    if (usageItems.length === 0) {
+      return (
+        <div className="text-center p-4 text-gray-400">
+          هیچ ریزجزئیات مصرفی یافت نشد
+        </div>
+      );
+    }
+
     return usageItems.map((item, index) => (
-      <div key={item.id} className="grid grid-cols-12 gap-2 items-center p-2 bg-white/5 rounded-lg border border-white/10">
-        <div className="col-span-1 text-center text-blue-200 text-sm">
+      <div key={`usage-${item.id || index}`} className="grid grid-cols-12 gap-2 items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all">
+        <div className="col-span-1 text-center text-blue-200 text-sm font-medium">
           {index + 1}
         </div>
         
         <div className="col-span-5">
           <Input
-            value={item.description}
+            value={item.description || ''}
             onChange={(e) => updateUsageItem(index, 'description', e.target.value)}
             placeholder="شرح سرویس..."
-            className="bg-white/10 border-white/20 text-white text-sm"
+            className="bg-white/10 border-white/20 text-white text-sm focus:border-blue-400"
           />
         </div>
         
         <div className="col-span-2">
           <Input
-            value={item.date}
+            value={item.date || ''}
             onChange={(e) => updateUsageItem(index, 'date', e.target.value)}
             placeholder="1403/01/01"
-            className="bg-white/10 border-white/20 text-white text-sm"
+            className="bg-white/10 border-white/20 text-white text-sm focus:border-blue-400"
           />
         </div>
         
         <div className="col-span-3">
           <Input
             type="number"
-            value={item.amount}
+            value={item.amount || 0}
             onChange={(e) => updateUsageItem(index, 'amount', parseFloat(e.target.value) || 0)}
-            placeholder="مبلغ"
-            className="bg-white/10 border-white/20 text-white text-sm"
+            placeholder="مبلغ ریال"
+            className="bg-white/10 border-white/20 text-white text-sm focus:border-blue-400"
           />
         </div>
         
-        <div className="col-span-1">
+        <div className="col-span-1 flex justify-center">
           <Button
             type="button"
             onClick={() => removeUsageItem(index)}
-            className="bg-red-600 hover:bg-red-700 text-white p-1 h-8 w-8"
+            className="bg-red-600 hover:bg-red-700 text-white p-1 h-8 w-8 flex items-center justify-center"
             disabled={usageItems.length === 1}
+            title="حذف این ردیف"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
