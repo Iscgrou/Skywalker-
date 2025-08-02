@@ -63,6 +63,8 @@ The CRM system now contains four functional sections:
 - **17 New API Endpoints**: Full RESTful workspace functionality
 - **Persian Calendar Integration**: Full support for Persian dates and cultural scheduling
 - **Real-time Task Management**: CRUD operations with AI-powered insights
+- **Payment Management Consolidation**: Removed standalone payment tabs from admin panel - all payment functionality now integrated into representative profiles
+- **Invoice Pagination**: Complete 30-item pagination system with advanced controls for invoices section
 
 ### Previously Removed Components
 - Performance analytics endpoints and components (cleaned up for focus)
