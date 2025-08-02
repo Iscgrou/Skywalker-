@@ -467,6 +467,279 @@ export const crmSystemEvents = pgTable("crm_system_events", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
+// ==================== DA VINCI v1.0 SCHEMAS ====================
+
+// CRM Settings (تنظیمات CRM) - برای DA VINCI v1.0
+export const crmSettings = pgTable("crm_settings", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(), // "API_KEYS", "AI_CONFIG", "STAFF_MANAGEMENT", "KNOWLEDGE_BASE", "OFFERS", "MANAGER_WORKSPACE"
+  key: text("key").notNull().unique(),
+  value: text("value"),
+  encryptedValue: text("encrypted_value"), // برای API keys
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  lastTestedAt: timestamp("last_tested_at"),
+  testStatus: text("test_status"), // "SUCCESS", "FAILED", "PENDING", "NOT_TESTED"
+  testResults: json("test_results"), // نتایج تست با جزئیات
+  debugLogs: json("debug_logs"), // لاگ‌های debug
+  createdBy: text("created_by"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Support Staff (کارمندان پشتیبانی) - برای DA VINCI v1.0
+export const supportStaff = pgTable("support_staff", {
+  id: serial("id").primaryKey(),
+  fullName: text("full_name").notNull(),
+  username: text("username").notNull().unique(),
+  email: text("email"),
+  phone: text("phone"),
+  
+  // Work Schedule
+  dailyWorkHours: integer("daily_work_hours").default(8), // ساعت کاری در روز
+  weeklyHolidays: json("weekly_holidays").default([]), // روزهای تعطیل در هفته
+  workStartTime: text("work_start_time").default("09:00"), // شروع کار
+  workEndTime: text("work_end_time").default("17:00"), // پایان کار
+  
+  // Work Details
+  jobDescription: text("job_description"),
+  workingStyle: text("working_style"), // نحوه کار
+  specialSkills: json("special_skills").default([]),
+  
+  // Psychological Profile  
+  personalityTraits: json("personality_traits").default([]), // ویژگی‌های شخصیتی
+  psychologicalProfile: json("psychological_profile").default({}), // پروفایل روانشناختی
+  communicationStyle: text("communication_style"), // سبک ارتباطی
+  motivationFactors: json("motivation_factors").default([]), // عوامل انگیزشی
+  stressLevel: text("stress_level"), // سطح استرس
+  workPreferences: json("work_preferences").default({}), // ترجیحات کاری
+  
+  // Performance Metrics
+  performanceScore: decimal("performance_score", { precision: 5, scale: 2 }).default("0"),
+  taskCompletionRate: decimal("task_completion_rate", { precision: 5, scale: 2 }).default("0"),
+  customerSatisfactionRate: decimal("customer_satisfaction_rate", { precision: 5, scale: 2 }).default("0"),
+  
+  // AI Integration
+  aiInteractionStyle: text("ai_interaction_style"), // نحوه تعامل با AI
+  aiPersonalizationData: json("ai_personalization_data").default({}),
+  lastAiAnalysis: timestamp("last_ai_analysis"),
+  
+  isActive: boolean("is_active").default(true),
+  hiredAt: timestamp("hired_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// AI Knowledge Database (دیتابیس دانش AI) - برای DA VINCI v1.0  
+export const aiKnowledgeDatabase = pgTable("ai_knowledge_database", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(), // "REPRESENTATIVE_BEHAVIOR", "COMMON_QUESTIONS", "CONCERNS", "SOLUTIONS"
+  
+  // Representative Behavior Data
+  representativeStatus: text("representative_status"), // "ACTIVE", "INACTIVE", "TERMINATED"
+  behaviorType: text("behavior_type"), // "POSITIVE", "NEGATIVE", "NEUTRAL", "PROBLEMATIC"
+  behaviorDescription: text("behavior_description"),
+  testedApproaches: json("tested_approaches").default([]), // روش‌های تست شده
+  approachResults: json("approach_results").default([]), // نتایج روش‌ها
+  successRate: decimal("success_rate", { precision: 5, scale: 2 }),
+  
+  // Common Questions & Concerns
+  questionCategory: text("question_category"), // "TECHNICAL", "FINANCIAL", "PROCEDURAL", "GENERAL"
+  questionText: text("question_text"),
+  recommendedAnswer: text("recommended_answer"),
+  alternativeAnswers: json("alternative_answers").default([]),
+  
+  // General Knowledge
+  title: text("title"),
+  content: text("content"),
+  tags: json("tags").default([]),
+  applicableScenarios: json("applicable_scenarios").default([]),
+  
+  // Metadata
+  sourceType: text("source_type"), // "MANAGER_INPUT", "HISTORICAL_DATA", "AI_ANALYSIS"
+  confidence: decimal("confidence", { precision: 5, scale: 2 }).default("0"),
+  usageCount: integer("usage_count").default(0),
+  effectivenessScore: decimal("effectiveness_score", { precision: 5, scale: 2 }),
+  
+  isActive: boolean("is_active").default(true),
+  createdBy: text("created_by"),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Offers & Incentives (آفرها و پاداش‌ها) - برای DA VINCI v1.0
+export const offersIncentives = pgTable("offers_incentives", {
+  id: serial("id").primaryKey(),
+  offerName: text("offer_name").notNull(),
+  offerType: text("offer_type").notNull(), // "FINANCIAL", "VOLUME_BASED", "TIME_LIMITED", "COMBO"
+  
+  // Financial Details
+  monetaryValue: decimal("monetary_value", { precision: 15, scale: 2 }), // مبلغ ریالی
+  volumeBonus: json("volume_bonus").default({}), // پاداش حجمی
+  timeFrame: text("time_frame"), // مدت زمان
+  
+  // Eligibility Criteria
+  eligibilityCriteria: json("eligibility_criteria").default({}),
+  minPurchaseAmount: decimal("min_purchase_amount", { precision: 15, scale: 2 }),
+  maxUsagePerRepresentative: integer("max_usage_per_representative"),
+  
+  // Conditions & Terms
+  terms: text("terms"),
+  restrictions: json("restrictions").default([]),
+  validFrom: timestamp("valid_from"),
+  validUntil: timestamp("valid_until"),
+  
+  // Financial Impact Assessment
+  costPerOffer: decimal("cost_per_offer", { precision: 15, scale: 2 }),
+  maxTotalCost: decimal("max_total_cost", { precision: 15, scale: 2 }),
+  budgetAllocated: decimal("budget_allocated", { precision: 15, scale: 2 }),
+  budgetUsed: decimal("budget_used", { precision: 15, scale: 2 }).default("0"),
+  
+  // Performance Tracking
+  timesOffered: integer("times_offered").default(0),
+  timesAccepted: integer("times_accepted").default(0),
+  acceptanceRate: decimal("acceptance_rate", { precision: 5, scale: 2 }),
+  averageImpact: json("average_impact").default({}),
+  
+  // AI Integration
+  aiRecommendationScore: decimal("ai_recommendation_score", { precision: 5, scale: 2 }),
+  aiUsagePatterns: json("ai_usage_patterns").default({}),
+  
+  isActive: boolean("is_active").default(true),
+  createdBy: text("created_by"),
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Manager Tasks (وظایف مدیر) - برای میز کار مدیر در DA VINCI v1.0
+export const managerTasks = pgTable("manager_tasks", {
+  id: serial("id").primaryKey(),
+  taskId: text("task_id").notNull().unique(), // UUID
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  
+  // Task Assignment
+  assignedStaffId: integer("assigned_staff_id"), // کارمند مشخص شده
+  assignedStaffName: text("assigned_staff_name"), // نام کارمند برای نمایش
+  
+  // Task Details
+  taskType: text("task_type").notNull(), // "DAILY_CALLS", "DEBT_COLLECTION", "FOLLOW_UP", "CUSTOM"
+  frequency: text("frequency").notNull(), // "DAILY", "WEEKLY", "MONTHLY", "ONE_TIME"
+  priority: text("priority").default("MEDIUM"), // "LOW", "MEDIUM", "HIGH", "URGENT"
+  
+  // Specific Instructions
+  dailyTarget: integer("daily_target"), // هدف روزانه (مثل 7 تماس)
+  targetCriteria: json("target_criteria").default({}), // معیارهای هدف
+  specificInstructions: text("specific_instructions"),
+  
+  // Schedule & Timing
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"), // null برای وظایف دائمی
+  scheduleDetails: json("schedule_details").default({}),
+  
+  // AI Processing
+  aiProcessed: boolean("ai_processed").default(false),
+  aiInstructions: text("ai_instructions"), // دستورات AI برای کارمند
+  aiContext: json("ai_context").default({}),
+  lastAiProcessing: timestamp("last_ai_processing"),
+  
+  // Performance Tracking
+  totalExecutions: integer("total_executions").default(0),
+  successfulExecutions: integer("successful_executions").default(0),
+  lastExecutionDate: timestamp("last_execution_date"),
+  averageCompletionTime: integer("average_completion_time"), // بر حسب دقیقه
+  
+  // Status & Lifecycle
+  status: text("status").default("ACTIVE"), // "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"
+  isRecurring: boolean("is_recurring").default(true),
+  
+  createdBy: text("created_by").notNull(),
+  pausedBy: text("paused_by"),
+  pausedAt: timestamp("paused_at"),
+  pauseReason: text("pause_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// Manager Task Executions (اجرای وظایف مدیر) - برای ردیابی اجرای روزانه
+export const managerTaskExecutions = pgTable("manager_task_executions", {
+  id: serial("id").primaryKey(),
+  taskId: text("task_id").notNull(),
+  executionId: text("execution_id").notNull().unique(), // UUID
+  executionDate: text("execution_date").notNull(), // Persian date
+  
+  // Staff Assignment
+  assignedStaffId: integer("assigned_staff_id").notNull(),
+  assignedStaffName: text("assigned_staff_name").notNull(),
+  
+  // Execution Details
+  generatedInstructions: text("generated_instructions"), // دستورات تولید شده
+  targetList: json("target_list").default([]), // لیست اهداف (نمایندگان، فروشگاه‌ها، ...)
+  targetCount: integer("target_count").default(0),
+  
+  // AI Generation Process
+  aiModel: text("ai_model"), // مدل AI استفاده شده
+  aiPrompt: text("ai_prompt"), // prompt استفاده شده
+  aiResponse: text("ai_response"), // پاسخ کامل AI
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }),
+  processingTime: integer("processing_time"), // زمان پردازش بر حسب میلی‌ثانیه
+  
+  // Execution Status
+  status: text("status").default("GENERATED"), // "GENERATED", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "FAILED"
+  assignedAt: timestamp("assigned_at"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Results
+  actualExecuted: integer("actual_executed"), // تعداد واقعی انجام شده
+  successCount: integer("success_count"),
+  failureCount: integer("failure_count"),
+  executionNotes: text("execution_notes"),
+  staffFeedback: text("staff_feedback"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+// AI Test Results (نتایج تست AI) - برای نمایش لاگ‌های تست
+export const aiTestResults = pgTable("ai_test_results", {
+  id: serial("id").primaryKey(),
+  testId: text("test_id").notNull().unique(), // UUID
+  testType: text("test_type").notNull(), // "API_KEY_TEST", "AI_CONFIG_TEST", "KNOWLEDGE_TEST", "OFFER_TEST"
+  
+  // Test Context
+  relatedEntityType: text("related_entity_type"), // "SETTING", "STAFF", "KNOWLEDGE", "OFFER"
+  relatedEntityId: integer("related_entity_id"),
+  testParameters: json("test_parameters").default({}),
+  
+  // Test Execution
+  testStarted: timestamp("test_started").defaultNow(),
+  testCompleted: timestamp("test_completed"),
+  testDuration: integer("test_duration"), // بر حسب میلی‌ثانیه
+  
+  // Results
+  testStatus: text("test_status").notNull(), // "SUCCESS", "FAILED", "PARTIAL", "ERROR"
+  responseData: json("response_data").default({}),
+  errorMessage: text("error_message"),
+  warningMessages: json("warning_messages").default([]),
+  
+  // Debug Information
+  debugLogs: json("debug_logs").default([]),
+  networkLogs: json("network_logs").default([]),
+  performanceMetrics: json("performance_metrics").default({}),
+  
+  // Analysis
+  aiAnalysis: text("ai_analysis"),
+  recommendations: json("recommendations").default([]),
+  
+  initiatedBy: text("initiated_by"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Relations
 export const representativesRelations = relations(representatives, ({ one, many }) => ({
   salesPartner: one(salesPartners, {
