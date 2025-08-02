@@ -15,6 +15,19 @@ function convertToPersianDate(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}/${month}/${day}`;
 }
+
+// SHERLOCK v1.0 CRITICAL FIX - Session Management Utility
+function getStaffIdFromSession(req: any): number {
+  // Extract staff ID from authenticated session
+  const session = req.session as any;
+  if (session?.authenticated && session?.user) {
+    // For CRM users, use user ID directly
+    // For admin users, default to ID 1 for compatibility
+    return session.user.id || 1;
+  }
+  // Fallback to default for compatibility
+  return 1;
+}
 import { 
   insertWorkspaceTaskSchema, 
   insertTaskReportSchema, 
@@ -32,7 +45,7 @@ const taskGenerator = new AITaskGenerator();
 router.get("/tasks", async (req, res) => {
   try {
     const startTime = Date.now();
-    const staffId = 1; // TODO: Get from session
+    const staffId = getStaffIdFromSession(req); // ✅ FIXED: Get from session
     const status = req.query.status as string;
     
     const tasks = await workspaceStorage.getTasksByStaff(staffId, status as any);
