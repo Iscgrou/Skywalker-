@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 // CRM routes are imported in registerCrmRoutes function
-import { crmDataSyncService } from "./services/crm-data-sync";
+
 import multer from "multer";
 
 // Extend Request interface to include multer file
@@ -36,7 +36,7 @@ import {
   getDefaultTelegramTemplate, 
   formatInvoiceStatus 
 } from "./services/telegram";
-import { groqAIEngine } from "./services/groq-ai-engine";
+
 import { xaiGrokEngine } from "./services/xai-grok-engine";
 import { registerCrmRoutes } from "./routes/crm-routes";
 import bcrypt from "bcryptjs";
@@ -81,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Register CRM routes
-  registerCrmRoutes(app, requireAuth);
+  registerCrmRoutes(app, storage);
 
   // xAI Grok Configuration API
   app.post("/api/settings/xai-grok/configure", requireAuth, async (req, res) => {
@@ -1648,7 +1648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Engine routes are integrated above in xAI Grok configuration section
 
   // Initialize CRM real-time sync
-  crmDataSyncService.startRealTimeSync();
+  // CRM data sync service removed for simplified system
 
   // Enhanced health check endpoint
   app.get("/health", (req, res) => {
@@ -1659,7 +1659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         financial: "running",
         crm: "running",
         auth: "running",
-        sync: crmDataSyncService.getSyncStatus().isRunning ? "running" : "stopped"
+        sync: "simplified"
       }
     });
   });

@@ -139,25 +139,25 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       }
       
       if (conditions.length > 0) {
-        query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+        query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
       }
       
       switch (sortBy) {
         case 'totalSales':
-          query = query.orderBy(desc(representatives.totalSales));
+          query = query.orderBy(desc(representatives.totalSales)) as any;
           break;
         case 'totalDebt':
-          query = query.orderBy(desc(representatives.totalDebt));
+          query = query.orderBy(desc(representatives.totalDebt)) as any;
           break;
         default:
-          query = query.orderBy(representatives.name);
+          query = query.orderBy(representatives.name) as any;
       }
       
       const reps = await query.limit(limitNum).offset(offset);
       
       let countQuery = db.select({ count: sql`COUNT(*)` }).from(representatives);
       if (conditions.length > 0) {
-        countQuery = countQuery.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+        countQuery = countQuery.where(conditions.length === 1 ? conditions[0] : and(...conditions)) as any;
       }
       const [{ count }] = await countQuery;
       
@@ -197,14 +197,14 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
       }
       
-      const invoices = await db
+      const representativeInvoices = await db
         .select()
         .from(invoices)
         .where(eq(invoices.representativeId, id))
         .orderBy(desc(invoices.createdAt))
         .limit(10);
         
-      const payments = await db
+      const representativePayments = await db
         .select()
         .from(payments)
         .where(eq(payments.representativeId, id))
@@ -213,11 +213,11 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       
       res.json({
         ...rep[0],
-        recentInvoices: invoices,
-        recentPayments: payments,
+        recentInvoices: representativeInvoices,
+        recentPayments: representativePayments,
         summary: {
-          totalInvoices: invoices.length,
-          totalPayments: payments.length,
+          totalInvoices: representativeInvoices.length,
+          totalPayments: representativePayments.length,
           lastActivity: new Date().toISOString()
         }
       });
@@ -249,13 +249,13 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       const newRep = await db
         .insert(representatives)
         .values({
-          name,
           code,
+          name,
           ownerName: ownerName || '',
           phone: phone || '',
           panelUsername: panelUsername || '',
           publicId: `pub_${Date.now()}_${code}`,
-          salesPartnerId: '',
+          salesPartnerId: 0,
           isActive: true,
           totalDebt: '0',
           totalSales: '0',
@@ -337,9 +337,9 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       req.session.crmUser = {
         id: user.id,
         username: user.username,
-        fullName: user.fullName,
-        role: user.role,
-        permissions: user.permissions,
+        fullName: user.fullName || '',
+        role: user.role || '',
+        permissions: user.permissions as string[] || [],
         panelType: 'CRM_PANEL'
       };
 
@@ -365,7 +365,7 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
 
   app.post("/api/crm/auth/logout", (req, res) => {
     req.session.crmAuthenticated = false;
-    req.session.crmUser = null;
+    req.session.crmUser = undefined;
     res.json({ success: true, message: "خروج موفقیت‌آمیز" });
   });
 }

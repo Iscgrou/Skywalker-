@@ -157,8 +157,8 @@ export default function InvoiceEditDialog({
 
   // Initialize editable records when usage details are loaded
   useEffect(() => {
-    if (usageDetails?.records && Array.isArray(usageDetails.records) && !isInitialized && !editMode) {
-      const records = (usageDetails.records as any[]).map((record: any) => ({
+    if ((usageDetails as any)?.records && Array.isArray((usageDetails as any).records) && !isInitialized && !editMode) {
+      const records = ((usageDetails as any).records as any[]).map((record: any) => ({
         id: generateId(),
         admin_username: record.admin_username || '',
         event_timestamp: record.event_timestamp || '',
@@ -209,8 +209,8 @@ export default function InvoiceEditDialog({
     setEditMode(false);
     setEditReason("");
     // Reset records to original state from fresh data
-    if (usageDetails?.records && Array.isArray(usageDetails.records)) {
-      const originalRecords = (usageDetails.records as any[]).map((record: any) => ({
+    if ((usageDetails as any)?.records && Array.isArray((usageDetails as any).records)) {
+      const originalRecords = ((usageDetails as any).records as any[]).map((record: any) => ({
         id: generateId(),
         admin_username: record.admin_username || '',
         event_timestamp: record.event_timestamp || '',
