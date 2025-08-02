@@ -56,6 +56,7 @@ import {
 import { CurrencyFormatter } from '@/lib/currency-formatter';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import EnhancedAIHelper from './enhanced-ai-helper';
 
 // Main Interface Component
 export default function SherlockCrmInterface() {
@@ -133,7 +134,11 @@ export default function SherlockCrmInterface() {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
-        {activeSection === 'helper' && <HelperSection />}
+        {activeSection === 'helper' && (
+          <div className="space-y-6">
+            <EnhancedAIHelper />
+          </div>
+        )}
         {activeSection === 'representatives' && <RepresentativesSection />}
         {activeSection === 'ai-workspace' && <AIWorkspaceSection />}
         {activeSection === 'analytics' && <AnalyticsSection />}
@@ -144,10 +149,9 @@ export default function SherlockCrmInterface() {
   );
 }
 
-// 1. معاف کنگ یار (Helper) Section
+// 1. معاف کنگ یار (Helper) Section - Import Advanced Workspace  
 function HelperSection() {
   const [query, setQuery] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   
   const { data: recentTasks } = useQuery({
     queryKey: ['/api/crm/helper/recent-tasks'],
@@ -194,29 +198,6 @@ function HelperSection() {
           </CardContent>
         </Card>
       </div>
-
-      {/* AI Chat Interface */}
-      <Card className="bg-black/20 border-white/10">
-        <CardHeader>
-          <CardTitle className="text-white">گفتگو با معاف کنگ یار</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex space-x-2 rtl:space-x-reverse">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="سوال خود را بپرسید..."
-                className="flex-1 bg-white/10 border-white/20 text-white"
-              />
-              <Button disabled={isProcessing}>
-                {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-                ارسال
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

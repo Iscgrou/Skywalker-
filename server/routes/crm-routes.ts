@@ -784,8 +784,8 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
     }
   });
 
-  // AI Chat Endpoint - Real Groq Integration
-  app.post("/api/crm/ai-workspace/chat", crmAuthMiddleware, async (req, res) => {
+  // ORIGINAL AI Chat Endpoint - Real Groq Integration
+  app.post("/api/crm/ai-workspace/chat-original", crmAuthMiddleware, async (req, res) => {
     try {
       const { message, context, mode, culturalContext } = req.body;
       const startTime = Date.now();
@@ -2273,6 +2273,149 @@ export function registerCrmRoutes(app: Express, requireAuth: any) {
       res.status(500).json({ error: 'خطا در برنامه‌ریزی گزارش' });
     }
   });
+
+  // SHERLOCK v3.0 AI Chat Endpoint - Enhanced for Helper Section
+  app.post("/api/crm/ai-workspace/chat", crmAuthMiddleware, async (req, res) => {
+    try {
+      const { message, context, mode, culturalContext } = req.body;
+      const startTime = Date.now();
+
+      // Get real data context for AI
+      const representativesData = await db.select().from(representatives).limit(10);
+      
+      // Prepare cultural context for AI with enhanced Persian intelligence
+      const systemPrompt = `شما "معاف کنگ یار" هستید - دستیار هوشمند CRM فارسی با قابلیت‌های پیشرفته. شما متخصص در:
+
+🧠 تحلیل رفتار نمایندگان ایرانی
+📊 بهینه‌سازی فرایندهای فروش
+🎯 ارائه پیشنهادات عملی مبتنی بر فرهنگ ایرانی
+❤️ درک عمیق ارزش‌های فرهنگی و مذهبی
+
+حالت فعلی: ${mode}
+زمینه گفتگو: ${context || 'عمومی'}
+حساسیت فرهنگی: ${culturalContext?.sensitivity || 85}%
+سطح فعالیت: ${culturalContext?.proactivity || 75}%
+
+آمار فعلی سیستم:
+- تعداد نمایندگان: ${representativesData.length}
+- آخرین بروزرسانی: ${new Date().toLocaleDateString('fa-IR')}
+
+لطفاً پاسخ شما:
+✅ مفصل، کاربردی و حرفه‌ای باشد
+✅ مناسب فرهنگ ایرانی و احترام به ارزش‌های سنتی
+✅ شامل پیشنهادات عملی و قابل اجرا
+✅ با لحن دوستانه و محترمانه`;
+
+      let aiResponse = '';
+      let confidence = 85;
+      let suggestions = [];
+
+      try {
+        // Use XAI Grok for enhanced AI processing
+        const xaiResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.XAI_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'grok-2-1212',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: message }
+            ],
+            temperature: 0.7,
+            max_tokens: 800
+          })
+        });
+
+        if (xaiResponse.ok) {
+          const xaiData = await xaiResponse.json();
+          aiResponse = xaiData.choices[0]?.message?.content || 'متأسفانه نتوانستم پاسخ مناسبی تولید کنم.';
+          confidence = 94;
+          
+          // Generate contextual suggestions based on message content
+          if (message.includes('نماینده') || message.includes('representative')) {
+            suggestions = ['مشاهده لیست نمایندگان', 'تحلیل عملکرد نمایندگان', 'گزارش عملکرد ماهانه'];
+          } else if (message.includes('وظیفه') || message.includes('تسک') || message.includes('task')) {
+            suggestions = ['ایجاد وظیفه جدید', 'بررسی وظایف معوقه', 'اولویت‌بندی هوشمند'];
+          } else if (message.includes('گزارش') || message.includes('report')) {
+            suggestions = ['گزارش عملکرد ماهانه', 'تحلیل ترندها', 'خروجی Excel'];
+          } else if (message.includes('فروش') || message.includes('sales')) {
+            suggestions = ['آنالیز فروش', 'بهترین نمایندگان', 'راهکارهای افزایش فروش'];
+          } else if (message.includes('بدهی') || message.includes('debt')) {
+            suggestions = ['بررسی بدهی‌ها', 'برنامه وصول', 'تحلیل ریسک'];
+          } else {
+            suggestions = ['راهنمای سیستم', 'نمایش آمار کلی', 'تنظیمات شخصی'];
+          }
+        } else {
+          throw new Error('XAI API error');
+        }
+      } catch (xaiError) {
+        console.error('XAI API error:', xaiError);
+        // Fallback to intelligent responses based on real data
+        aiResponse = await generateIntelligentFallback(message, representativesData);
+        confidence = 78;
+        suggestions = ['تلاش مجدد', 'درخواست پشتیبانی'];
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      res.json({
+        message: aiResponse,
+        confidence,
+        suggestions,
+        contextUpdate: message.length > 50,
+        processingTime,
+        metadata: {
+          mode,
+          dataSourced: true,
+          aiEngine: 'XAI-Grok-Enhanced',
+          culturalContext: 'Persian-Iranian-Advanced',
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('Error in AI workspace chat:', error);
+      res.status(500).json({ 
+        error: 'خطا در برقراری ارتباط با معاف کنگ یار',
+        fallback: 'لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.'
+      });
+    }
+  });
+
+  // Helper function for intelligent fallback responses
+  async function generateIntelligentFallback(message: string, representativesData: any[]) {
+    const totalReps = representativesData.length;
+    const activeReps = representativesData.filter(rep => rep.isActive).length;
+    
+    if (message.includes('آمار') || message.includes('statistics')) {
+      return `بر اساس آخرین داده‌های سیستم:
+      
+📊 تعداد کل نمایندگان: ${totalReps}
+✅ نمایندگان فعال: ${activeReps}
+📈 نرخ فعالیت: ${Math.round((activeReps / totalReps) * 100)}%
+
+آیا می‌خواهید تحلیل بیشتری از عملکرد نمایندگان ببینید؟`;
+    }
+    
+    if (message.includes('سلام') || message.includes('hello')) {
+      return `سلام و وقت بخیر! 🌟
+
+من معاف کنگ یار هستم، دستیار هوشمند CRM شما. آماده کمک در موارد زیر هستم:
+
+🎯 تحلیل عملکرد نمایندگان  
+📊 تولید گزارشات هوشمند
+💡 پیشنهادات بهبود فرایند
+📋 مدیریت وظایف و اولویت‌ها
+
+چطور می‌تونم کمکتون کنم؟`;
+    }
+    
+    return `متوجه درخواست شما شدم. در حال حاضر ${totalReps} نماینده در سیستم داریم که ${activeReps} نفر از آن‌ها فعال هستند. 
+
+برای کمک بهتر، لطفاً سوال خود را واضح‌تر مطرح کنید یا از گزینه‌های پیشنهادی استفاده کنید.`;
+  }
 
   // Export Status and Stats
   app.get("/api/crm/exports/stats", async (req, res) => {
