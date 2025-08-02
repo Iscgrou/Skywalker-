@@ -17,12 +17,12 @@ import {
 } from 'lucide-react';
 
 // Import sub-components
-import { ManagerWorkspace } from './ManagerWorkspace';
-import { SystemConfiguration } from './SystemConfiguration';
-import { SupportStaffManagement } from './SupportStaffManagement';
-import { AiKnowledgeManager } from './AiKnowledgeManager';
-import { OffersManagement } from './OffersManagement';
-import { AiTestResults } from './AiTestResults';
+import { ManagerWorkspace } from './ManagerWorkspace.tsx';
+import { SystemConfiguration } from './SystemConfiguration.tsx';
+import { SupportStaffManagement } from './SupportStaffManagement.tsx';
+import { AiKnowledgeManager } from './AiKnowledgeManager.tsx';
+import { OffersManagement } from './OffersManagement.tsx';
+import { AiTestResults } from './AiTestResults.tsx';
 
 interface SettingsHubProps {
   userRole?: string;

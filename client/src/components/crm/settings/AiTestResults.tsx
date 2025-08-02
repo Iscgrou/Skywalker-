@@ -447,7 +447,7 @@ export function AiTestResults() {
             
             <div className="text-center">
               <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                {Object.keys(testResults.reduce((acc, r) => { acc[r.testType] = true; return acc; }, {})).length}
+                {Object.keys(testResults.reduce((acc: any, r) => { acc[r.testType] = true; return acc; }, {})).length}
               </div>
               <div className="text-sm text-indigo-600 dark:text-indigo-400">
                 انواع تست مختلف

@@ -12,7 +12,9 @@ import {
   X,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  Brain,
+  TrendingUp
 } from 'lucide-react';
 
 export function SystemConfiguration() {
@@ -21,8 +23,8 @@ export function SystemConfiguration() {
   const [apiKey, setApiKey] = useState('');
   const [isTestingApi, setIsTestingApi] = useState(false);
   const [isTestingPerformance, setIsTestingPerformance] = useState(false);
-  const [apiTestResult, setApiTestResult] = useState(null);
-  const [performanceTestResult, setPerformanceTestResult] = useState(null);
+  const [apiTestResult, setApiTestResult] = useState<any>(null);
+  const [performanceTestResult, setPerformanceTestResult] = useState<any>(null);
   
   // AI Behavior Settings
   const [aiBehaviorConfig, setAiBehaviorConfig] = useState({
