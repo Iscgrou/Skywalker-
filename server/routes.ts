@@ -40,7 +40,7 @@ import {
 } from "./services/telegram";
 
 import { xaiGrokEngine } from "./services/xai-grok-engine";
-import { registerCrmRoutes } from "./routes/crm-routes";
+import { registerCrmRoutes, invalidateCrmCache } from "./routes/crm-routes";
 import { registerSettingsRoutes } from "./routes/settings-routes";
 import bcrypt from "bcryptjs";
 // Commented out temporarily - import { generateFinancialReport } from "./services/report-generator";
@@ -1101,6 +1101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // CRITICAL: Update representative financial data after deletion
       console.log(`🔄 به‌روزرسانی اطلاعات مالی نماینده ${invoice.representativeId}`);
       await storage.updateRepresentativeFinancials(invoice.representativeId);
+      
+      // CRITICAL: Invalidate CRM cache to ensure real-time sync
+      invalidateCrmCache();
+      console.log('🗑️ CRM cache invalidated for immediate synchronization');
 
       // Log the activity for audit trail
       await storage.createActivityLog({

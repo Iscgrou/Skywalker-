@@ -8,6 +8,15 @@ import { representatives, invoices, payments, crmUsers } from "../../shared/sche
 import { XAIGrokEngine } from "../services/xai-grok-engine";
 // Cleaned CRM routes for representatives management and AI helper only
 
+// Cache invalidation function - exported for use by other modules
+let invalidateCrmCacheRef: (() => void) | null = null;
+
+export function invalidateCrmCache() {
+  if (invalidateCrmCacheRef) {
+    invalidateCrmCacheRef();
+  }
+}
+
 export function registerCrmRoutes(app: Express, storage: IStorage) {
   // Initialize only essential services for clean CRM
   const xaiGrokEngine = new XAIGrokEngine(storage);
@@ -40,6 +49,16 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
   let lastSyncTime = 0;
   const SYNC_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
   let cachedRepresentatives: any[] = [];
+  
+  // Cache invalidation function - exported globally
+  const invalidateCrmCacheLocal = () => {
+    console.log('🗑️ CRM Cache invalidated due to financial data change');
+    lastSyncTime = 0;
+    cachedRepresentatives = [];
+  };
+  
+  // Set the reference so it can be called from outside
+  invalidateCrmCacheRef = invalidateCrmCacheLocal;
   
   const syncAdminCrmData = async (forceSync = false) => {
     try {
