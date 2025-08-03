@@ -939,53 +939,66 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateRepresentativeFinancials(repId: number): Promise<void> {
-    // Calculate total from unpaid + overdue invoices
-    const [unpaidResult] = await db
-      .select({ 
-        unpaidTotal: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
-      })
-      .from(invoices)
-      .where(
-        and(
-          eq(invoices.representativeId, repId),
-          or(eq(invoices.status, "unpaid"), eq(invoices.status, "overdue"))
-        )
-      );
+    return await withDatabaseRetry(
+      async () => {
+        // Calculate total from unpaid + overdue invoices
+        const [unpaidResult] = await db
+          .select({ 
+            unpaidTotal: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+          })
+          .from(invoices)
+          .where(
+            and(
+              eq(invoices.representativeId, repId),
+              or(eq(invoices.status, "unpaid"), eq(invoices.status, "overdue"))
+            )
+          );
 
-    // Calculate total payments for this representative
-    const [paymentsResult] = await db
-      .select({ 
-        totalPayments: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
-      })
-      .from(payments)
-      .where(eq(payments.representativeId, repId));
+        // Calculate total payments for this representative
+        const [paymentsResult] = await db
+          .select({ 
+            totalPayments: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+          })
+          .from(payments)
+          .where(eq(payments.representativeId, repId));
 
-    // Calculate actual debt (unpaid invoices minus payments)
-    const unpaidAmount = parseFloat(unpaidResult.unpaidTotal || "0");
-    const totalPayments = parseFloat(paymentsResult.totalPayments || "0");
-    const actualDebt = Math.max(0, unpaidAmount - totalPayments);
+        // Calculate actual debt (unpaid invoices minus payments)
+        const unpaidAmount = parseFloat(unpaidResult.unpaidTotal || "0");
+        const totalPayments = parseFloat(paymentsResult.totalPayments || "0");
+        const actualDebt = Math.max(0, unpaidAmount - totalPayments);
 
-    // Calculate total sales (all invoices)
-    const [salesResult] = await db
-      .select({ 
-        totalSales: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
-      })
-      .from(invoices)
-      .where(eq(invoices.representativeId, repId));
+        // Calculate total sales (all invoices) - INCLUDING DELETED ONES EFFECT
+        const [salesResult] = await db
+          .select({ 
+            totalSales: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
+          })
+          .from(invoices)
+          .where(eq(invoices.representativeId, repId));
 
-    // Calculate credit (if payments exceed unpaid invoices)
-    const credit = totalPayments > unpaidAmount ? totalPayments - unpaidAmount : 0;
+        // Calculate credit (if payments exceed unpaid invoices)
+        const credit = totalPayments > unpaidAmount ? totalPayments - unpaidAmount : 0;
 
-    // Update representative with accurate calculations
-    await db
-      .update(representatives)
-      .set({
-        totalDebt: actualDebt.toString(),
-        totalSales: salesResult.totalSales || "0",
-        credit: credit.toString(),
-        updatedAt: new Date()
-      })
-      .where(eq(representatives.id, repId));
+        // Update representative with accurate calculations
+        await db
+          .update(representatives)
+          .set({
+            totalDebt: actualDebt.toString(),
+            totalSales: salesResult.totalSales || "0",
+            credit: credit.toString(),
+            updatedAt: new Date()
+          })
+          .where(eq(representatives.id, repId));
+
+        console.log(`💰 Financial update for representative ${repId}:`, {
+          unpaidAmount,
+          totalPayments,
+          actualDebt,
+          totalSales: salesResult.totalSales,
+          credit
+        });
+      },
+      'updateRepresentativeFinancials'
+    );
   }
 
   // Admin Users methods

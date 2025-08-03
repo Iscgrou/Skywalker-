@@ -1081,10 +1081,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // فاز ۲: Delete invoice API - حذف فاکتور
+  // فاز ۲: Delete invoice API - حذف فاکتور با همگام‌سازی کامل مالی
   app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
     try {
-      console.log('🔧 فاز ۲: حذف فاکتور');
+      console.log('🔧 فاز ۲: حذف امن فاکتور');
       const invoiceId = parseInt(req.params.id);
       
       // Get invoice details for audit
@@ -1093,24 +1093,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "فاکتور یافت نشد" });
       }
 
+      console.log(`🗑️ حذف فاکتور شماره ${invoice.invoiceNumber} با مبلغ ${invoice.amount} تومان`);
+
+      // Delete invoice from database
       await storage.deleteInvoice(invoiceId);
 
-      // Update representative financial data
+      // CRITICAL: Update representative financial data after deletion
+      console.log(`🔄 به‌روزرسانی اطلاعات مالی نماینده ${invoice.representativeId}`);
       await storage.updateRepresentativeFinancials(invoice.representativeId);
 
+      // Log the activity for audit trail
       await storage.createActivityLog({
         type: "invoice_deleted",
-        description: `فاکتور ${invoice.invoiceNumber} حذف شد`,
+        description: `فاکتور ${invoice.invoiceNumber} با مبلغ ${invoice.amount} تومان حذف شد`,
         relatedId: invoiceId,
         metadata: {
           invoiceNumber: invoice.invoiceNumber,
           amount: invoice.amount,
           representativeId: invoice.representativeId,
-          deletedBy: (req.session as any)?.user?.username || 'admin'
+          deletedBy: (req.session as any)?.user?.username || 'admin',
+          financialImpact: {
+            amountRemoved: invoice.amount,
+            operation: "invoice_deletion"
+          }
         }
       });
 
-      res.json({ success: true });
+      console.log(`✅ فاکتور ${invoice.invoiceNumber} با موفقیت حذف شد و اطلاعات مالی همگام‌سازی شدند`);
+      res.json({ 
+        success: true, 
+        message: "فاکتور با موفقیت حذف شد و اطلاعات مالی به‌روزرسانی شدند",
+        deletedInvoice: {
+          id: invoiceId,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount
+        }
+      });
     } catch (error) {
       console.error('Error deleting invoice:', error);
       res.status(500).json({ error: "خطا در حذف فاکتور" });
