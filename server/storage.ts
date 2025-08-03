@@ -591,9 +591,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
-    // Generate invoice number
-    const count = await db.select({ count: sql<number>`count(*)` }).from(invoices);
-    const invoiceNumber = `INV-${String(count[0].count + 1).padStart(4, '0')}`;
+    // Generate unique invoice number with retry mechanism
+    let invoiceNumber: string = '';
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+      
+      // Generate unique invoice number using timestamp + random
+      const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      invoiceNumber = `INV-${timestamp}${random}`;
+      
+      // Check if this invoice number already exists
+      const existing = await db.select({ id: invoices.id })
+        .from(invoices)
+        .where(eq(invoices.invoiceNumber, invoiceNumber))
+        .limit(1);
+      
+      if (existing.length === 0) {
+        // Unique number found, break the loop
+        break;
+      }
+      
+      if (attempts === maxAttempts) {
+        throw new Error(`Unable to generate unique invoice number after ${maxAttempts} attempts`);
+      }
+      
+      // Wait a small amount before retry
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
 
     const [newInvoice] = await db
       .insert(invoices)

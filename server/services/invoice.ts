@@ -146,6 +146,13 @@ export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
       }
     }
     
+    // CRITICAL FIX: If no usageRecords found but data is array, use data directly
+    if (usageRecords.length === 0 && Array.isArray(data)) {
+      console.log('🔧 DIRECT ARRAY HANDLING: Data is array, using directly');
+      usageRecords = data.filter(item => item && typeof item === 'object');
+      console.log(`✅ Found ${usageRecords.length} valid records in direct array`);
+    }
+    
     console.log(`📊 Final extracted records count: ${usageRecords.length}`);
     
     if (usageRecords.length === 0) {

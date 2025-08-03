@@ -371,7 +371,7 @@ export default function Invoices() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
-                  resetToFirstPage();
+                  setCurrentPage(1);
                 }}
                 className="pr-10"
               />
@@ -379,7 +379,7 @@ export default function Invoices() {
             
             <Select value={statusFilter} onValueChange={(value) => {
               setStatusFilter(value);
-              resetToFirstPage();
+              setCurrentPage(1);
             }}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="وضعیت فاکتور" />
@@ -394,7 +394,7 @@ export default function Invoices() {
 
             <Select value={telegramFilter} onValueChange={(value) => {
               setTelegramFilter(value);
-              resetToFirstPage();
+              setCurrentPage(1);
             }}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="وضعیت تلگرام" />
