@@ -144,6 +144,8 @@ export default function Representatives() {
   const [isInvoiceEditOpen, setIsInvoiceEditOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPaymentCreateOpen, setIsPaymentCreateOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
   
@@ -312,6 +314,11 @@ export default function Representatives() {
     setIsInvoiceEditOpen(true);
   };
 
+  const handleDeleteInvoice = (invoice: Invoice) => {
+    setInvoiceToDelete(invoice);
+    setIsDeleteConfirmOpen(true);
+  };
+
   // Update representative debt after invoice edit
   const updateRepresentativeDebtMutation = useMutation({
     mutationFn: async ({ id, newDebt }: { id: number, newDebt: string }) => {
@@ -323,6 +330,38 @@ export default function Representatives() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
       queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+    }
+  });
+
+  // Delete invoice mutation with automatic financial sync
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: async (invoiceId: number) => {
+      return apiRequest(`/api/invoices/${invoiceId}`, {
+        method: "DELETE"
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({
+        title: "حذف موفق",
+        description: "فاکتور با موفقیت حذف شد و تمام اطلاعات مالی به‌روزرسانی شدند"
+      });
+      setIsDeleteConfirmOpen(false);
+      setInvoiceToDelete(null);
+      
+      // Refresh representative details if modal is open
+      if (selectedRep) {
+        handleViewDetails(selectedRep);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خطا در حذف",
+        description: error?.message || "خطا در حذف فاکتور. لطفاً دوباره تلاش کنید",
+        variant: "destructive"
+      });
     }
   });
 
@@ -771,14 +810,25 @@ export default function Representatives() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditInvoice(invoice)}
-                                  title="ویرایش جزئیات فاکتور"
-                                >
-                                  <Settings className="w-4 h-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditInvoice(invoice)}
+                                    title="ویرایش جزئیات فاکتور"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteInvoice(invoice)}
+                                    title="حذف فاکتور (امن)"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -921,6 +971,91 @@ export default function Representatives() {
           }}
         />
       )}
+
+      {/* Delete Invoice Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center">
+              <AlertTriangle className="w-5 h-5 ml-2" />
+              تأیید حذف فاکتور
+            </DialogTitle>
+            <DialogDescription>
+              این عملیات قابل برگشت نیست و اطلاعات مالی نماینده به‌روزرسانی خواهد شد.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {invoiceToDelete && (
+            <div className="space-y-4">
+              <div className="bg-red-50 dark:bg-red-950 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                <h3 className="font-semibold text-red-800 dark:text-red-200 mb-2">
+                  جزئیات فاکتور مورد حذف:
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-red-600 dark:text-red-400">شماره فاکتور:</span>
+                    <span className="font-mono">{invoiceToDelete.invoiceNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-red-600 dark:text-red-400">مبلغ:</span>
+                    <span className="font-bold">{formatCurrency(parseFloat(invoiceToDelete.amount))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-red-600 dark:text-red-400">تاریخ صدور:</span>
+                    <span>{invoiceToDelete.issueDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-red-600 dark:text-red-400">وضعیت:</span>
+                    <Badge variant={invoiceToDelete.status === 'paid' ? 'default' : 'destructive'}>
+                      {invoiceToDelete.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200 mb-2">
+                  ⚠️ تأثیرات حذف فاکتور:
+                </h4>
+                <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                  <li>• مبلغ فاکتور از کل بدهی نماینده کم خواهد شد</li>
+                  <li>• آمار کلی سیستم به‌روزرسانی می‌شود</li>
+                  <li>• تاریخچه فعالیت ثبت خواهد شد</li>
+                  <li>• این عملیات قابل برگشت نیست</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsDeleteConfirmOpen(false)}
+                  disabled={deleteInvoiceMutation.isPending}
+                >
+                  انصراف
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => deleteInvoiceMutation.mutate(invoiceToDelete.id)}
+                  disabled={deleteInvoiceMutation.isPending}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {deleteInvoiceMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2" />
+                      در حال حذف...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 ml-2" />
+                      تأیید حذف
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Create Payment Dialog */}
       {selectedRep && (
