@@ -10,7 +10,8 @@ import {
   Clock,
   Activity,
   Eye,
-  X
+  X,
+  Calendar
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,10 +21,13 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { formatCurrency, toPersianDigits } from "@/lib/persian-date";
+import { formatCurrency, toPersianDigits, getCurrentPersianDate } from "@/lib/persian-date";
 
 interface ProcessedInvoice {
   id: number;
@@ -63,6 +67,12 @@ export default function InvoiceUpload() {
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
+  
+  // NEW: Invoice date selection states
+  const [invoiceDateMode, setInvoiceDateMode] = useState<'today' | 'custom'>('today');
+  const [customInvoiceDate, setCustomInvoiceDate] = useState('');
+  const [showDateSettings, setShowDateSettings] = useState(false);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -133,7 +143,14 @@ export default function InvoiceUpload() {
       const formData = new FormData();
       formData.append('usageFile', file);
       
+      // Add invoice date parameters
+      formData.append('invoiceDateMode', invoiceDateMode);
+      if (invoiceDateMode === 'custom' && customInvoiceDate) {
+        formData.append('customInvoiceDate', customInvoiceDate);
+      }
+      
       console.log('Uploading file:', file.name, 'Size:', file.size);
+      console.log('Invoice date mode:', invoiceDateMode, 'Custom date:', customInvoiceDate);
       
       // شروع نمایش modal و شبیه‌سازی مراحل
       setIsProcessing(true);
@@ -243,6 +260,16 @@ export default function InvoiceUpload() {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
+      // Validate custom date if selected
+      if (invoiceDateMode === 'custom' && !customInvoiceDate.trim()) {
+        toast({
+          title: "خطا در تنظیمات تاریخ",
+          description: "لطفاً تاریخ دلخواه را وارد کنید",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Accept JSON files more broadly (including text/plain for some exports)
       const isJsonFile = file.name.toLowerCase().endsWith('.json') || 
                         file.type === 'application/json' || 
@@ -259,7 +286,7 @@ export default function InvoiceUpload() {
         });
       }
     }
-  }, [uploadMutation, toast]);
+  }, [uploadMutation, toast, invoiceDateMode, customInvoiceDate]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -317,6 +344,69 @@ export default function InvoiceUpload() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Invoice Date Settings */}
+        <Card className="border-dashed border-gray-300 dark:border-gray-600">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                <Calendar className="w-4 h-4 ml-2" />
+                تنظیمات تاریخ صدور فاکتور
+              </h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowDateSettings(!showDateSettings)}
+                className="text-xs"
+              >
+                {showDateSettings ? 'بستن' : 'تنظیمات'}
+              </Button>
+            </div>
+            
+            {showDateSettings && (
+              <div className="space-y-4">
+                <RadioGroup 
+                  value={invoiceDateMode} 
+                  onValueChange={(value: 'today' | 'custom') => setInvoiceDateMode(value)}
+                  className="space-y-3"
+                >
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <RadioGroupItem value="today" id="today" />
+                    <Label htmlFor="today" className="text-sm">
+                      تاریخ امروز ({toPersianDigits(getCurrentPersianDate())})
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 space-x-reverse">
+                    <RadioGroupItem value="custom" id="custom" />
+                    <Label htmlFor="custom" className="text-sm">
+                      تاریخ دلخواه (برای بازسازی فاکتورهای حذف شده)
+                    </Label>
+                  </div>
+                </RadioGroup>
+                
+                {invoiceDateMode === 'custom' && (
+                  <div className="mr-6">
+                    <Label htmlFor="customDate" className="text-xs text-gray-600 dark:text-gray-400">
+                      تاریخ صدور (فرمت: ۱۴۰۳/۱۲/۱۵)
+                    </Label>
+                    <Input
+                      id="customDate"
+                      value={customInvoiceDate}
+                      onChange={(e) => setCustomInvoiceDate(e.target.value)}
+                      placeholder="مثال: ۱۴۰۳/۱۲/۱۵"
+                      className="mt-1 text-sm"
+                      dir="rtl"
+                      maxLength={10}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      * برای بازسازی فاکتورهای حذف شده با تاریخ اصلی (تقویم شمسی)
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* File Upload Area */}
         <div
           {...getRootProps()}
@@ -335,9 +425,17 @@ export default function InvoiceUpload() {
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
             یا کلیک کنید تا فایل را انتخاب کنید
           </p>
-          <Button disabled={uploadMutation.isPending}>
+          <Button 
+            disabled={uploadMutation.isPending || (invoiceDateMode === 'custom' && !customInvoiceDate.trim())}
+          >
             {uploadMutation.isPending ? "در حال پردازش..." : "انتخاب فایل"}
           </Button>
+          
+          {invoiceDateMode === 'custom' && !customInvoiceDate.trim() && (
+            <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+              لطفاً تاریخ دلخواه را وارد کنید
+            </p>
+          )}
         </div>
 
         {/* Upload Progress */}

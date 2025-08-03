@@ -801,9 +801,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "فایل JSON ارسال نشده است" });
       }
 
-      // فاز ۱: دریافت پارامترهای batch از request body
-      const { batchName, periodStart, periodEnd, description } = req.body;
+      // فاز ۱: دریافت پارامترهای batch و تاریخ از request body
+      const { batchName, periodStart, periodEnd, description, invoiceDateMode, customInvoiceDate } = req.body;
       console.log('Batch params:', { batchName, periodStart, periodEnd, description });
+      console.log('Invoice date params:', { invoiceDateMode, customInvoiceDate });
 
       console.log('File details:', {
         originalname: req.file.originalname,
@@ -867,7 +868,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('🚀 شروع پردازش Sequential...');
-      const sequentialResult = await processUsageDataSequential(valid, storage);
+      
+      // تنظیم تاریخ صدور فاکتور
+      const invoiceDate = invoiceDateMode === 'custom' && customInvoiceDate 
+        ? customInvoiceDate.trim()
+        : null; // null means use today's date
+      
+      console.log('📅 Invoice date configuration:', { mode: invoiceDateMode, date: invoiceDate });
+      
+      const sequentialResult = await processUsageDataSequential(valid, storage, invoiceDate);
       const createdInvoices = [];
       const { processedInvoices, newRepresentatives, statistics } = sequentialResult;
       

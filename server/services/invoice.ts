@@ -205,8 +205,10 @@ export function calculateInvoiceAmount(usageData: UsageDataRecord): number {
   return Math.round(amount);
 }
 
-export function processUsageData(usageRecords: UsageDataRecord[]): ProcessedInvoice[] {
-  const currentDate = getCurrentPersianDate();
+export function processUsageData(usageRecords: UsageDataRecord[], customInvoiceDate?: string | null): ProcessedInvoice[] {
+  const currentDate = customInvoiceDate && customInvoiceDate.trim() 
+    ? customInvoiceDate.trim() 
+    : getCurrentPersianDate();
   
   // Group by admin_username and sum amounts
   const groupedData = usageRecords.reduce((acc, record) => {
@@ -363,7 +365,8 @@ export function validateUsageData(records: UsageDataRecord[]): {
 // اینجا معماری جدید Sequential Processing را اضافه می‌کنیم
 export async function processUsageDataSequential(
   usageData: UsageDataRecord[],
-  storage: any
+  storage: any,
+  customInvoiceDate?: string | null
 ): Promise<{
   processedInvoices: ProcessedInvoice[],
   newRepresentatives: any[],
@@ -463,13 +466,18 @@ export async function processUsageDataSequential(
         return sum + (isNaN(amount) ? 0 : amount);
       }, 0);
       
+      // تنظیم تاریخ صدور فاکتور (شمسی)
+      const invoiceDate = customInvoiceDate && customInvoiceDate.trim() 
+        ? customInvoiceDate.trim() 
+        : getCurrentPersianDate();
+      
       // ایجاد فاکتور با جزئیات کامل (use validRecords instead of records)
       const processedInvoice: ProcessedInvoice = {
         representativeCode: adminUsername,
         panelUsername: adminUsername,
         amount: totalAmount,
-        issueDate: getCurrentPersianDate(),
-        dueDate: addDaysToPersianDate(getCurrentPersianDate(), 30),
+        issueDate: invoiceDate,
+        dueDate: addDaysToPersianDate(invoiceDate, 30),
         usageData: {
           admin_username: adminUsername,
           records: validRecords.map(record => ({
