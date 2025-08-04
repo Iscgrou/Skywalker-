@@ -3,6 +3,7 @@
 
 import { Router } from "express";
 import { intelligentCoupling } from "../services/intelligent-coupling-service";
+import { realTimeSyncEngine } from "../services/real-time-sync-engine";
 import { z } from "zod";
 
 const router = Router();
@@ -262,12 +263,130 @@ router.get('/test/:componentType', async (req, res) => {
       protectiveMode: true
     });
 
-  } catch (error) {
+  } catch (error: any) {
     const { componentType: testType } = req.params;
     console.error(`Error in test-${testType} endpoint:`, error);
     res.status(500).json({
       success: false,
       error: `خطا در تست ${testType}`,
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+// ==================== Phase 2: Real-time Financial Sync ====================
+
+/**
+ * 🔄 همگام‌سازی فوری تغییرات مالی
+ * POST /api/coupling/real-time-sync
+ */
+router.post('/real-time-sync', async (req, res) => {
+  try {
+    const { eventType, representativeId, entityId, changeAmount, previousState, currentState, triggeredBy } = req.body;
+
+    // Input validation
+    const schema = z.object({
+      eventType: z.enum(['INVOICE_ADDED', 'INVOICE_UPDATED', 'INVOICE_DELETED', 'PAYMENT_RECEIVED', 'PAYMENT_UPDATED']),
+      representativeId: z.number(),
+      entityId: z.number(),
+      changeAmount: z.number(),
+      currentState: z.object({}).passthrough(),
+      triggeredBy: z.string()
+    });
+
+    const validation = schema.safeParse({ eventType, representativeId, entityId, changeAmount, currentState, triggeredBy });
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'اطلاعات ورودی نامعتبر',
+        validationErrors: validation.error.errors
+      });
+    }
+
+    const financialEvent = {
+      type: eventType,
+      representativeId,
+      entityId,
+      previousState,
+      currentState,
+      changeAmount,
+      changeDate: new Date().toISOString(),
+      triggeredBy,
+      metadata: req.body.metadata || {}
+    };
+
+    const syncResult = await realTimeSyncEngine.syncFinancialChange(financialEvent);
+
+    res.json({
+      success: true,
+      data: syncResult,
+      event: financialEvent,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('Error in real-time sync endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در همگام‌سازی فوری',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 📈 آمار همگام‌سازی فوری
+ * GET /api/coupling/sync-metrics
+ */
+router.get('/sync-metrics', async (req, res) => {
+  try {
+    const metrics = realTimeSyncEngine.getSyncMetrics();
+
+    res.json({
+      success: true,
+      data: metrics,
+      metricsTimestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('Error in sync metrics endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در دریافت آمار همگام‌سازی',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 🧪 تست سیستم همگام‌سازی فوری
+ * POST /api/coupling/test-sync/:representativeId
+ */
+router.post('/test-sync/:representativeId', async (req, res) => {
+  try {
+    const { representativeId } = req.params;
+
+    if (!representativeId || isNaN(Number(representativeId))) {
+      return res.status(400).json({
+        success: false,
+        error: 'شناسه نماینده معتبر مورد نیاز است'
+      });
+    }
+
+    const testResult = await realTimeSyncEngine.testSyncSystem(Number(representativeId));
+
+    res.json({
+      success: true,
+      data: testResult,
+      testTimestamp: new Date().toISOString(),
+      note: 'تست سیستم همگام‌سازی فوری انجام شد'
+    });
+
+  } catch (error: any) {
+    console.error('Error in test sync endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تست همگام‌سازی',
       details: error?.message || 'خطای نامشخص'
     });
   }
