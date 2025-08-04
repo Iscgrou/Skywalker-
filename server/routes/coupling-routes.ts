@@ -4,6 +4,8 @@
 import { Router } from "express";
 import { intelligentCoupling } from "../services/intelligent-coupling-service";
 import { realTimeSyncEngine } from "../services/real-time-sync-engine";
+import { aiLearningEngine } from "../services/ai-learning-engine";
+import { integrationDashboard } from "../services/integration-dashboard";
 import { z } from "zod";
 
 const router = Router();
@@ -143,8 +145,84 @@ router.post('/sync-financial/:representativeId', async (req, res) => {
 
 // ==================== AI Learning & Analysis ====================
 
+// ==================== Phase 3: Advanced AI Learning ====================
+
 /**
- * 🧠 فرایند یادگیری از نتایج
+ * 🧠 فرایند یادگیری پیشرفته
+ * POST /api/coupling/advanced-learning
+ */
+router.post('/advanced-learning', async (req, res) => {
+  try {
+    const learningResults = await aiLearningEngine.performLearningCycle();
+
+    res.json({
+      success: true,
+      data: learningResults,
+      learningTimestamp: new Date().toISOString(),
+      note: 'سیکل یادگیری پیشرفته انجام شد'
+    });
+
+  } catch (error: any) {
+    console.error('Error in advanced learning endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در فرایند یادگیری پیشرفته',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 📊 آمار سیستم یادگیری
+ * GET /api/coupling/learning-stats
+ */
+router.get('/learning-stats', async (req, res) => {
+  try {
+    const stats = aiLearningEngine.getLearningStats();
+
+    res.json({
+      success: true,
+      data: stats,
+      statsTimestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('Error in learning stats endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در دریافت آمار یادگیری',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 🧪 تست سیستم یادگیری
+ * GET /api/coupling/test-learning
+ */
+router.get('/test-learning', async (req, res) => {
+  try {
+    const testResult = await aiLearningEngine.testLearningSystem();
+
+    res.json({
+      success: true,
+      data: testResult,
+      testTimestamp: new Date().toISOString(),
+      note: 'تست سیستم یادگیری انجام شد'
+    });
+
+  } catch (error: any) {
+    console.error('Error in test learning endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تست یادگیری',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 🧠 فرایند یادگیری از نتایج (Legacy)
  * GET /api/coupling/learn-from-results
  */
 router.get('/learn-from-results', async (req, res) => {
@@ -392,8 +470,107 @@ router.post('/test-sync/:representativeId', async (req, res) => {
   }
 });
 
+// ==================== Integration Dashboard ====================
+
 /**
- * 📊 نمایش آمار کوپلینگ
+ * 📊 Dashboard یکپارچه سیستم
+ * GET /api/coupling/dashboard
+ */
+router.get('/dashboard', async (req, res) => {
+  try {
+    const dashboard = await integrationDashboard.getDashboardOverview();
+
+    res.json({
+      success: true,
+      data: dashboard,
+      dashboardTimestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('Error in dashboard endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تولید dashboard',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 📈 گزارش تفصیلی عملکرد
+ * GET /api/coupling/performance-report
+ */
+router.get('/performance-report', async (req, res) => {
+  try {
+    const report = await integrationDashboard.getDetailedPerformanceReport();
+
+    res.json({
+      success: true,
+      data: report,
+      reportTimestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('Error in performance report endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تولید گزارش عملکرد',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 💼 خلاصه اجرایی
+ * GET /api/coupling/executive-summary
+ */
+router.get('/executive-summary', async (req, res) => {
+  try {
+    const summary = await integrationDashboard.getExecutiveSummary();
+
+    res.json({
+      success: true,
+      data: summary,
+      summaryTimestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('Error in executive summary endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تولید خلاصه اجرایی',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 🧪 تست جامع سیستم
+ * POST /api/coupling/comprehensive-test
+ */
+router.post('/comprehensive-test', async (req, res) => {
+  try {
+    const testResults = await integrationDashboard.runComprehensiveSystemTest();
+
+    res.json({
+      success: true,
+      data: testResults,
+      testTimestamp: new Date().toISOString(),
+      note: 'تست جامع سیستم انجام شد'
+    });
+
+  } catch (error: any) {
+    console.error('Error in comprehensive test endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تست جامع سیستم',
+      details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+/**
+ * 📊 نمایش آمار کوپلینگ (Legacy)
  * GET /api/coupling/stats
  */
 router.get('/stats', async (req, res) => {
