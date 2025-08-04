@@ -93,6 +93,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const workspaceRoutes = (await import("./routes/workspace-routes")).default;
   app.use("/api/workspace", workspaceRoutes);
   
+  // Register Intelligent Coupling routes (SHERLOCK v3.0) - محافظتی
+  const couplingRoutes = (await import("./routes/coupling-routes")).default;
+  app.use("/api/coupling", couplingRoutes);
+  
   // Direct test route to verify workspace functionality
   app.get("/api/workspace-direct-test", async (req, res) => {
     try {

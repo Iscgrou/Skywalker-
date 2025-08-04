@@ -13,7 +13,8 @@ import { db } from "../db";
 import { eq, desc, and, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-// Import persian-date as ES module
+// Import persian-date with type annotation
+// @ts-ignore - persian-date type resolution issue
 import * as persianDate from "persian-date";
 
 export class WorkspaceStorage {
@@ -208,7 +209,7 @@ export class WorkspaceStorage {
     }
   }
 
-  async completeReminder(reminderId: string): Promise<void> {
+  async completeWorkspaceReminder(reminderId: string): Promise<void> {
     try {
       await db.update(workspaceReminders)
         .set({ 
@@ -425,7 +426,7 @@ export class WorkspaceStorage {
     }
   }
 
-  async completeReminder(id: string): Promise<any> {
+  async completeAiReminder(id: string): Promise<any> {
     try {
       // Mark reminder as completed
       const completed = new Date().toISOString().split('T')[0]; // Persian date could be used
