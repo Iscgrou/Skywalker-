@@ -1,10 +1,11 @@
 import { Express } from "express";
 import bcrypt from "bcryptjs";
 import multer from "multer";
+import { z } from "zod";
 import { sql, eq, desc, and, or, like, gte, lte, asc } from "drizzle-orm";
 import { IStorage } from "../storage";
 import { db } from "../db";
-import { representatives, invoices, payments, crmUsers, activityLogs } from "../../shared/schema";
+import { representatives, invoices, payments, crmUsers, activityLogs, insertPaymentSchema } from "../../shared/schema";
 import { XAIGrokEngine } from "../services/xai-grok-engine";
 // Cleaned CRM routes for representatives management and AI helper only
 
@@ -471,6 +472,61 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       res.json(req.session.crmUser);
     } else {
       res.status(401).json({ error: "احراز هویت نشده" });
+    }
+  });
+
+  // CRM Payment Routes with CRM Authentication
+  app.post("/api/crm/payments", crmAuthMiddleware, async (req, res) => {
+    try {
+      const validatedData = insertPaymentSchema.parse(req.body);
+      const payment = await storage.createPayment(validatedData);
+      
+      // Auto-allocate to oldest unpaid invoice if representativeId provided
+      if (validatedData.representativeId) {
+        await storage.autoAllocatePaymentToInvoices(payment.id, validatedData.representativeId);
+      }
+      
+      res.json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
+      } else {
+        console.error('CRM Payment creation error:', error);
+        res.status(500).json({ error: "خطا در ایجاد پرداخت" });
+      }
+    }
+  });
+
+  app.post("/api/crm/payments/auto-allocate/:representativeId", crmAuthMiddleware, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.representativeId);
+      const { amount, paymentDate, description, allocations, autoAllocated } = req.body;
+
+      // Create payment record
+      const paymentData = {
+        representativeId,
+        amount: amount.toString(),
+        paymentDate,
+        description: description || `تخصیص خودکار پرداخت`,
+        isAllocated: true,
+        autoAllocated: autoAllocated || false
+      };
+
+      const payment = await storage.createPayment(paymentData);
+
+      // Process smart allocations
+      if (allocations && allocations.length > 0) {
+        for (const allocation of allocations) {
+          await storage.allocatePaymentToInvoice(payment.id, allocation.invoiceId);
+          // Update invoice status
+          await storage.updateInvoice(allocation.invoiceId, { status: allocation.newStatus });
+        }
+      }
+
+      res.json(payment);
+    } catch (error) {
+      console.error('CRM Auto-allocate payment error:', error);
+      res.status(500).json({ error: "خطا در تخصیص خودکار پرداخت" });
     }
   });
 

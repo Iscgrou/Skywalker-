@@ -1998,7 +1998,7 @@ function CreatePaymentDialog({
           isAllocated: !!selectedInvoiceId
         };
 
-        await apiRequest("/api/payments", {
+        await apiRequest("/api/crm/payments", {
           method: "POST",
           data: paymentData
         });
@@ -2067,7 +2067,7 @@ function CreatePaymentDialog({
         allocations
       };
 
-      await apiRequest(`/api/payments/auto-allocate/${representative.id}`, {
+      await apiRequest(`/api/crm/payments/auto-allocate/${representative.id}`, {
         method: "POST",
         data: paymentData
       });
