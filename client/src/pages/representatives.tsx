@@ -1963,6 +1963,7 @@ function CreatePaymentDialog({
   onSave: () => void;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
   const [description, setDescription] = useState("");
@@ -2003,7 +2004,8 @@ function CreatePaymentDialog({
           data: paymentData
         });
         
-        await updateRepresentativeDebt(paymentAmount);
+        // Update representative debt - now handled by backend
+        // await updateRepresentativeDebt(paymentAmount);
       }
 
       toast({
@@ -2017,8 +2019,12 @@ function CreatePaymentDialog({
       setDescription("");
       setSelectedInvoiceId("auto");
       
+      // Complete Financial Synchronization Checklist Implementation
+      await performComprehensiveFinancialSync();
+      
       onSave();
     } catch (error: any) {
+      console.error('Payment submission error:', error);
       toast({
         title: "خطا",
         description: error?.message || "خطا در ثبت پرداخت",
@@ -2026,6 +2032,34 @@ function CreatePaymentDialog({
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Comprehensive Financial Synchronization Checklist
+  const performComprehensiveFinancialSync = async () => {
+    try {
+      // 1. Invalidate all related query caches
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crm/representatives/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/representatives/${representative.code}`] });
+      
+      // 2. Force refresh current representative data
+      await queryClient.refetchQueries({ queryKey: [`/api/representatives/${representative.code}`] });
+      
+      // 3. Refresh parent component data if available
+      if (window.location.pathname.includes('/crm')) {
+        queryClient.invalidateQueries({ queryKey: ["/api/crm/representatives"] });
+      }
+      
+      // 4. Sync with admin panel cache if needed
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      
+    } catch (syncError) {
+      console.warn('Financial sync warning:', syncError);
     }
   };
 
@@ -2072,7 +2106,8 @@ function CreatePaymentDialog({
         data: paymentData
       });
       
-      await updateRepresentativeDebt(paymentAmount);
+      // Update representative debt - now handled by backend
+      // await updateRepresentativeDebt(paymentAmount);
       
     } catch (error) {
       throw error;
@@ -2095,7 +2130,7 @@ function CreatePaymentDialog({
       updateData.totalDebt = "0";
     }
     
-    await apiRequest(`/api/representatives/${representative.id}`, {
+    await apiRequest(`/api/crm/representatives/${representative.id}`, {
       method: "PUT",
       data: updateData
     });

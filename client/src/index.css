@@ -256,7 +256,8 @@
     max-width: 32rem !important;
     width: auto !important;
     max-height: calc(100vh - 2rem) !important;
-    overflow: visible !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
   .admin-dialog-stable::before {
@@ -292,9 +293,11 @@
     left: 50% !important;
     max-width: 32rem !important;
     width: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
-  /* Mobile Dialog - Full screen approach */
+  /* Mobile Dialog - Full screen approach with scrolling */
   @media (max-width: 640px) {
     .admin-dialog-stable {
       position: fixed !important;
@@ -305,7 +308,8 @@
       max-width: calc(100vw - 2rem) !important;
       width: calc(100vw - 2rem) !important;
       max-height: calc(100vh - 2rem) !important;
-      overflow-y: auto;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
     }
     
     .admin-dialog-stable:hover {
