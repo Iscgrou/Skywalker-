@@ -235,9 +235,18 @@
   .admin-glass-card:hover {
     background: linear-gradient(135deg, rgba(15, 23, 42, 0.6), rgba(30, 41, 59, 0.5)) !important;
     border: 1px solid rgba(148, 163, 184, 0.25);
-    transform: translateY(-2px);
-    transition: all 0.3s ease;
+    /* CRITICAL FIX: Remove transform on hover for dialog stability */
+    transform: none !important;
+    transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease !important;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(59, 130, 246, 0.15);
+  }
+
+  /* OVERRIDE: Disable hover transforms specifically for dialog content */
+  [data-radix-dialog-content] .admin-glass-card:hover,
+  [data-testid="create-payment-dialog"]:hover,
+  [data-testid="create-payment-dialog"] .admin-glass-card:hover {
+    transform: none !important;
+    transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease !important;
   }
 
   /* Sidebar Glassmorphism */
@@ -286,7 +295,7 @@
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
   }
 
-  /* Enhanced dialog positioning and stability - Fixed Dialog Movement Issue */
+  /* Enhanced dialog positioning and stability - FIXED Dialog Movement Issue */
   [data-radix-dialog-content] {
     position: fixed !important;
     top: 50% !important;
@@ -294,9 +303,19 @@
     transform: translate(-50%, -50%) !important;
     max-height: 90vh !important;
     overflow-y: auto !important;
-    z-index: 1000 !important;
+    z-index: 10000 !important;
     will-change: auto !important;
     backface-visibility: hidden !important;
+    /* CRITICAL: Prevent all forms of positioning recalculation */
+    contain: layout style paint !important;
+    isolation: isolate !important;
+    pointer-events: auto !important;
+    transform-style: flat !important;
+    /* Disable all transitions that might cause movement */
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+    /* Ensure the dialog stays exactly where it is */
+    margin: 0 !important;
+    inset: auto !important;
   }
 
   /* Dialog scroll styling */
@@ -321,32 +340,129 @@
   [data-radix-dialog-overlay] {
     position: fixed !important;
     inset: 0 !important;
-    z-index: 999 !important;
+    z-index: 9999 !important;
     background-color: rgba(0, 0, 0, 0.5) !important;
     backdrop-filter: blur(4px) !important;
     animation: none !important;
+    /* CRITICAL: Prevent overlay from affecting dialog positioning */
+    pointer-events: auto !important;
+    contain: strict !important;
   }
 
-  /* Prevent dialog movement by fixing overlay and content positioning */
-  [data-radix-popper-content-wrapper] {
+  /* CRITICAL: Prevent ALL popper/floating UI positioning calculations */
+  [data-radix-popper-content-wrapper],
+  [data-floating-ui-portal],
+  [data-radix-select-content] {
     position: fixed !important;
     transform: none !important;
+    will-change: auto !important;
+    contain: layout !important;
   }
 
-  /* Additional dialog stability fixes */
-  [data-state="open"][data-side] {
+  /* Additional dialog stability fixes - PREVENT ALL MOVEMENT */
+  [data-state="open"][data-side],
+  [data-state="open"][data-align],
+  [data-radix-dialog-content][data-state="open"] {
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
+    /* DISABLE ALL ANIMATIONS AND TRANSFORMS */
+    animation: none !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+    transform-origin: center center !important;
   }
 
   /* Prevent form field focus issues in dialogs */
   [data-radix-dialog-content] input,
   [data-radix-dialog-content] select,
-  [data-radix-dialog-content] textarea {
+  [data-radix-dialog-content] textarea,
+  [data-radix-dialog-content] button {
     position: relative !important;
     z-index: auto !important;
+    /* PREVENT focus-based repositioning */
+    contain: layout !important;
+  }
+
+  /* CRITICAL FIX: Prevent hover-based repositioning */
+  [data-radix-dialog-content] *:hover,
+  [data-radix-dialog-content]:hover {
+    transform: none !important;
+    position: relative !important;
+    will-change: auto !important;
+  }
+
+  /* CRITICAL FIX: Payment Dialog Specific Stability */
+  [data-testid="create-payment-dialog"] {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 10001 !important;
+    /* ABSOLUTE STABILITY */
+    will-change: auto !important;
+    transform-style: flat !important;
+    backface-visibility: hidden !important;
+    perspective: none !important;
+    contain: strict !important;
+    isolation: isolate !important;
+  }
+
+  /* DISABLE ALL HOVER EFFECTS ON DIALOG CONTENT */
+  [data-testid="create-payment-dialog"] *,
+  [data-testid="create-payment-dialog"] *:hover,
+  [data-testid="create-payment-dialog"] *:focus,
+  [data-testid="create-payment-dialog"] *:active {
+    transform: none !important;
+    position: relative !important;
+    will-change: auto !important;
+    contain: layout !important;
+  }
+
+  /* GLOBAL OVERRIDE: Prevent any element inside dialogs from moving */
+  [data-radix-dialog-content] * {
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  [data-radix-dialog-content] *:hover {
+    transform: none !important;
+    position: relative !important;
+    will-change: auto !important;
+  }
+
+  /* SPECIFIC FIX: Override ALL possible transform sources */
+  .admin-glass-card[data-testid="create-payment-dialog"],
+  [data-testid="create-payment-dialog"].admin-glass-card {
+    transform: translate(-50%, -50%) !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transition: background 0.3s ease, border 0.3s ease, box-shadow 0.3s ease !important;
+  }
+
+  /* ULTIMATE FIX: Disable ALL possible movement sources */
+  [data-radix-dialog-content],
+  [data-radix-dialog-content]:hover,
+  [data-radix-dialog-content]:focus,
+  [data-radix-dialog-content]:active,
+  [data-radix-dialog-content] *,
+  [data-radix-dialog-content] *:hover,
+  [data-radix-dialog-content] *:focus,
+  [data-radix-dialog-content] *:active {
+    /* DISABLE ALL TRANSFORMS EXCEPT CENTERING */
+    transform: none !important;
+    will-change: auto !important;
+    animation: none !important;
+    transition: opacity 0.2s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+    perspective: none !important;
+    transform-style: flat !important;
+    backface-visibility: hidden !important;
+  }
+
+  /* Re-enable only the centering transform for the dialog content itself */
+  [data-radix-dialog-content] {
+    transform: translate(-50%, -50%) !important;
   }
 
   /* Custom scrollbar for dialog content */
