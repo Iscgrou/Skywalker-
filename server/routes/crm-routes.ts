@@ -213,18 +213,18 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   });
 
-  // Get single representative details - Optimized with cache
+  // Get single representative details - Optimized with cache (supports both ID and code)
   app.get("/api/crm/representatives/:id", crmAuthMiddleware, async (req, res) => {
     try {
       const allReps = await syncAdminCrmData(); // Use cached data
       
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: 'شناسه نماینده نامعتبر است' });
-      }
+      const identifier = req.params.id;
+      const numericId = parseInt(identifier);
       
-      // Find from cached data instead of database query
-      const rep = allReps.find(r => r.id === id);
+      // Find by either numeric ID or code for flexibility
+      const rep = isNaN(numericId) 
+        ? allReps.find(r => r.code === identifier)
+        : allReps.find(r => r.id === numericId || r.code === identifier);
       
       if (!rep) {
         return res.status(404).json({ error: 'نماینده یافت نشد' });
@@ -233,14 +233,14 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       const representativeInvoices = await db
         .select()
         .from(invoices)
-        .where(eq(invoices.representativeId, id))
+        .where(eq(invoices.representativeId, rep.id))
         .orderBy(desc(invoices.createdAt))
         .limit(10);
         
       const representativePayments = await db
         .select()
         .from(payments)
-        .where(eq(payments.representativeId, id))
+        .where(eq(payments.representativeId, rep.id))
         .orderBy(desc(payments.createdAt))
         .limit(10);
       
@@ -248,13 +248,7 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
         representative: rep,
         invoices: representativeInvoices,
         payments: representativePayments,
-        syncStatus: 'CACHED_OPTIMIZED'
-      });
-      
-      res.json({
-        ...rep[0],
-        recentInvoices: representativeInvoices,
-        recentPayments: representativePayments,
+        syncStatus: 'CACHED_OPTIMIZED',
         summary: {
           totalInvoices: representativeInvoices.length,
           totalPayments: representativePayments.length,
