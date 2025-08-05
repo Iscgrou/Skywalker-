@@ -35,9 +35,21 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   });
   
-  // CRM Authentication Middleware
+  // CRM Authentication Middleware - Fixed session check
   const crmAuthMiddleware = (req: any, res: any, next: any) => {
-    if (req.session?.crmAuthenticated === true) {
+    // Check multiple session authentication methods
+    const isAuthenticated = req.session?.crmAuthenticated === true || 
+                           req.session?.crmUser || 
+                           req.session?.user?.panelType === 'CRM_PANEL';
+    
+    console.log('CRM Auth Check:', {
+      crmAuthenticated: req.session?.crmAuthenticated,
+      crmUser: !!req.session?.crmUser,
+      sessionKeys: Object.keys(req.session || {}),
+      userPanelType: req.session?.user?.panelType
+    });
+    
+    if (isAuthenticated) {
       next();
     } else {
       res.status(401).json({ error: 'احراز هویت نشده - دسترسی غیرمجاز' });
