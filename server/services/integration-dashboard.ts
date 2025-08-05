@@ -141,8 +141,8 @@ export class IntegrationDashboard {
 
   private async testCouplingHealth(): Promise<boolean> {
     try {
-      // تست ساده کوپلینگ
-      const testResult = await intelligentCoupling.generateSmartTasksForRepresentative(1);
+      // تست ساده کوپلینگ با representative موجود
+      const testResult = await intelligentCoupling.generateSmartTasksForRepresentative(1805);
       return Array.isArray(testResult);
     } catch (error) {
       return false;
@@ -364,7 +364,7 @@ export class IntegrationDashboard {
     // تست intelligent coupling
     try {
       const start = Date.now();
-      await intelligentCoupling.generateSmartTasksForRepresentative(1);
+      await intelligentCoupling.generateSmartTasksForRepresentative(1805);
       testResults.intelligentCoupling = {
         status: 'PASS',
         latency: Date.now() - start,
@@ -381,7 +381,7 @@ export class IntegrationDashboard {
     // تست real-time sync
     try {
       const start = Date.now();
-      const syncTest = await realTimeSyncEngine.testSyncSystem(1);
+      const syncTest = await realTimeSyncEngine.testSyncSystem(1805);
       testResults.realTimeSync = {
         status: syncTest.testResult.success ? 'PASS' : 'PARTIAL',
         latency: Date.now() - start,
