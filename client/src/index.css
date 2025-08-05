@@ -295,6 +295,8 @@
     max-height: 90vh !important;
     overflow-y: auto !important;
     z-index: 1000 !important;
+    will-change: auto !important;
+    backface-visibility: hidden !important;
   }
 
   /* Dialog scroll styling */
@@ -315,6 +317,16 @@
     background: rgba(255, 255, 255, 0.3);
   }
   
+  /* Dialog overlay stability - Prevent backdrop interference */
+  [data-radix-dialog-overlay] {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999 !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(4px) !important;
+    animation: none !important;
+  }
+
   /* Prevent dialog movement by fixing overlay and content positioning */
   [data-radix-popper-content-wrapper] {
     position: fixed !important;
@@ -327,6 +339,14 @@
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
+  }
+
+  /* Prevent form field focus issues in dialogs */
+  [data-radix-dialog-content] input,
+  [data-radix-dialog-content] select,
+  [data-radix-dialog-content] textarea {
+    position: relative !important;
+    z-index: auto !important;
   }
 
   /* Custom scrollbar for dialog content */

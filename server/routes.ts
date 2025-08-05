@@ -695,6 +695,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart Auto-Allocation Endpoint for Payments
+  app.post("/api/payments/auto-allocate/:representativeId", requireAuth, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.representativeId);
+      const { amount, paymentDate, description, allocations, autoAllocated } = req.body;
+
+      // Create payment record
+      const paymentData = {
+        representativeId,
+        amount,
+        paymentDate,
+        description,
+        isAllocated: true,
+        autoAllocated: autoAllocated || true
+      };
+
+      const payment = await storage.createPayment(paymentData);
+
+      // Process allocations if provided
+      if (allocations && Array.isArray(allocations)) {
+        for (const allocation of allocations) {
+          // Update invoice status
+          await storage.updateInvoice(allocation.invoiceId, {
+            status: allocation.newStatus
+          });
+          
+          // Create payment allocation record
+          await storage.allocatePaymentToInvoice(payment.id, allocation.invoiceId);
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        payment,
+        allocationsProcessed: allocations?.length || 0
+      });
+    } catch (error) {
+      console.error('Auto-allocation error:', error);
+      res.status(500).json({ error: "خطا در تخصیص خودکار پرداخت" });
+    }
+  });
+
   // AI Assistant API - Protected (SHERLOCK v1.0 Intelligent System)
   app.get("/api/ai/status", requireAuth, async (req, res) => {
     try {

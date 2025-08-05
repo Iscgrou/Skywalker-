@@ -767,6 +767,7 @@ export default function Representatives() {
                       variant="outline" 
                       size="sm"
                       onClick={() => setIsPaymentCreateOpen(true)}
+                      data-testid="button-add-payment"
                     >
                       <Plus className="w-4 h-4 ml-2" />
                       ثبت پرداخت
@@ -2120,10 +2121,15 @@ function CreatePaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] max-w-lg admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl">
+      <DialogContent 
+        className="max-w-lg admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl"
+        data-testid="create-payment-dialog"
+      >
         <DialogHeader>
-          <DialogTitle className="text-white text-xl">ثبت پرداخت جدید</DialogTitle>
-          <DialogDescription className="text-blue-200">
+          <DialogTitle className="text-white text-xl" data-testid="payment-dialog-title">
+            ثبت پرداخت جدید
+          </DialogTitle>
+          <DialogDescription className="text-blue-200" data-testid="payment-dialog-description">
             ثبت پرداخت برای {representative.name}
           </DialogDescription>
         </DialogHeader>
@@ -2138,6 +2144,7 @@ function CreatePaymentDialog({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="مبلغ پرداخت"
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+              data-testid="input-payment-amount"
             />
           </div>
 
@@ -2149,6 +2156,7 @@ function CreatePaymentDialog({
               onChange={(e) => setPaymentDate(e.target.value)}
               placeholder="1403/01/01"
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+              data-testid="input-payment-date"
             />
           </div>
 
@@ -2160,13 +2168,17 @@ function CreatePaymentDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="شرح پرداخت"
               className="bg-white/10 border-white/20 text-white placeholder:text-white/50 mt-1"
+              data-testid="input-payment-description"
             />
           </div>
 
           <div>
             <Label htmlFor="invoiceId" className="text-white">تخصیص به فاکتور</Label>
             <Select value={selectedInvoiceId} onValueChange={setSelectedInvoiceId}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
+              <SelectTrigger 
+                className="bg-white/10 border-white/20 text-white mt-1"
+                data-testid="select-invoice-allocation"
+              >
                 <SelectValue placeholder="انتخاب روش تخصیص" />
               </SelectTrigger>
               <SelectContent className="bg-gray-900 border-white/20">
@@ -2222,6 +2234,7 @@ function CreatePaymentDialog({
             onClick={() => onOpenChange(false)}
             disabled={isLoading}
             className="ml-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
+            data-testid="button-cancel-payment"
           >
             انصراف
           </Button>
@@ -2229,6 +2242,7 @@ function CreatePaymentDialog({
             onClick={handleSave} 
             disabled={isLoading}
             className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white"
+            data-testid="button-save-payment"
           >
             {isLoading ? "در حال ثبت پرداخت..." : "💰 ثبت و تخصیص پرداخت"}
           </Button>

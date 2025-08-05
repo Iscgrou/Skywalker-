@@ -108,6 +108,13 @@ The CRM system now contains four functional sections:
 - **AI Task Generator Engine**: xAI Grok-4 integration with Persian cultural intelligence
 - **Payment Management Consolidation**: Removed standalone payment tabs from admin panel - all payment functionality now integrated into representative profiles
 - **Invoice Pagination**: Complete 30-item pagination system with advanced controls for invoices section
+- **CRITICAL FIX - Payment Dialog Stability**: ✅ Resolved payment registration dialog positioning and movement issues
+  - Fixed CSS positioning conflicts in CreatePaymentDialog component
+  - Enhanced dialog positioning with proper z-index and viewport handling
+  - Added comprehensive financial system integration with `/api/payments/auto-allocate` endpoint
+  - Implemented robust debt synchronization via `/api/crm/representatives/:id/sync-debt` 
+  - Enhanced payment form stability with proper data-testid attributes for testing
+  - Ensured complete financial integrity across payment registration and allocation systems
 
 ### Previously Removed Components
 - Performance analytics endpoints and components (cleaned up for focus)
@@ -116,6 +123,7 @@ The CRM system now contains four functional sections:
 **CRM Routes**:
 - `/api/crm/representatives` - List/create/update representatives
 - `/api/crm/representatives/statistics` - Basic representative statistics
+- `/api/crm/representatives/:id/sync-debt` - Financial debt synchronization
 - `/api/crm/auth/*` - CRM authentication system
 
 **AI Routes**:
@@ -139,6 +147,12 @@ The CRM system now contains four functional sections:
 - `/api/coupling/comprehensive-test` - Full system test
 - `/api/coupling/system-analysis` - System health analysis
 - `/api/coupling/stats` - Overall coupling statistics
+
+**Payment Routes**: 
+- `/api/payments` - Create/list payments
+- `/api/payments/auto-allocate/:representativeId` - Smart payment allocation
+- `/api/payments/:id/allocate` - Manual payment allocation
+- `/api/payments/representative/:id` - Representative payment history
 
 **Admin Routes**: Full financial management (unchanged)
 
