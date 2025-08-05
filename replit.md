@@ -115,6 +115,12 @@ The CRM system now contains four functional sections:
   - Implemented robust debt synchronization via `/api/crm/representatives/:id/sync-debt` 
   - Enhanced payment form stability with proper data-testid attributes for testing
   - Ensured complete financial integrity across payment registration and allocation systems
+- **CRITICAL FIX - CRM Authentication Issue**: ✅ Resolved 401 authentication errors in CRM payment system (August 5, 2025)
+  - Fixed CRM authentication middleware to support cross-panel access (admin users can access CRM routes)
+  - Enhanced session validation to check both CRM-specific and admin authentication
+  - Implemented comprehensive cache invalidation for real-time financial synchronization
+  - Added scrollable dialog content with overflow-y: auto for mobile compatibility
+  - Successfully tested: Admin panel users can now register payments in CRM without 401 errors
 
 ### Previously Removed Components
 - Performance analytics endpoints and components (cleaned up for focus)

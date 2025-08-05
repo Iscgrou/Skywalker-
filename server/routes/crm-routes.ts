@@ -35,19 +35,15 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
     }
   });
   
-  // CRM Authentication Middleware - Fixed session check
+  // CRM Authentication Middleware - Enhanced Cross-Panel Support
   const crmAuthMiddleware = (req: any, res: any, next: any) => {
     // Check multiple session authentication methods
-    const isAuthenticated = req.session?.crmAuthenticated === true || 
-                           req.session?.crmUser || 
-                           req.session?.user?.panelType === 'CRM_PANEL';
+    const isCrmAuthenticated = req.session?.crmAuthenticated === true || req.session?.crmUser;
+    const isAdminAuthenticated = req.session?.authenticated === true && 
+                                (req.session?.role === 'admin' || req.session?.role === 'ADMIN' || req.session?.role === 'SUPER_ADMIN');
+    const isAuthenticated = isCrmAuthenticated || isAdminAuthenticated;
     
-    console.log('CRM Auth Check:', {
-      crmAuthenticated: req.session?.crmAuthenticated,
-      crmUser: !!req.session?.crmUser,
-      sessionKeys: Object.keys(req.session || {}),
-      userPanelType: req.session?.user?.panelType
-    });
+    // Debug logging removed - authentication working correctly
     
     if (isAuthenticated) {
       next();
