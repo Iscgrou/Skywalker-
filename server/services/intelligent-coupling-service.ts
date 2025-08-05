@@ -29,7 +29,7 @@ export class IntelligentCouplingService {
   private taskManager: TaskManagementService;
   
   // Cache برای جلوگیری از بار اضافی database
-  private representativeCache: Map<number, any> = new Map();
+  private representativeCache: Map<string, any> = new Map();
   private cacheExpiry: number = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
@@ -109,7 +109,7 @@ export class IntelligentCouplingService {
       console.error('خطا در همگام‌سازی محافظتی:', error);
       return {
         syncStatus: 'FAILED',
-        syncDetails: `خطا: ${error.message}`
+        syncDetails: `خطا: ${error instanceof Error ? error.message : 'خطای نامشخص'}`
       };
     }
   }
