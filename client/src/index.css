@@ -249,11 +249,12 @@
     border-radius: 16px;
     color: white !important;
     position: fixed !important;
-    overflow: hidden;
-    transform: translate(-50%, -50%) !important;
-    top: 50% !important;
-    left: 50% !important;
+    overflow: visible !important;
     z-index: 50 !important;
+    margin: auto !important;
+    inset: 0 !important;
+    height: fit-content !important;
+    max-height: calc(100vh - 2rem) !important;
   }
 
   .admin-dialog-stable::before {
@@ -281,48 +282,53 @@
   .admin-dialog-stable:hover {
     background: linear-gradient(135deg, rgba(15, 23, 42, 0.4), rgba(30, 41, 59, 0.3)) !important;
     border: 1px solid rgba(148, 163, 184, 0.15);
-    transform: translate(-50%, -50%) !important;
+    transform: none !important;
     transition: none !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(59, 130, 246, 0.1);
+    position: fixed !important;
+    inset: 0 !important;
+    margin: auto !important;
+    height: fit-content !important;
   }
 
-  /* Mobile Responsive Dialog */
+  /* Universal Responsive Dialog - Works on all screen sizes */
   @media (max-width: 640px) {
     .admin-dialog-stable {
-      position: fixed !important;
-      top: 10px !important;
-      left: 10px !important;
-      right: 10px !important;
-      bottom: auto !important;
-      transform: none !important;
-      max-width: calc(100vw - 20px) !important;
-      width: calc(100vw - 20px) !important;
-      max-height: calc(100vh - 20px);
+      max-width: calc(100vw - 1rem) !important;
+      width: calc(100vw - 1rem) !important;
+      margin: 0.5rem !important;
+      inset: 0.5rem !important;
+      height: fit-content !important;
+      max-height: calc(100vh - 1rem) !important;
       overflow-y: auto;
     }
     
     .admin-dialog-stable:hover {
-      transform: none !important;
-      top: 10px !important;
-      left: 10px !important;
+      max-width: calc(100vw - 1rem) !important;
+      width: calc(100vw - 1rem) !important;
+      margin: 0.5rem !important;
+      inset: 0.5rem !important;
+      height: fit-content !important;
     }
   }
 
-  /* Tablet and Desktop */
+  /* Desktop and Laptop - Fixed centering */
   @media (min-width: 641px) {
     .admin-dialog-stable {
-      position: fixed !important;
-      transform: translate(-50%, -50%) !important;
-      top: 50% !important;
-      left: 50% !important;
-      max-width: 32rem;
-      width: auto !important;
+      max-width: 32rem !important;
+      width: 32rem !important;
+      margin: auto !important;
+      inset: 0 !important;
+      height: fit-content !important;
+      max-height: calc(100vh - 2rem) !important;
     }
     
     .admin-dialog-stable:hover {
-      transform: translate(-50%, -50%) !important;
-      top: 50% !important;
-      left: 50% !important;
+      max-width: 32rem !important;
+      width: 32rem !important;
+      margin: auto !important;
+      inset: 0 !important;
+      height: fit-content !important;
     }
   }
 
