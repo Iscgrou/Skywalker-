@@ -6,6 +6,7 @@ import { intelligentCoupling } from "../services/intelligent-coupling-service";
 import { realTimeSyncEngine } from "../services/real-time-sync-engine";
 import { aiLearningEngine } from "../services/ai-learning-engine";
 import { integrationDashboard } from "../services/integration-dashboard";
+import { crmTestAutomation } from "../services/crm-test-automation";
 import { z } from "zod";
 
 const router = Router();
@@ -610,6 +611,36 @@ router.get('/stats', async (req, res) => {
       success: false,
       error: 'خطا در دریافت آمار کوپلینگ',
       details: error?.message || 'خطای نامشخص'
+    });
+  }
+});
+
+// ==================== تست جامع پنل CRM ====================
+
+/**
+ * 🧪 تست جامع و انتقادی تمام اجزای پنل CRM
+ * POST /api/coupling/comprehensive-crm-test
+ */
+router.post('/comprehensive-crm-test', async (req, res) => {
+  try {
+    console.log('🧪 شروع تست جامع پنل CRM...');
+    
+    const testResult = await crmTestAutomation.runComprehensiveTest();
+    
+    res.json({
+      success: true,
+      data: testResult,
+      testTimestamp: new Date().toISOString(),
+      note: 'تست جامع پنل CRM انجام شد'
+    });
+
+  } catch (error: any) {
+    console.error('Error in comprehensive CRM test:', error);
+    res.status(500).json({
+      success: false,
+      error: 'خطا در تست جامع',
+      details: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
