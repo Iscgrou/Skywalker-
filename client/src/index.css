@@ -240,6 +240,92 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(59, 130, 246, 0.15);
   }
 
+  /* Stable Dialog Class - No Movement on Hover */
+  .admin-dialog-stable {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.4), rgba(30, 41, 59, 0.3)) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(59, 130, 246, 0.1);
+    border-radius: 16px;
+    color: white !important;
+    position: fixed !important;
+    overflow: hidden;
+    transform: translate(-50%, -50%) !important;
+    top: 50% !important;
+    left: 50% !important;
+    z-index: 50 !important;
+  }
+
+  .admin-dialog-stable::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(59, 130, 246, 0.05) 0%, 
+      transparent 50%, 
+      rgba(147, 51, 234, 0.05) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .admin-dialog-stable > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* NO HOVER EFFECTS - Keep dialog stable */
+  .admin-dialog-stable:hover {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.4), rgba(30, 41, 59, 0.3)) !important;
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    transform: translate(-50%, -50%) !important;
+    transition: none !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(59, 130, 246, 0.1);
+  }
+
+  /* Mobile Responsive Dialog */
+  @media (max-width: 640px) {
+    .admin-dialog-stable {
+      position: fixed !important;
+      top: 10px !important;
+      left: 10px !important;
+      right: 10px !important;
+      bottom: auto !important;
+      transform: none !important;
+      max-width: calc(100vw - 20px) !important;
+      width: calc(100vw - 20px) !important;
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
+    }
+    
+    .admin-dialog-stable:hover {
+      transform: none !important;
+      top: 10px !important;
+      left: 10px !important;
+    }
+  }
+
+  /* Tablet and Desktop */
+  @media (min-width: 641px) {
+    .admin-dialog-stable {
+      position: fixed !important;
+      transform: translate(-50%, -50%) !important;
+      top: 50% !important;
+      left: 50% !important;
+      max-width: 32rem;
+      width: auto !important;
+    }
+    
+    .admin-dialog-stable:hover {
+      transform: translate(-50%, -50%) !important;
+      top: 50% !important;
+      left: 50% !important;
+    }
+  }
+
   /* Sidebar Glassmorphism */
   .admin-sidebar {
     background: rgba(15, 23, 42, 0.9);

@@ -2122,7 +2122,7 @@ function CreatePaymentDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-w-lg admin-glass-card border-white/20 shadow-2xl backdrop-blur-xl"
+        className="max-w-lg admin-dialog-stable border-white/20 shadow-2xl backdrop-blur-xl"
         data-testid="create-payment-dialog"
       >
         <DialogHeader>
