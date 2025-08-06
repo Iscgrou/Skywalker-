@@ -69,8 +69,11 @@ const sessionMiddleware = session({
   cookie: {
     secure: false, // Set to true in production with HTTPS
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
+    maxAge: 7 * 24 * 60 * 60 * 1000, // Extended to 7 days for better UX
+    sameSite: 'lax' // Better cross-origin handling
+  },
+  name: 'marfanet.sid', // Custom session name for identification
+  rolling: true // Extend session on activity
 });
 
 // Apply session middleware for all non-portal routes

@@ -6,7 +6,7 @@ import { db } from "../db";
 import { 
   representatives, 
   crmCulturalProfiles, 
-  crmRepresentativeLevels,
+  representativeLevels,
   aiKnowledgeBase,
   aiDecisionLog
 } from "../../shared/schema";
@@ -371,29 +371,29 @@ export class PersianAIEngine {
   private async updateRepresentativeLevel(representativeId: number, newLevel: string): Promise<void> {
     try {
       const existing = await db.select()
-        .from(crmRepresentativeLevels)
-        .where(eq(crmRepresentativeLevels.representativeId, representativeId))
+        .from(representativeLevels)
+        .where(eq(representativeLevels.representativeId, representativeId))
         .limit(1);
 
       if (existing.length) {
         const current = existing[0];
         if (current.currentLevel !== newLevel) {
-          await db.update(crmRepresentativeLevels)
+          await db.update(representativeLevels)
             .set({
               previousLevel: current.currentLevel,
               currentLevel: newLevel,
               levelChangeReason: 'AI_EVALUATION',
-              lastAnalyzedAt: new Date(),
+              lastInteractionDate: new Date(),
               updatedAt: new Date()
             })
-            .where(eq(crmRepresentativeLevels.representativeId, representativeId));
+            .where(eq(representativeLevels.representativeId, representativeId));
         }
       } else {
-        await db.insert(crmRepresentativeLevels).values({
+        await db.insert(representativeLevels).values({
           representativeId,
           currentLevel: newLevel,
           levelChangeReason: 'INITIAL_EVALUATION',
-          lastAnalyzedAt: new Date(),
+          lastInteractionDate: new Date(),
           createdAt: new Date(),
           updatedAt: new Date()
         });

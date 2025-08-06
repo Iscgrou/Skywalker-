@@ -447,6 +447,7 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
 
       await db.update(crmUsers).set({ lastLoginAt: new Date() }).where(eq(crmUsers.id, user.id));
 
+      // Enhanced session management with proper persistence
       req.session.crmAuthenticated = true;
       req.session.crmUser = {
         id: user.id,
@@ -457,10 +458,29 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
         panelType: 'CRM_PANEL'
       };
 
-      res.json({
-        success: true,
-        message: "ورود موفقیت‌آمیز به سیستم CRM",
-        user: req.session.crmUser
+      // Force session save to ensure persistence
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+          return res.status(500).json({ error: "خطا در ذخیره جلسه" });
+        }
+        
+        console.log('✅ CRM Session saved successfully:', {
+          sessionId: req.sessionID,
+          user: req.session.crmUser,
+          authenticated: req.session.crmAuthenticated
+        });
+        
+        res.json({
+          success: true,
+          message: "ورود موفقیت‌آمیز به سیستم CRM",
+          user: req.session.crmUser,
+          sessionId: req.sessionID,
+          debugInfo: {
+            sessionSaved: true,
+            timestamp: new Date().toISOString()
+          }
+        });
       });
     } catch (error) {
       console.error('CRM login error:', error);
@@ -469,10 +489,19 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
   });
 
   app.get("/api/crm/auth/user", (req, res) => {
+    console.log('🔍 CRM Auth Check - Session Data:', {
+      sessionId: req.sessionID,
+      crmAuthenticated: req.session?.crmAuthenticated,
+      crmUser: req.session?.crmUser,
+      hasSession: !!req.session,
+      sessionObject: req.session
+    });
+    
     if (req.session?.crmAuthenticated && req.session?.crmUser) {
-      console.log('CRM Auth Check Result:', req.session.crmUser);
+      console.log('✅ CRM Auth Success - Returning user:', req.session.crmUser);
       res.json(req.session.crmUser);
     } else {
+      console.log('❌ CRM Auth Failed - Session invalid or expired');
       res.status(401).json({ error: "احراز هویت نشده" });
     }
   });

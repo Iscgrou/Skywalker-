@@ -106,19 +106,8 @@ export const activityLogs = pgTable("activity_logs", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
-// CRM Representative Levels (سطوح نمایندگان)
-export const crmRepresentativeLevels = pgTable("crm_representative_levels", {
-  id: serial("id").primaryKey(),
-  representativeId: integer("representative_id").notNull(),
-  currentLevel: text("current_level").notNull(), // NEW, ACTIVE, INACTIVE
-  previousLevel: text("previous_level"),
-  levelChangeReason: text("level_change_reason"),
-  communicationStyle: text("communication_style"), // formal, informal, mixed
-  culturalFactors: json("cultural_factors"), // Persian cultural analysis
-  lastAnalyzedAt: timestamp("last_analyzed_at"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow()
-});
+// SHERLOCK v2.0 - Removed duplicate table definition
+// Consolidated into representativeLevels table below (line 308)
 
 // CRM Cultural Profiles (پروفایل‌های فرهنگی)
 export const crmCulturalProfiles = pgTable("crm_cultural_profiles", {
