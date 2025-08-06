@@ -60,7 +60,10 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/crm/auth/user"],
     queryFn: async () => {
       try {
-        const result = await apiRequest("/api/crm/auth/user", { method: "GET" });
+        const result = await apiRequest("/api/crm/auth/user", { 
+          method: "GET",
+          credentials: 'include' // SHERLOCK v2.0 - Critical: Ensure cookies are sent
+        });
         console.log('CRM Auth Check Result:', result); // Debug logging
         return result || null; // Ensure we never return undefined
       } catch (error: any) {
@@ -82,7 +85,11 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
       console.log('CRM Login Request:', credentials);
-      const result = await apiRequest("/api/crm/auth/login", { method: "POST", data: credentials });
+      const result = await apiRequest("/api/crm/auth/login", { 
+        method: "POST", 
+        data: credentials,
+        credentials: 'include' // SHERLOCK v2.0 - Ensure cookies are set
+      });
       console.log('CRM Login Success Response:', result);
       return result;
     },

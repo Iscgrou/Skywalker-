@@ -12,6 +12,7 @@ export async function apiRequest(
   options?: {
     method?: string;
     data?: unknown;
+    credentials?: RequestCredentials;
   },
 ): Promise<any> {
   const method = options?.method || 'GET';
@@ -19,7 +20,7 @@ export async function apiRequest(
     method,
     headers: options?.data ? { "Content-Type": "application/json" } : {},
     body: options?.data ? JSON.stringify(options.data) : undefined,
-    credentials: "include",
+    credentials: options?.credentials || "include", // SHERLOCK v2.0 - Always include credentials
   });
 
   await throwIfResNotOk(res);
