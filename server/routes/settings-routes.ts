@@ -119,9 +119,24 @@ function decryptApiKey(encryptedApiKey: string): string {
 
 export function registerSettingsRoutes(app: Express) {
   
-  // CRM Authentication Middleware
+  // CRM Authentication Middleware - Enhanced Cross-Panel Support
   const crmAuthMiddleware = (req: any, res: any, next: any) => {
-    if (req.session?.crmAuthenticated === true) {
+    // Check multiple session authentication methods
+    const isCrmAuthenticated = req.session?.crmAuthenticated === true || req.session?.crmUser;
+    const isAdminAuthenticated = req.session?.authenticated === true && 
+                                (req.session?.role === 'admin' || req.session?.role === 'ADMIN' || req.session?.role === 'SUPER_ADMIN');
+    const isAuthenticated = isCrmAuthenticated || isAdminAuthenticated;
+    
+    console.log('🔧 Settings Auth Check:', {
+      sessionId: req.sessionID,
+      crmAuthenticated: req.session?.crmAuthenticated,
+      crmUser: !!req.session?.crmUser,
+      adminAuthenticated: req.session?.authenticated,
+      adminRole: req.session?.role,
+      finalAuth: isAuthenticated
+    });
+    
+    if (isAuthenticated) {
       next();
     } else {
       res.status(401).json({ error: 'احراز هویت نشده - دسترسی غیرمجاز' });

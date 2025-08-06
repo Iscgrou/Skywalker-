@@ -52,6 +52,7 @@ export function SystemConfiguration() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ apiKey })
       });
 

@@ -98,6 +98,7 @@ export function ManagerWorkspace() {
       fetch('/api/workspace/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(taskData)
       }).then(res => res.json()),
     onSuccess: () => {
