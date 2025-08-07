@@ -387,7 +387,7 @@ export default function Portal() {
               borderRadius: '10px',
               border: '2px solid #10b981'
             }}>
-              <p style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.9 }}>اعتبار</p>
+              <p style={{ fontSize: '14px', marginBottom: '10px', opacity: 0.9 }}>پرداختی</p>
               <p style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '5px' }}>
                 {credit.toLocaleString('fa-IR')} تومان
               </p>

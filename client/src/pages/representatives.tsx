@@ -775,7 +775,7 @@ export default function Representatives() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">اعتبار:</span>
+                      <span className="text-gray-600 dark:text-gray-400">کل پرداخت‌ها:</span>
                       <span className="font-bold text-blue-600 dark:text-blue-400">
                         {formatCurrency(parseFloat(selectedRep.credit))}
                       </span>
@@ -1177,7 +1177,7 @@ export default function Representatives() {
                   ⚠️ تأثیرات همگام‌سازی SHERLOCK v1.0:
                 </h4>
                 <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-2 list-disc list-inside">
-                  <li><strong>آمار نماینده:</strong> بدهی، اعتبار و کل فروش بازمحاسبه خواهد شد</li>
+                  <li><strong>آمار نماینده:</strong> بدهی، پرداختی و کل فروش بازمحاسبه خواهد شد</li>
                   <li><strong>پنل مدیریت:</strong> داشبورد و آمار کلی به‌روزرسانی می‌شود</li>
                   <li><strong>پنل CRM:</strong> تمام نمایش‌های مالی همگام‌سازی خواهد شد</li>
                   <li><strong>تاریخچه:</strong> رکورد حذف در لاگ فعالیت‌ها ثبت می‌شود</li>

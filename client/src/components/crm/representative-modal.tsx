@@ -194,7 +194,7 @@ export default function RepresentativeModal({
                     <span className="text-red-400 font-semibold">{formatCurrency(debtAmount)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-300">اعتبار:</span>
+                    <span className="text-gray-300">کل پرداخت‌ها:</span>
                     <span className="text-blue-400 font-semibold">{formatCurrency(creditAmount)}</span>
                   </div>
                   <div className="flex justify-between">
@@ -257,7 +257,7 @@ export default function RepresentativeModal({
               <Card className="bg-black/20 border-white/10">
                 <CardContent className="p-4 text-center">
                   <Activity className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-                  <p className="text-gray-300 text-sm">اعتبار</p>
+                  <p className="text-gray-300 text-sm">کل پرداخت‌ها</p>
                   <p className="text-2xl font-bold text-blue-400">{formatCurrency(creditAmount)}</p>
                 </CardContent>
               </Card>
