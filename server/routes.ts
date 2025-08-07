@@ -1337,6 +1337,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
+      // SHERLOCK v1.0 GAP-3 FIX: Invalidate CRM cache for immediate financial synchronization
+      invalidateCrmCache();
+      console.log('🔄 CRM cache invalidated after payment creation for real-time sync');
+
       res.json({ 
         success: true, 
         payment,
