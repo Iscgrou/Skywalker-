@@ -634,6 +634,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SHERLOCK v1.0 PAYMENT DELETION API - حذف پرداخت با همگام‌سازی کامل مالی
+  app.delete("/api/payments/:id", requireAuth, async (req, res) => {
+    try {
+      console.log('🗑️ SHERLOCK v1.0: حذف امن پرداخت');
+      const paymentId = parseInt(req.params.id);
+      
+      // Get payment details for audit and financial impact calculation
+      const payments = await storage.getPayments();
+      const payment = payments.find(p => p.id === paymentId);
+      
+      if (!payment) {
+        return res.status(404).json({ error: "پرداخت یافت نشد" });
+      }
+
+      console.log(`🗑️ حذف پرداخت شماره ${paymentId} با مبلغ ${payment.amount} تومان از نماینده ${payment.representativeId}`);
+
+      // Delete payment from database
+      await storage.deletePayment(paymentId);
+
+      // CRITICAL: Update representative financial data after payment deletion
+      console.log(`🔄 به‌روزرسانی اطلاعات مالی نماینده ${payment.representativeId}`);
+      await storage.updateRepresentativeFinancials(payment.representativeId);
+      
+      // CRITICAL: Invalidate CRM cache to ensure real-time sync
+      invalidateCrmCache();
+      console.log('🗑️ CRM cache invalidated for immediate synchronization');
+
+      // Log the activity for audit trail
+      await storage.createActivityLog({
+        type: "payment_deleted",
+        description: `پرداخت ${paymentId} با مبلغ ${payment.amount} تومان از نماینده ${payment.representativeId} حذف شد`,
+        relatedId: payment.representativeId,
+        metadata: {
+          paymentId: paymentId,
+          amount: payment.amount,
+          paymentDate: payment.paymentDate,
+          representativeId: payment.representativeId,
+          deletedBy: (req.session as any)?.user?.username || 'admin',
+          financialImpact: {
+            amountRemoved: payment.amount,
+            operation: "payment_deletion",
+            affectedRepresentative: payment.representativeId
+          }
+        }
+      });
+
+      console.log(`✅ پرداخت ${paymentId} با موفقیت حذف شد و اطلاعات مالی همگام‌سازی شدند`);
+      res.json({ 
+        success: true, 
+        message: "پرداخت با موفقیت حذف شد و تمام اطلاعات مالی به‌روزرسانی شدند",
+        deletedPayment: {
+          id: paymentId,
+          amount: payment.amount,
+          paymentDate: payment.paymentDate,
+          representativeId: payment.representativeId
+        }
+      });
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      res.status(500).json({ error: "خطا در حذف پرداخت" });
+    }
+  });
+
   app.get("/api/payments/statistics", requireAuth, async (req, res) => {
     try {
       const stats = await storage.getPaymentStatistics();

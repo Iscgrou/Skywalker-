@@ -146,6 +146,8 @@ export default function Representatives() {
   const [isPaymentCreateOpen, setIsPaymentCreateOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [isPaymentDeleteConfirmOpen, setIsPaymentDeleteConfirmOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
   
@@ -319,6 +321,12 @@ export default function Representatives() {
     setIsDeleteConfirmOpen(true);
   };
 
+  // SHERLOCK v1.0 PAYMENT DELETION HANDLER
+  const handleDeletePayment = (payment: Payment) => {
+    setPaymentToDelete(payment);
+    setIsPaymentDeleteConfirmOpen(true);
+  };
+
   // Update representative debt after invoice edit
   const updateRepresentativeDebtMutation = useMutation({
     mutationFn: async ({ id, newDebt }: { id: number, newDebt: string }) => {
@@ -360,6 +368,40 @@ export default function Representatives() {
       toast({
         title: "خطا در حذف",
         description: error?.message || "خطا در حذف فاکتور. لطفاً دوباره تلاش کنید",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // SHERLOCK v1.0 DELETE PAYMENT MUTATION - با همگام‌سازی کامل مالی
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (paymentId: number) => {
+      return apiRequest(`/api/payments/${paymentId}`, {
+        method: "DELETE"
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/representatives/statistics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+      toast({
+        title: "حذف موفق",
+        description: "پرداخت با موفقیت حذف شد و تمام اطلاعات مالی در پنل مدیریت و CRM بروزرسانی شدند",
+        className: "bg-green-50 border-green-200 text-green-800"
+      });
+      setIsPaymentDeleteConfirmOpen(false);
+      setPaymentToDelete(null);
+      
+      // Refresh representative details if modal is open
+      if (selectedRep) {
+        handleViewDetails(selectedRep);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خطا در حذف پرداخت",
+        description: error?.message || "خطا در حذف پرداخت. لطفاً دوباره تلاش کنید",
         variant: "destructive"
       });
     }
@@ -863,6 +905,7 @@ export default function Representatives() {
                             <TableHead>شرح</TableHead>
                             <TableHead>وضعیت تخصیص</TableHead>
                             <TableHead>فاکتور مرتبط</TableHead>
+                            <TableHead>عملیات</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -886,6 +929,17 @@ export default function Representatives() {
                                 ) : (
                                   <span className="text-gray-500">عمومی</span>
                                 )}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDeletePayment(payment)}
+                                  className="h-8 w-8 p-0 bg-red-500 hover:bg-red-600 text-white"
+                                  title="حذف پرداخت - همگام‌سازی کامل آمار مالی"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1049,6 +1103,112 @@ export default function Representatives() {
                     <>
                       <Trash2 className="w-4 h-4 ml-2" />
                       تأیید حذف
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* SHERLOCK v1.0 PAYMENT DELETION CONFIRMATION DIALOG */}
+      <Dialog open={isPaymentDeleteConfirmOpen} onOpenChange={setIsPaymentDeleteConfirmOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center">
+              <AlertTriangle className="w-5 h-5 ml-2" />
+              تأیید حذف پرداخت - SHERLOCK v1.0
+            </DialogTitle>
+            <DialogDescription>
+              این عملیات قابل برگشت نیست و تمام آمار مالی در پنل مدیریت و CRM همگام‌سازی خواهد شد.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {paymentToDelete && (
+            <div className="space-y-4">
+              <div className="bg-red-50 dark:bg-red-950 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                <h3 className="font-semibold text-red-800 dark:text-red-200 mb-3 flex items-center">
+                  <CreditCard className="w-4 h-4 ml-2" />
+                  جزئیات پرداخت مورد حذف:
+                </h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-red-600 dark:text-red-400 font-medium">شناسه پرداخت:</span>
+                    <div className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded mt-1">
+                      #{paymentToDelete.id}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-red-600 dark:text-red-400 font-medium">مبلغ:</span>
+                    <div className="font-bold text-lg text-red-700 dark:text-red-300 mt-1">
+                      {formatCurrency(parseFloat(paymentToDelete.amount))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-red-600 dark:text-red-400 font-medium">تاریخ پرداخت:</span>
+                    <div className="mt-1 flex items-center">
+                      <Calendar className="w-3 h-3 ml-1" />
+                      {paymentToDelete.paymentDate}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-red-600 dark:text-red-400 font-medium">وضعیت تخصیص:</span>
+                    <div className="mt-1">
+                      <Badge variant={paymentToDelete.isAllocated ? 'default' : 'secondary'} className="text-xs">
+                        {paymentToDelete.isAllocated ? 'تخصیص یافته' : 'تخصیص نیافته'}
+                      </Badge>
+                    </div>
+                  </div>
+                  {paymentToDelete.description && (
+                    <div className="col-span-2">
+                      <span className="text-red-600 dark:text-red-400 font-medium">شرح:</span>
+                      <div className="mt-1 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                        {paymentToDelete.description}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+                <h4 className="font-semibold text-amber-800 dark:text-amber-200 mb-3 flex items-center">
+                  <Settings className="w-4 h-4 ml-2" />
+                  ⚠️ تأثیرات همگام‌سازی SHERLOCK v1.0:
+                </h4>
+                <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-2 list-disc list-inside">
+                  <li><strong>آمار نماینده:</strong> بدهی، اعتبار و کل فروش بازمحاسبه خواهد شد</li>
+                  <li><strong>پنل مدیریت:</strong> داشبورد و آمار کلی به‌روزرسانی می‌شود</li>
+                  <li><strong>پنل CRM:</strong> تمام نمایش‌های مالی همگام‌سازی خواهد شد</li>
+                  <li><strong>تاریخچه:</strong> رکورد حذف در لاگ فعالیت‌ها ثبت می‌شود</li>
+                  <li><strong>⛔ هشدار:</strong> این عملیات قابل برگشت نیست</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsPaymentDeleteConfirmOpen(false)}
+                  disabled={deletePaymentMutation.isPending}
+                  className="flex items-center"
+                >
+                  <span>انصراف</span>
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => deletePaymentMutation.mutate(paymentToDelete.id)}
+                  disabled={deletePaymentMutation.isPending}
+                  className="bg-red-600 hover:bg-red-700 flex items-center"
+                >
+                  {deletePaymentMutation.isPending ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2" />
+                      در حال حذف و همگام‌سازی...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 ml-2" />
+                      تأیید حذف نهایی
                     </>
                   )}
                 </Button>
