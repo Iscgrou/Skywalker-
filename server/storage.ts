@@ -2194,19 +2194,23 @@ export class DatabaseStorage implements IStorage {
           throw new Error(`Payment with id ${paymentId} not found`);
         }
 
-        // Get unpaid invoices for this representative, ordered by due date (oldest first)
+        // SHERLOCK v1.0 FIX: Get unpaid invoices including both manual and automatic types
+        // Order by issue date (oldest first) to handle mixed invoice types correctly
         const unpaidInvoices = await db.select()
           .from(invoices)
           .where(and(
             eq(invoices.representativeId, representativeId),
-            eq(invoices.status, "unpaid")
+            or(eq(invoices.status, "unpaid"), eq(invoices.status, "overdue"))
           ))
-          .orderBy(invoices.issueDate);
+          .orderBy(invoices.issueDate); // Oldest issue date gets priority regardless of invoice type
 
         if (unpaidInvoices.length === 0) {
           return; // No unpaid invoices to allocate to
         }
 
+        console.log(`🔄 SHERLOCK v1.0: Auto-allocating payment ${paymentId} to representative ${representativeId}`);
+        console.log(`📋 Found ${unpaidInvoices.length} unpaid invoices, oldest: ${unpaidInvoices[0].invoiceNumber} (${unpaidInvoices[0].issueDate})`);
+        
         // Find the oldest unpaid invoice and allocate payment to it
         const oldestInvoice = unpaidInvoices[0];
         

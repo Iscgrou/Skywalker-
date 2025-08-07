@@ -17,6 +17,10 @@ interface Invoice {
       description: string;
       admin_username: string;
     }>;
+    type?: string;
+    description?: string;
+    createdBy?: string;
+    createdAt?: string;
   };
 }
 
@@ -37,7 +41,7 @@ interface PortalData {
   payments: Payment[];
 }
 
-// Invoice Card Component with detailed usage breakdown
+// Invoice Card Component with enhanced usage breakdown
 function InvoiceCard({ invoice }: { invoice: Invoice }) {
   const [showUsageDetails, setShowUsageDetails] = useState(false);
 
@@ -79,91 +83,170 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
         </div>
       </div>
 
-      {/* Toggle Button for Usage Details */}
-      <button 
-        onClick={toggleUsageDetails}
-        style={{
-          background: 'linear-gradient(135deg, #1e40af, #3730a3)',
-          color: 'white',
-          border: 'none',
-          padding: '8px 16px',
-          borderRadius: '6px',
-          fontSize: '12px',
-          cursor: 'pointer',
-          marginBottom: showUsageDetails ? '15px' : '0'
-        }}
-      >
-        {showUsageDetails ? 'پنهان کردن ریز جزئیات مصرف' : 'نمایش ریز جزئیات مصرف'}
-      </button>
+      {/* Toggle Button for Usage Details - Enhanced for Manual Invoices */}
+      {(invoice.usageData && (invoice.usageData.records || invoice.usageData.type === 'manual')) && (
+        <button 
+          onClick={toggleUsageDetails}
+          style={{
+            background: 'linear-gradient(135deg, #1e40af, #3730a3)',
+            color: 'white',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            marginBottom: showUsageDetails ? '15px' : '0'
+          }}
+        >
+          {showUsageDetails ? 'پنهان کردن جزئیات' : 
+           (invoice.usageData.type === 'manual' ? 'نمایش جزئیات فاکتور دستی' : 'نمایش ریز جزئیات مصرف')}
+        </button>
+      )}
 
-      {/* Usage Details Panel */}
-      {showUsageDetails && invoice.usageData && invoice.usageData.records && (
-        <div style={{
-          background: '#1f2937',
-          padding: '15px',
-          borderRadius: '8px',
-          border: '1px solid #374151',
-          marginTop: '10px'
-        }}>
-          <h5 style={{ 
-            fontSize: '14px', 
-            fontWeight: 'bold', 
-            marginBottom: '12px',
-            color: '#93c5fd'
-          }}>
-            ریز جزئیات مصرف دوره
-          </h5>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {invoice.usageData.records.map((record: any, idx: number) => (
-              <div key={idx} style={{
-                background: '#374151',
+      {/* Usage Details Panel - Enhanced for Both Automatic and Manual Invoices */}
+      {showUsageDetails && invoice.usageData && (
+        <div>
+          {/* Automatic Invoice Details (JSON-based with records) */}
+          {invoice.usageData.records && (
+            <div style={{
+              background: '#1f2937',
+              padding: '15px',
+              borderRadius: '8px',
+              border: '1px solid #374151',
+              marginTop: '10px'
+            }}>
+              <h5 style={{ 
+                fontSize: '14px', 
+                fontWeight: 'bold', 
+                marginBottom: '12px',
+                color: '#93c5fd'
+              }}>
+                ریز جزئیات مصرف دوره (فاکتور خودکار)
+              </h5>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {invoice.usageData.records.map((record: any, idx: number) => (
+                  <div key={idx} style={{
+                    background: '#374151',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #4b5563'
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+                      <div>
+                        <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                          <strong>نوع رویداد:</strong> {record.event_type || 'نامشخص'}
+                        </p>
+                        <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                          <strong>زمان:</strong> {record.event_timestamp || 'نامشخص'}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                          <strong>مبلغ:</strong> {record.amount ? parseFloat(record.amount).toLocaleString('fa-IR') : '0'} تومان
+                        </p>
+                        <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
+                          <strong>کاربر ادمین:</strong> {record.admin_username || 'نامشخص'}
+                        </p>
+                      </div>
+                    </div>
+                    {record.description && (
+                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #4b5563' }}>
+                        <p style={{ color: '#9ca3af', fontSize: '11px' }}>
+                          <strong>توضیحات:</strong> {record.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Summary */}
+              <div style={{
+                marginTop: '12px',
                 padding: '10px',
+                background: '#065f46',
+                borderRadius: '6px',
+                border: '1px solid #047857'
+              }}>
+                <p style={{ fontSize: '12px', color: '#d1fae5' }}>
+                  <strong>خلاصه:</strong> تعداد رکوردها: {invoice.usageData.records.length} | 
+                  مجموع مبلغ: {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Manual Invoice Details (Hand-created invoices) */}
+          {invoice.usageData.type === 'manual' && (
+            <div style={{
+              background: '#1f2937',
+              padding: '15px',
+              borderRadius: '8px',
+              border: '1px solid #374151',
+              marginTop: '10px'
+            }}>
+              <h5 style={{ 
+                fontSize: '14px', 
+                fontWeight: 'bold', 
+                marginBottom: '12px',
+                color: '#f59e0b'
+              }}>
+                جزئیات فاکتور دستی
+              </h5>
+              
+              <div style={{
+                background: '#374151',
+                padding: '12px',
                 borderRadius: '6px',
                 border: '1px solid #4b5563'
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
                   <div>
-                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
-                      <strong>نوع رویداد:</strong> {record.event_type || 'نامشخص'}
+                    <p style={{ color: '#d1d5db', marginBottom: '6px' }}>
+                      <strong>نوع فاکتور:</strong> <span style={{ color: '#fbbf24' }}>دستی</span>
                     </p>
-                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
-                      <strong>زمان:</strong> {record.event_timestamp || 'نامشخص'}
+                    <p style={{ color: '#d1d5db', marginBottom: '6px' }}>
+                      <strong>ایجاد شده توسط:</strong> {invoice.usageData.createdBy || 'مدیر سیستم'}
                     </p>
                   </div>
                   <div>
-                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
-                      <strong>مبلغ:</strong> {record.amount ? parseFloat(record.amount).toLocaleString('fa-IR') : '0'} تومان
+                    <p style={{ color: '#d1d5db', marginBottom: '6px' }}>
+                      <strong>مبلغ کل:</strong> {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
                     </p>
-                    <p style={{ color: '#d1d5db', marginBottom: '4px' }}>
-                      <strong>کاربر ادمین:</strong> {record.admin_username || 'نامشخص'}
+                    <p style={{ color: '#d1d5db', marginBottom: '6px' }}>
+                      <strong>تاریخ ایجاد:</strong> {invoice.usageData.createdAt ? 
+                        new Date(invoice.usageData.createdAt).toLocaleDateString('fa-IR') : 
+                        invoice.issueDate}
                     </p>
                   </div>
                 </div>
-                {record.description && (
-                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #4b5563' }}>
-                    <p style={{ color: '#9ca3af', fontSize: '11px' }}>
-                      <strong>توضیحات:</strong> {record.description}
+                
+                {invoice.usageData.description && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #4b5563' }}>
+                    <p style={{ color: '#9ca3af', fontSize: '12px', lineHeight: '1.5' }}>
+                      <strong>توضیحات:</strong> {invoice.usageData.description}
                     </p>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-          
-          {/* Summary */}
-          <div style={{
-            marginTop: '12px',
-            padding: '10px',
-            background: '#065f46',
-            borderRadius: '6px',
-            border: '1px solid #047857'
-          }}>
-            <p style={{ fontSize: '12px', color: '#d1fae5' }}>
-              <strong>خلاصه:</strong> تعداد رکوردها: {invoice.usageData.records.length} | 
-              مجموع مبلغ: {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
-            </p>
-          </div>
+              
+              {/* Summary for Manual Invoice */}
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: '#d97706',
+                borderRadius: '6px',
+                border: '1px solid #f59e0b'
+              }}>
+                <p style={{ fontSize: '12px', color: '#fef3c7' }}>
+                  <strong>خلاصه:</strong> فاکتور دستی | 
+                  مبلغ: {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان | 
+                  وضعیت: {invoice.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -178,7 +261,7 @@ export default function Portal() {
     enabled: !!publicId,
   });
 
-  console.log('=== SIMPLE PORTAL DEBUG ===');
+  console.log('=== SHERLOCK v1.0 PORTAL DEBUG ===');
   console.log('publicId:', publicId);
   console.log('data:', data);
   console.log('isLoading:', isLoading);
@@ -382,8 +465,6 @@ export default function Portal() {
           )}
         </div>
       </div>
-
-
     </div>
   );
 }
