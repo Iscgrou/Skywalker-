@@ -1205,27 +1205,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const invoices = await storage.getInvoices();
       const representatives = await storage.getRepresentatives();
-      const batches = await storage.getBatches();
       
-      // Create lookup maps for performance
+      // Create lookup maps for performance  
       const repMap = new Map(representatives.map(rep => [rep.id, rep]));
-      const batchMap = new Map(batches.map(batch => [batch.id, batch]));
       
       // Enhance invoices with additional info FIRST
       let enhancedInvoices = invoices.map(invoice => {
         const rep = repMap.get(invoice.representativeId);
-        const batch = invoice.batchId ? batchMap.get(invoice.batchId) : null;
         
         return {
           ...invoice,
           representativeName: rep?.name || 'نامشخص',
           representativeCode: rep?.code || 'نامشخص',
-          panelUsername: rep?.panelUsername,
-          batch: batch ? {
-            id: batch.id,
-            batchName: batch.batchName,
-            batchCode: batch.batchCode
-          } : null
+          panelUsername: rep?.panelUsername
         };
       });
       
@@ -1772,15 +1764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log the batch operation
       await storage.createActivityLog({
         type: "batch_invoice_status_recalculation",
-        description: `بازمحاسبه وضعیت ${results.processed} فاکتور - ${results.updated} فاکتور به‌روزرسانی شد`,
-        metadata: {
-          processedCount: results.processed,
-          updatedCount: results.updated,
-          statusChanges: results.statusChanges,
-          representativeId: representativeId || null,
-          specificInvoices: invoiceIds || null,
-          timestamp: new Date().toISOString()
-        }
+        description: `بازمحاسبه وضعیت ${results.processed} فاکتور - ${results.updated} فاکتور به‌روزرسانی شد`
       });
       
       res.json({
