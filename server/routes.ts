@@ -157,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // SHERLOCK v15.0 FIX: Add backward compatibility for both login endpoints
+  // SHERLOCK v17.6: Fixed admin login endpoint with correct field mapping
   // Main admin login endpoint
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -170,12 +170,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get admin user from database
       const adminUser = await storage.getAdminUser(username);
       
-      if (!adminUser || !adminUser.isActive) {
+      if (!adminUser || !adminUser.is_active) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
       }
 
       // Verify password
-      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      const isPasswordValid = await bcrypt.compare(password, adminUser.password_hash);
       
       if (!isPasswordValid) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
@@ -208,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Legacy backward compatibility endpoint
+  // SHERLOCK v17.6: Fixed legacy login endpoint with correct field mapping
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -220,12 +220,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get admin user from database
       const adminUser = await storage.getAdminUser(username);
       
-      if (!adminUser || !adminUser.isActive) {
+      if (!adminUser || !adminUser.is_active) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
       }
 
       // Verify password
-      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      const isPasswordValid = await bcrypt.compare(password, adminUser.password_hash);
       
       if (!isPasswordValid) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
