@@ -157,8 +157,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // SHERLOCK v15.0 FIX: Add backward compatibility for old login endpoint
-  app.post("/api/login", async (req, res) => {
+  // SHERLOCK v15.0 FIX: Add backward compatibility for both login endpoints
+  // Main admin login endpoint
+  app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
       
@@ -203,6 +204,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Login error:", error);
+      res.status(500).json({ error: "خطا در فرآیند ورود" });
+    }
+  });
+
+  // Legacy backward compatibility endpoint
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "نام کاربری و رمز عبور الزامی است" });
+      }
+
+      // Get admin user from database
+      const adminUser = await storage.getAdminUser(username);
+      
+      if (!adminUser || !adminUser.isActive) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
+      }
+
+      // Update last login time
+      await storage.updateAdminUserLogin(adminUser.id);
+
+      // Set session
+      (req.session as any).authenticated = true;
+      (req.session as any).userId = adminUser.id;
+      (req.session as any).username = adminUser.username;
+      (req.session as any).role = adminUser.role || 'ADMIN';
+      (req.session as any).permissions = adminUser.permissions || [];
+
+      res.json({ 
+        success: true, 
+        message: "ورود موفقیت‌آمیز",
+        user: {
+          id: adminUser.id,
+          username: adminUser.username,
+          role: adminUser.role || 'ADMIN',
+          permissions: adminUser.permissions || [],
+          hasFullAccess: adminUser.role === 'SUPER_ADMIN' || (Array.isArray(adminUser.permissions) && adminUser.permissions.includes('FULL_ACCESS'))
+        }
+      });
+    } catch (error) {
+      console.error("Legacy login error:", error);
       res.status(500).json({ error: "خطا در فرآیند ورود" });
     }
   });
