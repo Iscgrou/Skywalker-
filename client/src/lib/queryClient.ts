@@ -33,7 +33,29 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // SHERLOCK v12.1: Handle query parameters properly
+    let url = queryKey[0] as string;
+    
+    // If there are query parameters (second element), build query string
+    if (queryKey.length > 1 && queryKey[1] && typeof queryKey[1] === 'object') {
+      const params = queryKey[1] as Record<string, any>;
+      const searchParams = new URLSearchParams();
+      
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+    }
+    
+    console.log('SHERLOCK v12.1: Fetching URL:', url);
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 

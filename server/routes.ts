@@ -1195,54 +1195,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MISSING API: Get invoices with batch info - SHERLOCK v12.1 CRITICAL FIX  
   app.get("/api/invoices/with-batch-info", requireAuth, async (req, res) => {
     try {
-      console.log('📋 SHERLOCK v12.1: Fetching invoices with enhanced batch information');
+      console.log('📋 SHERLOCK v12.1: دریافت کامل فاکتورها با pagination صحیح');
       
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = parseInt(req.query.limit as string) || 30;
       const statusFilter = req.query.status as string || 'all';
       const searchTerm = req.query.search as string || '';
+      const telegramFilter = req.query.telegram as string || 'all';
       
       const invoices = await storage.getInvoices();
+      const representatives = await storage.getRepresentatives();
+      const batches = await storage.getBatches();
       
-      // Apply filters
-      let filteredInvoices = invoices;
+      // Create lookup maps for performance
+      const repMap = new Map(representatives.map(rep => [rep.id, rep]));
+      const batchMap = new Map(batches.map(batch => [batch.id, batch]));
       
-      if (statusFilter !== 'all') {
-        filteredInvoices = filteredInvoices.filter(inv => inv.status === statusFilter);
-      }
+      // Enhance invoices with additional info FIRST
+      let enhancedInvoices = invoices.map(invoice => {
+        const rep = repMap.get(invoice.representativeId);
+        const batch = invoice.batchId ? batchMap.get(invoice.batchId) : null;
+        
+        return {
+          ...invoice,
+          representativeName: rep?.name || 'نامشخص',
+          representativeCode: rep?.code || 'نامشخص',
+          panelUsername: rep?.panelUsername,
+          batch: batch ? {
+            id: batch.id,
+            batchName: batch.batchName,
+            batchCode: batch.batchCode
+          } : null
+        };
+      });
       
+      // Apply search filter
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
-        filteredInvoices = filteredInvoices.filter(inv => 
-          inv.invoiceNumber.toLowerCase().includes(searchLower) ||
-          (inv as any).representativeName?.toLowerCase().includes(searchLower) ||
-          (inv as any).representativeCode?.toLowerCase().includes(searchLower)
+        enhancedInvoices = enhancedInvoices.filter(invoice =>
+          invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
+          invoice.representativeName?.toLowerCase().includes(searchLower) ||
+          invoice.representativeCode?.toLowerCase().includes(searchLower)
         );
       }
       
-      // Apply pagination
-      const totalCount = filteredInvoices.length;
-      const totalPages = Math.ceil(totalCount / limit);
-      const offset = (page - 1) * limit;
-      const paginatedInvoices = filteredInvoices.slice(offset, offset + limit);
+      // Apply status filter
+      if (statusFilter && statusFilter !== 'all') {
+        enhancedInvoices = enhancedInvoices.filter(invoice => invoice.status === statusFilter);
+      }
       
-      console.log(`✅ ${paginatedInvoices.length} فاکتور از ${totalCount} فاکتور برای صفحه ${page} ارسال شد`);
+      // Apply telegram status filter
+      if (telegramFilter && telegramFilter !== 'all') {
+        if (telegramFilter === 'sent') {
+          enhancedInvoices = enhancedInvoices.filter(invoice => invoice.sentToTelegram);
+        } else if (telegramFilter === 'unsent') {
+          enhancedInvoices = enhancedInvoices.filter(invoice => !invoice.sentToTelegram);
+        }
+      }
+      
+      // SHERLOCK v11.5: Apply FIFO sorting - oldest invoices first
+      enhancedInvoices.sort((a, b) => {
+        const dateA = new Date(a.issueDate || a.createdAt).getTime();
+        const dateB = new Date(b.issueDate || b.createdAt).getTime();
+        return dateA - dateB; // Ascending: oldest first
+      });
+      
+      // Calculate pagination
+      const totalCount = enhancedInvoices.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedInvoices = enhancedInvoices.slice(startIndex, endIndex);
+      
+      console.log(`✅ صفحه ${page}: ${paginatedInvoices.length} فاکتور از ${totalCount} فاکتور کل (${totalPages} صفحه)`);
       
       res.json({
         data: paginatedInvoices,
         pagination: {
-          page,
-          limit,
-          total: totalCount,
-          totalPages
-        },
-        filters: {
-          status: statusFilter,
-          search: searchTerm
+          currentPage: page,
+          pageSize: limit,
+          totalPages: totalPages,
+          totalCount: totalCount,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
         }
       });
     } catch (error) {
-      console.error('❌ خطا در دریافت فاکتورها با اطلاعات batch:', error);
+      console.error('❌ خطا در دریافت فاکتورها:', error);
       res.status(500).json({ error: "خطا در دریافت فهرست فاکتورها" });
     }
   });
@@ -2026,15 +2065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/invoices/with-batch-info", requireAuth, async (req, res) => {
-    try {
-      const invoicesWithBatch = await storage.getInvoicesWithBatchInfo();
-      res.json(invoicesWithBatch);
-    } catch (error) {
-      console.error('Error fetching invoices with batch info:', error);
-      res.status(500).json({ error: "خطا در دریافت فاکتورها با اطلاعات دسته" });
-    }
-  });
+
 
   // Activity Logs API
   app.get("/api/activity-logs", requireAuth, async (req, res) => {

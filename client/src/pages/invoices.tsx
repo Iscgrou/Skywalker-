@@ -83,7 +83,13 @@ export default function Invoices() {
   const queryClient = useQueryClient();
 
   const { data: invoicesResponse, isLoading, error } = useQuery({
-    queryKey: ["/api/invoices/with-batch-info"],
+    queryKey: ["/api/invoices/with-batch-info", { 
+      page: currentPage, 
+      limit: pageSize, 
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      search: searchTerm || undefined,
+      telegram: telegramFilter !== 'all' ? telegramFilter : undefined
+    }],
     select: (data: any) => {
       console.log('SHERLOCK v12.1 DEBUG: Raw data from API:', data);
       // Handle both array response and paginated response
@@ -100,6 +106,7 @@ export default function Invoices() {
   console.log('SHERLOCK v12.1 DEBUG: Final invoices count:', invoices?.length || 0);
   console.log('SHERLOCK v12.1 DEBUG: isLoading:', isLoading);
   console.log('SHERLOCK v12.1 DEBUG: error:', error);
+  console.log('SHERLOCK v12.1 DEBUG: pagination:', pagination);
 
   const { data: representatives } = useQuery({
     queryKey: ["/api/representatives"]
@@ -131,39 +138,23 @@ export default function Invoices() {
     }
   });
 
-  // SHERLOCK v11.5: Apply FIFO ordering to filtered invoices (oldest first)
-  const filteredInvoices = invoices?.filter((invoice: Invoice) => {
-    const matchesSearch = 
-      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (invoice.representativeName && invoice.representativeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (invoice.representativeCode && invoice.representativeCode.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
-    
-    const matchesTelegram = 
-      telegramFilter === "all" || 
-      (telegramFilter === "sent" && invoice.sentToTelegram) ||
-      (telegramFilter === "unsent" && !invoice.sentToTelegram);
-    
-    return matchesSearch && matchesStatus && matchesTelegram;
-  }).sort((a: Invoice, b: Invoice) => {
-    // SHERLOCK v11.5: FIFO sorting - oldest invoices first
-    const dateA = new Date(a.issueDate || a.createdAt).getTime();
-    const dateB = new Date(b.issueDate || b.createdAt).getTime();
-    return dateA - dateB; // Ascending: oldest first
-  }) || [];
+  // SHERLOCK v12.1: Backend handles all filtering and pagination now
+  const filteredInvoices = invoices || [];
+  const paginatedInvoices = filteredInvoices;
+  
+  // Use backend pagination info
+  const totalPages = pagination?.totalPages || Math.ceil(filteredInvoices.length / pageSize);
+  const totalCount = pagination?.totalCount || filteredInvoices.length;
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
-
-  // Reset to first page when filters change
+  // Reset to first page when filters change and invalidate cache
   useEffect(() => {
     setCurrentPage(1);
     setSelectedInvoices([]);
-  }, [searchTerm, statusFilter, telegramFilter]);
+    // Invalidate queries to force new data fetch with updated filters
+    queryClient.invalidateQueries({
+      queryKey: ["/api/invoices/with-batch-info"]
+    });
+  }, [searchTerm, statusFilter, telegramFilter, queryClient]);
 
   const handleSelectAll = () => {
     const currentPageInvoiceIds = paginatedInvoices.map((inv: Invoice) => inv.id);
@@ -636,72 +627,88 @@ export default function Invoices() {
             </TableBody>
           </Table>
           
-          {/* Pagination Controls */}
+          {/* Pagination Controls with Statistics */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-6 pt-4 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronsRight className="w-4 h-4" />
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronRight className="w-4 h-4" />
-                قبلی
-              </Button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let page;
-                  if (totalPages <= 5) {
-                    page = i + 1;
-                  } else if (currentPage <= 3) {
-                    page = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    page = totalPages - 4 + i;
-                  } else {
-                    page = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {toPersianDigits(page.toString())}
-                    </Button>
-                  );
-                })}
+            <div className="mt-6 pt-4 border-t bg-gray-50 dark:bg-gray-800/50 rounded-b-lg">
+              <div className="flex justify-between items-center mb-4 px-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  نمایش {toPersianDigits(((currentPage - 1) * pageSize + 1).toString())} تا {toPersianDigits(Math.min(currentPage * pageSize, totalCount).toString())} از {toPersianDigits(totalCount.toString())} فاکتور
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  صفحه {toPersianDigits(currentPage.toString())} از {toPersianDigits(totalPages.toString())}
+                </div>
               </div>
               
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-              >
-                بعدی
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </Button>
+              <div className="flex justify-center items-center gap-2 px-4 pb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="min-w-[40px]"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="min-w-[60px]"
+                >
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                  قبلی
+                </Button>
+                
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let page;
+                    if (totalPages <= 5) {
+                      page = i + 1;
+                    } else if (currentPage <= 3) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      page = totalPages - 4 + i;
+                    } else {
+                      page = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="min-w-[35px]"
+                      >
+                        {toPersianDigits(page.toString())}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="min-w-[60px]"
+                >
+                  بعدی
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="min-w-[40px]"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
