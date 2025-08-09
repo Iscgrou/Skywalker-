@@ -265,11 +265,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "خطا در فرآیند خروج" });
       }
       res.clearCookie('connect.sid');
+      res.clearCookie('marfanet.sid');
       res.json({ success: true, message: "خروج موفقیت‌آمیز" });
     });
   });
 
   app.get("/api/auth/check", (req, res) => {
+    console.log('🔍 Auth Check - Session Data:', {
+      sessionId: req.sessionID,
+      authenticated: (req.session as any)?.authenticated,
+      userId: (req.session as any)?.userId,
+      hasSession: !!req.session,
+      sessionObject: req.session
+    });
+    
     if ((req.session as any)?.authenticated) {
       res.json({ 
         authenticated: true, 
@@ -282,6 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } else {
+      console.log('❌ Auth Failed - Session invalid or expired');
       res.status(401).json({ authenticated: false });
     }
   });
