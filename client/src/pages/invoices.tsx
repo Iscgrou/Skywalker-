@@ -82,9 +82,24 @@ export default function Invoices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: invoices, isLoading } = useQuery<Invoice[]>({
-    queryKey: ["/api/invoices/with-batch-info"]
+  const { data: invoicesResponse, isLoading } = useQuery({
+    queryKey: ["/api/invoices/with-batch-info", { 
+      page: currentPage, 
+      limit: pageSize, 
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      search: searchTerm || undefined 
+    }],
+    select: (data: any) => {
+      // Handle both array response and paginated response
+      if (Array.isArray(data)) {
+        return { data: data, pagination: null };
+      }
+      return data;
+    }
   });
+
+  const invoices = invoicesResponse?.data || [];
+  const pagination = invoicesResponse?.pagination;
 
   const { data: representatives } = useQuery({
     queryKey: ["/api/representatives"]
@@ -117,7 +132,7 @@ export default function Invoices() {
   });
 
   // SHERLOCK v11.5: Apply FIFO ordering to filtered invoices (oldest first)
-  const filteredInvoices = invoices?.filter(invoice => {
+  const filteredInvoices = invoices?.filter((invoice: Invoice) => {
     const matchesSearch = 
       invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (invoice.representativeName && invoice.representativeName.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -131,7 +146,7 @@ export default function Invoices() {
       (telegramFilter === "unsent" && !invoice.sentToTelegram);
     
     return matchesSearch && matchesStatus && matchesTelegram;
-  }).sort((a, b) => {
+  }).sort((a: Invoice, b: Invoice) => {
     // SHERLOCK v11.5: FIFO sorting - oldest invoices first
     const dateA = new Date(a.issueDate || a.createdAt).getTime();
     const dateB = new Date(b.issueDate || b.createdAt).getTime();
@@ -151,10 +166,10 @@ export default function Invoices() {
   }, [searchTerm, statusFilter, telegramFilter]);
 
   const handleSelectAll = () => {
-    const currentPageInvoiceIds = paginatedInvoices.map(inv => inv.id);
+    const currentPageInvoiceIds = paginatedInvoices.map((inv: Invoice) => inv.id);
       
-    if (currentPageInvoiceIds.every(id => selectedInvoices.includes(id))) {
-      setSelectedInvoices(prev => prev.filter(id => !currentPageInvoiceIds.includes(id)));
+    if (currentPageInvoiceIds.every((id: number) => selectedInvoices.includes(id))) {
+      setSelectedInvoices(prev => prev.filter((id: number) => !currentPageInvoiceIds.includes(id)));
     } else {
       setSelectedInvoices(prev => Array.from(new Set([...prev, ...currentPageInvoiceIds])));
     }
@@ -186,8 +201,8 @@ export default function Invoices() {
 
   const handleSendAllUnsent = () => {
     const unsentInvoices = filteredInvoices
-      .filter(inv => !inv.sentToTelegram)
-      .map(inv => inv.id);
+      .filter((inv: Invoice) => !inv.sentToTelegram)
+      .map((inv: Invoice) => inv.id);
     
     if (unsentInvoices.length > 0) {
       sendToTelegramMutation.mutate(unsentInvoices);
@@ -220,13 +235,13 @@ export default function Invoices() {
     if (!invoices) return { total: 0, paid: 0, unpaid: 0, partial: 0, overdue: 0, unsent: 0 };
     
     const total = invoices.length;
-    const paid = invoices.filter(inv => inv.status === 'paid').length;
-    const partial = invoices.filter(inv => inv.status === 'partial').length;
-    const unpaid = invoices.filter(inv => inv.status === 'unpaid').length;
-    const overdue = invoices.filter(inv => 
+    const paid = invoices.filter((inv: Invoice) => inv.status === 'paid').length;
+    const partial = invoices.filter((inv: Invoice) => inv.status === 'partial').length;
+    const unpaid = invoices.filter((inv: Invoice) => inv.status === 'unpaid').length;
+    const overdue = invoices.filter((inv: Invoice) => 
       inv.status === 'overdue' || (inv.dueDate && isOverdue(inv.dueDate))
     ).length;
-    const unsent = invoices.filter(inv => !inv.sentToTelegram).length;
+    const unsent = invoices.filter((inv: Invoice) => !inv.sentToTelegram).length;
     
     return { total, paid, unpaid, partial, overdue, unsent };
   };
