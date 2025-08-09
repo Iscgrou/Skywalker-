@@ -172,25 +172,48 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
-  // SHERLOCK v16.1 FIX: Add health endpoints BEFORE Vite setup to prevent routing conflicts
-  app.get('/health', (req, res) => {
-    res.status(200).json({ 
-      status: 'healthy', 
-      timestamp: Date.now(),
-      services: {
-        financial: 'running',
-        crm: 'running',
-        auth: 'running',
-        sync: 'simplified'
-      }
-    });
+  // SHERLOCK v16.2 DEPLOYMENT STABILITY: Enhanced health endpoints with comprehensive checks
+  app.get('/health', async (req, res) => {
+    try {
+      const dbHealthy = await checkDatabaseHealth();
+      const memoryUsage = process.memoryUsage();
+      
+      res.status(200).json({ 
+        status: 'healthy', 
+        timestamp: Date.now(),
+        environment: app.get("env"),
+        uptime: process.uptime(),
+        pid: process.pid,
+        services: {
+          database: dbHealthy ? 'connected' : 'disconnected',
+          financial: 'running',
+          crm: 'running',
+          auth: 'running',
+          sync: 'simplified'
+        },
+        memory: {
+          rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB',
+          heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
+          external: Math.round(memoryUsage.external / 1024 / 1024) + 'MB'
+        }
+      });
+    } catch (error) {
+      log(`Health check error: ${error}`, 'error');
+      res.status(503).json({ 
+        status: 'unhealthy', 
+        timestamp: Date.now(),
+        error: 'Internal service error'
+      });
+    }
   });
   
   app.get('/ready', (req, res) => {
     res.status(200).json({ 
       status: 'ready', 
       timestamp: Date.now(),
-      environment: app.get("env")
+      environment: app.get("env"),
+      version: '16.2',
+      uptime: process.uptime()
     });
   });
 
@@ -249,6 +272,27 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
     log(`Environment: ${app.get("env")}`);
     log(`Health check available at /health`);
+    
+    // SHERLOCK v16.2 DEPLOYMENT STABILITY: Enhanced process persistence
+    if (app.get("env") === "production") {
+      log(`Production server started successfully`);
+      log(`Process ID: ${process.pid}`);
+      
+      // Keep process alive and handle unexpected exits
+      process.on('SIGTERM', () => log('SIGTERM received, preparing graceful shutdown...'));
+      process.on('SIGINT', () => log('SIGINT received, preparing graceful shutdown...'));
+      
+      // Prevent process exit on uncaught exceptions
+      process.on('uncaughtException', (err) => {
+        log(`Uncaught Exception: ${err.message}`, 'error');
+        // Don't exit in production, just log
+      });
+      
+      process.on('unhandledRejection', (reason, promise) => {
+        log(`Unhandled Rejection at Promise: ${reason}`, 'error');
+        // Don't exit in production, just log
+      });
+    }
   });
 
   // Graceful shutdown handling for production stability

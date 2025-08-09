@@ -2608,6 +2608,7 @@ export class DatabaseStorage implements IStorage {
             id: invoices.id,
             invoiceNumber: invoices.invoiceNumber,
             representativeId: invoices.representativeId,
+            batchId: invoices.batchId,
             amount: invoices.amount,
             issueDate: invoices.issueDate,
             dueDate: invoices.dueDate,
@@ -2615,6 +2616,7 @@ export class DatabaseStorage implements IStorage {
             usageData: invoices.usageData,
             sentToTelegram: invoices.sentToTelegram,
             telegramSentAt: invoices.telegramSentAt,
+            telegramSendCount: invoices.telegramSendCount,
             createdAt: invoices.createdAt,
             representativeName: representatives.name,
             representativeCode: representatives.code
@@ -2623,9 +2625,11 @@ export class DatabaseStorage implements IStorage {
           .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
           .where(sql`${invoices.usageData}->>'type' = 'manual'`);
 
-        // Apply search filter
+        // Apply additional filters
+        let conditions = [sql`${invoices.usageData}->>'type' = 'manual'`];
+        
         if (options.search) {
-          query = query.where(
+          conditions.push(
             or(
               ilike(invoices.invoiceNumber, `%${options.search}%`),
               ilike(representatives.name, `%${options.search}%`),
@@ -2634,9 +2638,32 @@ export class DatabaseStorage implements IStorage {
           );
         }
 
-        // Apply status filter
         if (options.status && options.status !== 'all') {
-          query = query.where(eq(invoices.status, options.status));
+          conditions.push(eq(invoices.status, options.status));
+        }
+
+        if (conditions.length > 1) {
+          query = db
+            .select({
+              id: invoices.id,
+              invoiceNumber: invoices.invoiceNumber,
+              representativeId: invoices.representativeId,
+              batchId: invoices.batchId,
+              amount: invoices.amount,
+              issueDate: invoices.issueDate,
+              dueDate: invoices.dueDate,
+              status: invoices.status,
+              usageData: invoices.usageData,
+              sentToTelegram: invoices.sentToTelegram,
+              telegramSentAt: invoices.telegramSentAt,
+              telegramSendCount: invoices.telegramSendCount,
+              createdAt: invoices.createdAt,
+              representativeName: representatives.name,
+              representativeCode: representatives.code
+            })
+            .from(invoices)
+            .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+            .where(and(...conditions));
         }
 
         // Get total count first
@@ -2695,7 +2722,7 @@ export class DatabaseStorage implements IStorage {
 
         return {
           totalCount: Number(result.totalCount),
-          totalAmount: result.totalAmount.toString(),
+          totalAmount: String(result.totalAmount || '0'),
           unpaidCount: Number(result.unpaidCount),
           paidCount: Number(result.paidCount),
           partialCount: Number(result.partialCount)
