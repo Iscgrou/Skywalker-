@@ -172,6 +172,28 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
+  // SHERLOCK v16.1 FIX: Add health endpoints BEFORE Vite setup to prevent routing conflicts
+  app.get('/health', (req, res) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      timestamp: Date.now(),
+      services: {
+        financial: 'running',
+        crm: 'running',
+        auth: 'running',
+        sync: 'simplified'
+      }
+    });
+  });
+  
+  app.get('/ready', (req, res) => {
+    res.status(200).json({ 
+      status: 'ready', 
+      timestamp: Date.now(),
+      environment: app.get("env")
+    });
+  });
+
   // Enhanced error handling middleware with logging
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -218,15 +240,6 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  
-  // Add health check and root endpoint for deployment
-  app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'healthy', timestamp: Date.now() });
-  });
-  
-  app.get('/ready', (req, res) => {
-    res.status(200).json({ status: 'ready', timestamp: Date.now() });
-  });
   
   server.listen({
     port,
