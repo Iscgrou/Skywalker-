@@ -37,7 +37,6 @@ function StatCard({
   value, 
   subtitle, 
   icon: Icon, 
-  trend, 
   colorClass = "text-primary",
   onClick 
 }: {
@@ -45,7 +44,6 @@ function StatCard({
   value: string;
   subtitle?: string;
   icon: any;
-  trend?: string;
   colorClass?: string;
   onClick?: () => void;
 }) {
@@ -73,12 +71,6 @@ function StatCard({
             <Icon className={`w-6 h-6 ${colorClass}`} />
           </div>
         </div>
-        {trend && (
-          <div className="mt-4 flex items-center text-sm">
-            <span className="text-green-400">{trend}</span>
-            <span className="text-blue-200 mr-2">نسبت به ماه گذشته</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -151,11 +143,10 @@ export default function Dashboard() {
       {/* Financial Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <StatCard
-          title="درآمد کل (ماه جاری)"
+          title="کل درآمدها"
           value={formatCurrency(dashboardData.totalRevenue)}
-          subtitle="تومان"
+          subtitle="مبلغ پرداخت شده - تومان"
           icon={TrendingUp}
-          trend="+۸.۵%"
           colorClass="text-green-600"
           onClick={() => window.location.href = '/invoices'}
         />
@@ -163,29 +154,26 @@ export default function Dashboard() {
         <StatCard
           title="مطالبات معوق"
           value={formatCurrency(dashboardData.totalDebt)}
-          subtitle="تومان"
+          subtitle="مانده بدهی - تومان"
           icon={AlertTriangle}
-          trend={`${toPersianDigits(dashboardData.overdueInvoices.toString())} نماینده`}
           colorClass="text-red-600"
           onClick={() => window.location.href = '/invoices'}
         />
         
         <StatCard
           title="نمایندگان فعال"
-          value={dashboardData.activeRepresentatives.toString()}
-          subtitle="فروشگاه موبایل"
+          value={toPersianDigits(dashboardData.activeRepresentatives.toString())}
+          subtitle="آخرین آپلود فایل ریزجزئیات"
           icon={Users}
-          trend="+۳ نماینده جدید این ماه"
           colorClass="text-blue-600"
           onClick={() => window.location.href = '/representatives'}
         />
         
         <StatCard
           title="فاکتورهای در انتظار"
-          value={dashboardData.pendingInvoices.toString()}
-          subtitle="فاکتور"
+          value={toPersianDigits(dashboardData.pendingInvoices.toString())}
+          subtitle="آماده ارسال - فاکتور"
           icon={FileText}
-          trend="آماده ارسال به تلگرام"
           colorClass="text-orange-600"
           onClick={() => window.location.href = '/invoices'}
         />
