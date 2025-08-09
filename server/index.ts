@@ -231,9 +231,19 @@ app.use((req, res, next) => {
     
     log(`Error ${status}: ${message} - ${req.method} ${req.path}`, 'error');
     
-    // SHERLOCK v17.5: Allow frontend assets during maintenance
-    if (req.path === '/' || req.path.includes('.js') || req.path.includes('.css') || req.path.startsWith('/@') || req.path.startsWith('/src/')) {
-      // Don't block frontend loading during database issues
+    // SHERLOCK v17.5: Complete frontend asset bypass during maintenance
+    if (req.path === '/' || 
+        req.path.includes('.js') || 
+        req.path.includes('.css') || 
+        req.path.includes('.tsx') || 
+        req.path.includes('.ts') ||
+        req.path.startsWith('/@') || 
+        req.path.startsWith('/src/') ||
+        req.path.startsWith('/@fs/') ||
+        req.path.includes('node_modules') ||
+        req.path.includes('chunk-') ||
+        req.path.includes('deps/')) {
+      // Don't block any frontend assets during database maintenance
       return _next();
     }
     

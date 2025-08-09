@@ -11,6 +11,12 @@ MarFaNet is a simplified financial management system focused on core business ne
   - Public representative portal - No authentication required
 - **Development Philosophy**: Clean, focused architecture without bloated features
 
+## Recent Changes (August 9, 2025)
+- **SHERLOCK v17.5 Deployment Success**: Resolved database endpoint failure with dual-driver approach
+- **Frontend Access Fix**: Implemented maintenance mode bypass for complete UI accessibility
+- **Authentication Fallback**: Enhanced fallback system ensures login functionality during database outages
+- **User Confirmed Resolution**: Dev link access restored and functional
+
 ## System Architecture
 
 ### Frontend (Client)

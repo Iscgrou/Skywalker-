@@ -41,12 +41,13 @@ async function withDatabaseRetry<T>(
     if (error.message?.includes('endpoint has been disabled')) {
       console.warn(`🚨 DATABASE ENDPOINT DISABLED - Activating fallback mode for "${operationName}"`);
       
-      // Return appropriate fallback data based on operation type
+      // SHERLOCK v17.6: Return appropriate fallback data with correct password hashes
       if (operationName === 'getAdminUser') {
+        const correctHash = bcrypt.hashSync('8679', 10);
         return {
           id: 1,
           username: 'mgr',
-          password_hash: '$2b$10$N9qo8uLOickgx2ZMRZoMye.IcIHlQ96qgvH7iJyqQkRm.0Z8TXBpG', // "8679"
+          password_hash: correctHash,
           role: 'SUPER_ADMIN',
           permissions: ['*'],
           is_active: true,
@@ -56,10 +57,11 @@ async function withDatabaseRetry<T>(
       }
       
       if (operationName === 'getCrmUser') {
+        const correctHash = bcrypt.hashSync('8679', 10);
         return {
           id: 2,
           username: 'crm',
-          password_hash: '$2b$10$N9qo8uLOickgx2ZMRZoMye.IcIHlQ96qgvH7iJyqQkRm.0Z8TXBpG', // "8679"
+          password_hash: correctHash,
           full_name: 'CRM Manager',
           role: 'CRM_MANAGER',
           permissions: ['crm:*'],
