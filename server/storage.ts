@@ -2634,7 +2634,38 @@ export class DatabaseStorage implements IStorage {
   async getManualInvoices(options: { page: number; limit: number; search?: string; status?: string }): Promise<{ data: Invoice[]; pagination: any }> {
     return await withDatabaseRetry(
       async () => {
-        let query = db
+        // Build all conditions first
+        let conditions = [sql`${invoices.usageData}->>'type' = 'manual'`];
+        
+        if (options.search) {
+          const searchCondition = or(
+            ilike(invoices.invoiceNumber, `%${options.search}%`),
+            ilike(representatives.name, `%${options.search}%`),
+            ilike(representatives.code, `%${options.search}%`)
+          );
+          if (searchCondition) {
+            conditions.push(searchCondition);
+          }
+        }
+
+        if (options.status && options.status !== 'all') {
+          conditions.push(eq(invoices.status, options.status));
+        }
+
+        // Create final where condition
+        const whereCondition = conditions.length > 1 ? and(...conditions) : conditions[0];
+
+        // Get total count
+        const countResult = await db
+          .select({ count: sql`count(*)` })
+          .from(invoices)
+          .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+          .where(whereCondition);
+        
+        const totalCount = Number(countResult[0].count);
+
+        // Apply pagination and ordering with fresh query
+        const result = await db
           .select({
             id: invoices.id,
             invoiceNumber: invoices.invoiceNumber,
@@ -2654,47 +2685,7 @@ export class DatabaseStorage implements IStorage {
           })
           .from(invoices)
           .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
-          .where(sql`${invoices.usageData}->>'type' = 'manual'`);
-
-        // Apply additional filters
-        let conditions = [sql`${invoices.usageData}->>'type' = 'manual'`];
-        
-        if (options.search) {
-          const searchCondition = or(
-            ilike(invoices.invoiceNumber, `%${options.search}%`),
-            ilike(representatives.name, `%${options.search}%`),
-            ilike(representatives.code, `%${options.search}%`)
-          );
-          if (searchCondition) {
-            conditions.push(searchCondition);
-          }
-        }
-
-        if (options.status && options.status !== 'all') {
-          conditions.push(eq(invoices.status, options.status));
-        }
-
-        if (conditions.length > 1) {
-          query = query.where(and(...conditions));
-        }
-
-        // Get total count first
-        let countQuery = db
-          .select({ count: sql`count(*)` })
-          .from(invoices)
-          .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
-          .where(sql`${invoices.usageData}->>'type' = 'manual'`);
-          
-        if (conditions.length > 1) {
-          countQuery = countQuery.where(and(...conditions));
-        }
-        
-        const countResult = await countQuery;
-
-        const totalCount = Number(countResult[0].count);
-
-        // Apply pagination and ordering
-        const result = await query
+          .where(whereCondition)
           .orderBy(desc(invoices.createdAt))
           .limit(options.limit)
           .offset((options.page - 1) * options.limit);

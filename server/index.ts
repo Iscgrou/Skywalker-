@@ -219,7 +219,7 @@ app.use((req, res, next) => {
     });
   });
 
-  // Enhanced error handling middleware with database fallback
+  // SHERLOCK v17.5: Enhanced error handling with frontend access bypass
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     let message = err.message || "Internal Server Error";
@@ -230,6 +230,12 @@ app.use((req, res, next) => {
     }
     
     log(`Error ${status}: ${message} - ${req.method} ${req.path}`, 'error');
+    
+    // SHERLOCK v17.5: Allow frontend assets during maintenance
+    if (req.path === '/' || req.path.includes('.js') || req.path.includes('.css') || req.path.startsWith('/@') || req.path.startsWith('/src/')) {
+      // Don't block frontend loading during database issues
+      return _next();
+    }
     
     // Don't crash the server, just log and respond
     res.status(status).json({ 

@@ -2639,6 +2639,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // SHERLOCK v17.0: Enhanced database connectivity test
+  app.get('/api/sherlock/database-test', async (req, res) => {
+    console.log(`🔧 SHERLOCK v17.0: Comprehensive database connectivity test starting...`);
+    
+    try {
+      // Test 1: Basic connection with new SSL configuration  
+      const basicResult = await db.execute(sql`SELECT 1 as test_value`);
+      
+      // Test 2: Check if we're using the new database
+      const versionResult = await db.execute(sql`SELECT version() as version, current_database() as current_database`);
+      
+      res.json({
+        sherlock_version: 'v17.0',
+        success: true,
+        database_status: 'connected',
+        tests: {
+          basic_connection: {
+            test_value: basicResult.rows[0]?.test_value,
+            success: true
+          },
+          database_info: {
+            database: versionResult.rows[0]?.current_database,
+            version: versionResult.rows[0]?.version?.substring(0, 50) + '...',
+            success: true
+          }
+        },
+        timestamp: new Date().toISOString(),
+        ssl_enabled: true,
+        database_connectivity: 'SHERLOCK v17.0 SUCCESS'
+      });
+    } catch (error) {
+      console.error('🚨 SHERLOCK v17.0: Database connectivity test failed:', error);
+      res.status(503).json({
+        sherlock_version: 'v17.0',
+        success: false,
+        database_status: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString(),
+        fallback_mode: true
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
