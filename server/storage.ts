@@ -1106,6 +1106,12 @@ export class DatabaseStorage implements IStorage {
         .orderBy(sql`activity_logs.created_at DESC`)
         .limit(10);
 
+      // SHERLOCK v12.2: Add telegram statistics to dashboard
+      const [unsentInvs] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(invoices)
+        .where(eq(invoices.sentToTelegram, false));
+
       return {
         totalRevenue: totalRevenueResult.totalRevenue || "0",
         totalDebt: totalRemainingDebt.toString(),
@@ -1113,6 +1119,7 @@ export class DatabaseStorage implements IStorage {
         pendingInvoices: pendingInvs.count,
         overdueInvoices: overdueInvs.count,
         totalSalesPartners: totalPartners.count,
+        unsentInvoices: unsentInvs.count, // SHERLOCK v12.2: Add unsent invoices count
         recentActivities
       };
     }, 'getDashboardData');
