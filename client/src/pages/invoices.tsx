@@ -145,6 +145,12 @@ export default function Invoices() {
   // Use backend pagination info
   const totalPages = pagination?.totalPages || Math.ceil(filteredInvoices.length / pageSize);
   const totalCount = pagination?.totalCount || filteredInvoices.length;
+  
+  // SHERLOCK v12.2: Fetch total statistics for widgets (not just current page)
+  const { data: totalStats } = useQuery({
+    queryKey: ["/api/invoices/statistics"],
+    enabled: true
+  });
 
   // Reset to first page when filters change and invalidate cache
   useEffect(() => {
@@ -221,23 +227,29 @@ export default function Invoices() {
     return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">پرداخت نشده</Badge>;
   };
 
-  // SHERLOCK v11.5: Enhanced statistics with partial payment tracking
-  const getStats = () => {
-    if (!invoices) return { total: 0, paid: 0, unpaid: 0, partial: 0, overdue: 0, unsent: 0 };
-    
-    const total = invoices.length;
-    const paid = invoices.filter((inv: Invoice) => inv.status === 'paid').length;
-    const partial = invoices.filter((inv: Invoice) => inv.status === 'partial').length;
-    const unpaid = invoices.filter((inv: Invoice) => inv.status === 'unpaid').length;
-    const overdue = invoices.filter((inv: Invoice) => 
-      inv.status === 'overdue' || (inv.dueDate && isOverdue(inv.dueDate))
-    ).length;
-    const unsent = invoices.filter((inv: Invoice) => !inv.sentToTelegram).length;
-    
-    return { total, paid, unpaid, partial, overdue, unsent };
+  // SHERLOCK v12.2: Use total statistics for widgets, not just current page  
+  const stats = totalStats ? {
+    total: totalStats.totalInvoices || 0,
+    unpaid: totalStats.unpaidCount || 0,
+    paid: totalStats.paidCount || 0,
+    partial: totalStats.partialCount || 0,
+    overdue: totalStats.overdueCount || 0,
+    totalAmount: totalStats.totalAmount || 0,
+    // Calculate telegram stats from current page for now (could be enhanced later)
+    sentToTelegram: filteredInvoices.filter((inv: Invoice) => inv.sentToTelegram).length,
+    unsentToTelegram: filteredInvoices.filter((inv: Invoice) => !inv.sentToTelegram).length
+  } : {
+    total: filteredInvoices.length,
+    unpaid: filteredInvoices.filter((inv: Invoice) => inv.status === 'unpaid').length,
+    paid: filteredInvoices.filter((inv: Invoice) => inv.status === 'paid').length,
+    partial: filteredInvoices.filter((inv: Invoice) => inv.status === 'partial').length,
+    overdue: filteredInvoices.filter((inv: Invoice) => inv.status === 'overdue').length,
+    totalAmount: filteredInvoices.reduce((sum: number, inv: Invoice) => sum + parseFloat(inv.amount), 0),
+    sentToTelegram: filteredInvoices.filter((inv: Invoice) => inv.sentToTelegram).length,
+    unsentToTelegram: filteredInvoices.filter((inv: Invoice) => !inv.sentToTelegram).length
   };
 
-  const stats = getStats();
+
 
   // SHERLOCK v12.1: Remove debug block and proceed with normal display logic
   console.log('SHERLOCK v12.1 FINAL: Proceeding with display, invoice count:', invoices.length);
@@ -293,7 +305,7 @@ export default function Invoices() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">فاکتورها</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            مدیریت فاکتورها (FIFO - قدیمی‌ترین ابتدا) و ارسال به تلگرام
+            مدیریت فاکتورها (نمایش: جدیدترین ابتدا، پرداخت: FIFO) و ارسال به تلگرام
           </p>
         </div>
         
@@ -387,7 +399,7 @@ export default function Invoices() {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">ارسال نشده</p>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">
-                  {toPersianDigits(stats.unsent.toString())}
+                  {toPersianDigits(stats.unsentToTelegram.toString())}
                 </p>
               </div>
               <Send className="w-8 h-8 text-blue-400" />

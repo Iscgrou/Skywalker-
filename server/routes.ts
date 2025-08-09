@@ -1245,11 +1245,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // SHERLOCK v11.5: Apply FIFO sorting - oldest invoices first
+      // SHERLOCK v12.2: Apply Display sorting - newest invoices first for UI
+      // NOTE: This ONLY affects display order, not payment allocation (which uses FIFO)
       enhancedInvoices.sort((a, b) => {
         const dateA = new Date(a.issueDate || a.createdAt).getTime();
         const dateB = new Date(b.issueDate || b.createdAt).getTime();
-        return dateA - dateB; // Ascending: oldest first
+        return dateB - dateA; // Descending: newest first for display
       });
       
       // Calculate pagination
