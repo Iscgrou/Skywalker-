@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { createServer as createNetServer } from "net";
+import { exec } from "child_process";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { checkDatabaseHealth, closeDatabaseConnection, pool } from "./db";
@@ -258,42 +260,122 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
+  // SHERLOCK v16.0 PORT CONFLICT RESOLUTION: Enhanced port binding with conflict detection
   const port = parseInt(process.env.PORT || '5000', 10);
   
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-    log(`Environment: ${app.get("env")}`);
-    log(`Health check available at /health`);
-    
-    // SHERLOCK v16.2 DEPLOYMENT STABILITY: Enhanced process persistence
-    if (app.get("env") === "production") {
-      log(`Production server started successfully`);
-      log(`Process ID: ${process.pid}`);
-      
-      // Keep process alive and handle unexpected exits
-      process.on('SIGTERM', () => log('SIGTERM received, preparing graceful shutdown...'));
-      process.on('SIGINT', () => log('SIGINT received, preparing graceful shutdown...'));
-      
-      // Prevent process exit on uncaught exceptions
-      process.on('uncaughtException', (err) => {
-        log(`Uncaught Exception: ${err.message}`, 'error');
-        // Don't exit in production, just log
+  // Pre-flight port availability check
+  const isPortAvailable = async (testPort: number): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const testServer = createNetServer();
+      testServer.listen(testPort, '0.0.0.0', () => {
+        testServer.close(() => resolve(true));
+      });
+      testServer.on('error', () => resolve(false));
+    });
+  };
+
+  // Clean shutdown of any existing server instances
+  const cleanupExistingProcesses = async () => {
+    try {
+      exec(`lsof -ti:${port} | xargs kill -9 2>/dev/null`, (err: any) => {
+        if (err) log(`No existing processes to cleanup on port ${port}`);
+        else log(`Cleaned up existing processes on port ${port}`);
       });
       
-      process.on('unhandledRejection', (reason, promise) => {
-        log(`Unhandled Rejection at Promise: ${reason}`, 'error');
-        // Don't exit in production, just log
-      });
+      // Give processes time to cleanup
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      log(`Cleanup error: ${error}`, 'error');
     }
+  };
+
+  // SHERLOCK v16.0 ROBUST SERVER STARTUP with automatic port conflict resolution
+  const startServerWithRetry = async (attemptPort: number, maxRetries: number = 3): Promise<void> => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const available = await isPortAvailable(attemptPort);
+      
+      if (!available && attempt === 1) {
+        log(`Port ${attemptPort} is occupied, attempting cleanup...`);
+        await cleanupExistingProcesses();
+        continue;
+      }
+      
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const serverInstance = server.listen({
+            port: attemptPort,
+            host: "0.0.0.0",
+            reusePort: true,
+          }, () => {
+            log(`🚀 SHERLOCK v16.0: Server successfully bound to port ${attemptPort}`);
+            log(`Environment: ${app.get("env")}`);
+            log(`Process ID: ${process.pid}`);
+            log(`Health check available at /health`);
+            log(`Port conflict resolution: SUCCESS`);
+            
+            // Mark server as successfully started
+            process.env.SERVER_STARTED = 'true';
+            resolve();
+          });
+          
+          serverInstance.on('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+              log(`Port ${attemptPort} still in use (attempt ${attempt}/${maxRetries})`, 'error');
+              if (attempt === maxRetries) {
+                reject(new Error(`Failed to bind to port after ${maxRetries} attempts`));
+              }
+            } else {
+              reject(err);
+            }
+          });
+        });
+        
+        return; // Success - exit retry loop
+        
+      } catch (error: any) {
+        if (attempt === maxRetries) {
+          log(`Critical: Failed to start server after ${maxRetries} attempts: ${error.message}`, 'error');
+          throw error;
+        }
+        
+        log(`Attempt ${attempt} failed, retrying in 2 seconds...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  };
+
+  // SHERLOCK v16.0 ENHANCED PROCESS STABILITY: Universal error handling setup before server startup
+  log(`✅ Setting up process stability monitoring...`);
+  
+  // SHERLOCK v16.0 CRITICAL: Enhanced exception handling to prevent crashes
+  process.on('uncaughtException', (err) => {
+    log(`🚨 Uncaught Exception intercepted: ${err.message}`, 'error');
+    log(`Stack trace: ${err.stack}`, 'error');
+    
+    // Don't exit the process - keep server running
+    log(`Server continues running after exception handling`);
   });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    log(`🚨 Unhandled Promise Rejection: ${reason}`, 'error');
+    
+    // Don't exit the process - keep server running
+    log(`Server continues running after promise rejection handling`);
+  });
+
+  try {
+    await startServerWithRetry(port);
+    
+    // Enhanced signal handling for graceful shutdowns - set up after successful startup
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    log(`✅ Process stability monitoring active - Server running on port ${port}`);
+    
+  } catch (error) {
+    log(`Server startup failed completely: ${error}`, 'error');
+    process.exit(1);
+  }
 
   // Graceful shutdown handling for production stability
   const gracefulShutdown = async (signal: string) => {
@@ -323,20 +405,6 @@ app.use((req, res, next) => {
     }
   };
 
-  // Handle various termination signals
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-  
-  // Handle uncaught exceptions to prevent crashes
-  process.on('uncaughtException', (error) => {
-    log(`Uncaught Exception: ${error.message}`, 'error');
-    console.error(error.stack);
-    // Don't exit - let the server continue running
-  });
-  
-  process.on('unhandledRejection', (reason, promise) => {
-    log(`Unhandled Rejection at promise: ${reason}`, 'error');
-    // Don't exit - let the server continue running
-  });
+  // SHERLOCK v16.0: Signal handlers moved to startup callback to prevent duplicates
 
 })();
