@@ -60,9 +60,15 @@ const upload = multer({
 
 // Authentication middleware
 function requireAuth(req: any, res: any, next: any) {
+  console.log('🔒 Auth middleware check:', {
+    sessionExists: !!req.session,
+    authenticated: (req.session as any)?.authenticated,
+    path: req.path
+  });
   if ((req.session as any)?.authenticated) {
     next();
   } else {
+    console.log('❌ Authentication failed for:', req.path);
     res.status(401).json({ error: "احراز هویت نشده" });
   }
 }
@@ -1301,9 +1307,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .reduce((sum, inv) => sum + parseFloat(inv.amount), 0),
         // SHERLOCK v12.2: Add telegram statistics for accurate unsent count
         sentToTelegramCount: invoices.filter(inv => inv.sentToTelegram).length,
-        unsentToTelegramCount: invoices.filter(inv => !inv.sentToTelegram).length,
-        // SHERLOCK v12.2: Add telegram statistics for accurate unsent count
-        sentToTelegramCount: invoices.filter(inv => inv.sentToTelegram).length,
         unsentToTelegramCount: invoices.filter(inv => !inv.sentToTelegram).length
       };
       
@@ -1315,14 +1318,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MISSING API: Send invoices to Telegram - SHERLOCK v12.1 TELEGRAM INTEGRATION
+  // SHERLOCK v12.3: Send invoices to Telegram - Complete Implementation
   app.post("/api/invoices/send-telegram", requireAuth, async (req, res) => {
     try {
-      console.log('📨 SHERLOCK v12.1: Sending invoices to Telegram');
+      console.log('📨 SHERLOCK v12.3: Sending invoices to Telegram - Request received');
+      console.log('📨 Request body:', req.body);
+      console.log('📨 Auth status:', (req.session as any)?.authenticated);
       const { invoiceIds } = req.body;
       
       if (!invoiceIds || !Array.isArray(invoiceIds)) {
         return res.status(400).json({ error: "شناسه فاکتورها الزامی است" });
+      }
+
+      // Get Telegram settings from database
+      const botTokenSetting = await storage.getSetting("telegram_bot_token");
+      const chatIdSetting = await storage.getSetting("telegram_chat_id");
+      const templateSetting = await storage.getSetting("telegram_template");
+
+      const botToken = botTokenSetting?.value || process.env.TELEGRAM_BOT_TOKEN;
+      const chatId = chatIdSetting?.value || process.env.TELEGRAM_CHAT_ID;
+      const template = templateSetting?.value || getDefaultTelegramTemplate();
+
+      console.log('🔑 Telegram settings check:', {
+        botTokenExists: !!botToken,
+        chatIdExists: !!chatId,
+        templateExists: !!template
+      });
+
+      if (!botToken || !chatId) {
+        console.error('❌ Missing Telegram credentials');
+        return res.status(400).json({ 
+          error: "تنظیمات تلگرام کامل نیست. لطفاً Bot Token و Chat ID را در تنظیمات وارد کنید." 
+        });
       }
       
       let successCount = 0;
@@ -1330,20 +1357,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const invoiceId of invoiceIds) {
         try {
+          console.log(`📋 Processing invoice ${invoiceId}`);
+          
+          // Get invoice details
           const invoice = await storage.getInvoice(invoiceId);
-          if (invoice) {
-            // Mark as sent (simplified for now)
+          if (!invoice) {
+            console.error(`Invoice ${invoiceId} not found`);
+            failedCount++;
+            continue;
+          }
+
+          // Get representative details
+          const representative = await storage.getRepresentative(invoice.representativeId);
+          if (!representative) {
+            console.error(`Representative ${invoice.representativeId} not found for invoice ${invoiceId}`);
+            failedCount++;
+            continue;
+          }
+
+          // Prepare Telegram message
+          const portalLink = `https://6df5df6a-a51b-4cee-96d1-55579a825ab7-00-3txw9pqslon4v.picard.replit.dev/portal/${representative.publicId}`;
+          const telegramMessage = {
+            representativeName: representative.name,
+            shopOwner: representative.ownerName || representative.name,
+            panelId: representative.panelUsername || representative.code,
+            amount: invoice.amount,
+            issueDate: invoice.issueDate,
+            status: formatInvoiceStatus(invoice.status),
+            portalLink,
+            invoiceNumber: invoice.invoiceNumber,
+            isResend: invoice.sentToTelegram || false,
+            sendCount: (invoice.telegramSendCount || 0) + 1
+          };
+
+          // Send to Telegram
+          const success = await sendInvoiceToTelegram(botToken, chatId, telegramMessage, template);
+          
+          if (success) {
+            // Mark as sent
             await storage.updateInvoice(invoiceId, {
               sentToTelegram: true,
-              telegramSentAt: new Date()
+              telegramSentAt: new Date(),
+              telegramSendCount: telegramMessage.sendCount
             });
-            successCount++;
-            
+
+            // Create activity log
             await storage.createActivityLog({
               type: "invoice_telegram_sent",
               description: `فاکتور ${invoice.invoiceNumber} به تلگرام ارسال شد`,
               relatedId: invoiceId
             });
+
+            successCount++;
+            console.log(`✅ Invoice ${invoiceId} sent successfully`);
+          } else {
+            failedCount++;
+            console.error(`❌ Failed to send invoice ${invoiceId}`);
           }
         } catch (error) {
           console.error(`❌ خطا در ارسال فاکتور ${invoiceId}:`, error);
@@ -1351,7 +1420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log(`✅ ارسال تلگرام کامل شد: ${successCount} موفق, ${failedCount} ناموفق`);
+      console.log(`✅ SHERLOCK v12.3: ارسال تلگرام کامل شد - ${successCount} موفق, ${failedCount} ناموفق`);
       
       res.json({
         success: successCount,
@@ -1823,114 +1892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send invoices to Telegram
-  app.post("/api/invoices/send-telegram", requireAuth, async (req, res) => {
-    try {
-      const { invoiceIds, template } = req.body;
-      
-      if (!invoiceIds || !Array.isArray(invoiceIds)) {
-        return res.status(400).json({ error: "شناسه فاکتورها مشخص نشده" });
-      }
 
-      // Get Telegram settings from environment variables or database
-      let botToken = process.env.TELEGRAM_BOT_TOKEN;
-      let chatId = process.env.TELEGRAM_CHAT_ID;
-      
-      console.log('Telegram Bot Token exists:', !!botToken);
-      console.log('Telegram Chat ID exists:', !!chatId);
-      console.log('Invoice IDs to process:', invoiceIds);
-      
-      // Fallback to database settings if env vars not available
-      if (!botToken || !chatId) {
-        const botTokenSetting = await storage.getSetting('telegram_bot_token');
-        const chatIdSetting = await storage.getSetting('telegram_chat_id');
-        
-        console.log('DB Bot Token exists:', !!botTokenSetting?.value);
-        console.log('DB Chat ID exists:', !!chatIdSetting?.value);
-        
-        if (!botTokenSetting || !chatIdSetting) {
-          return res.status(400).json({ 
-            error: "تنظیمات تلگرام کامل نیست - نیاز به توکن ربات و شناسه چت",
-            hasEnvToken: !!botToken,
-            hasEnvChatId: !!chatId,
-            hasDbToken: !!botTokenSetting?.value,
-            hasDbChatId: !!chatIdSetting?.value
-          });
-        }
-        
-        botToken = botTokenSetting.value;
-        chatId = chatIdSetting.value;
-      }
-
-      // Get saved template from database
-      const savedTemplate = await storage.getSetting('telegram_template');
-      const messageTemplate = template || savedTemplate?.value || getDefaultTelegramTemplate();
-      const invoices = [];
-      
-      // Get invoice details for each ID
-      for (const id of invoiceIds) {
-        const allInvoices = await storage.getInvoices();
-        const invoice = allInvoices.find(inv => inv.id === id);
-        
-        console.log(`Processing invoice ${id}:`, !!invoice);
-        
-        if (invoice) {
-          const representative = await storage.getRepresentative(invoice.representativeId);
-          
-          console.log(`Found representative for invoice ${id}:`, !!representative);
-          
-          if (representative) {
-            const portalLink = `https://agent-portal-shield-info9071.replit.app/portal/${representative.publicId}`;
-            
-            invoices.push({
-              representativeName: representative.name,
-              representativeCode: representative.code,
-              shopOwner: representative.ownerName || representative.name,
-              panelId: representative.panelUsername,
-              amount: invoice.amount,
-              issueDate: invoice.issueDate,
-              status: formatInvoiceStatus(invoice.status),
-              portalLink,
-              invoiceNumber: invoice.invoiceNumber,
-              isResend: invoice.sentToTelegram || false,
-              sendCount: (invoice.telegramSendCount || 0) + 1
-            });
-          }
-        }
-      }
-      
-      console.log(`Prepared ${invoices.length} invoices for Telegram`);
-
-      const result = await sendBulkInvoicesToTelegram(
-        botToken,
-        chatId,
-        invoices,
-        messageTemplate
-      );
-
-      if (result.success > 0) {
-        // Get user info for history tracking
-        const sentBy = (req as any).user?.username || 'مدیر سیستم';
-        
-        await storage.markInvoicesAsSentToTelegramWithHistory(
-          invoiceIds.slice(0, result.success), // Only successful ones
-          sentBy,
-          botToken,
-          chatId,
-          messageTemplate
-        );
-      }
-
-      res.json({
-        success: result.success,
-        failed: result.failed,
-        total: invoices.length
-      });
-    } catch (error) {
-      console.error('خطا در ارسال به تلگرام:', error);
-      res.status(500).json({ error: "خطا در ارسال پیام‌های تلگرام" });
-    }
-  });
 
   // Payments API - Protected
   app.get("/api/payments", requireAuth, async (req, res) => {
