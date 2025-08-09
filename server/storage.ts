@@ -1080,15 +1080,22 @@ export class DatabaseStorage implements IStorage {
         console.log(`🎯 SHERLOCK v10.0: No significant batch found, using recent activity count: ${batchActiveReps.count}`);
       }
 
+      // SHERLOCK v11.5 CRITICAL FIX: Include partial payments in pending/overdue counts
       const [pendingInvs] = await db
         .select({ count: sql<number>`count(*)` })
         .from(invoices)
-        .where(eq(invoices.status, "unpaid"));
+        .where(or(
+          eq(invoices.status, "unpaid"),
+          eq(invoices.status, "partial")
+        ));
 
       const [overdueInvs] = await db
         .select({ count: sql<number>`count(*)` })
         .from(invoices)
-        .where(eq(invoices.status, "overdue"));
+        .where(or(
+          eq(invoices.status, "overdue"), 
+          and(eq(invoices.status, "partial"), sql`invoices.due_date < CURRENT_DATE`)
+        ));
 
       const [totalPartners] = await db
         .select({ count: sql<number>`count(*)` })

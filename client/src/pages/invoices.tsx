@@ -132,11 +132,18 @@ export default function Invoices() {
     return matchesSearch && matchesStatus && matchesTelegram;
   }) || [];
 
+  // SHERLOCK v11.5: FIFO Sorted Display for better payment allocation visualization
+  const fifoSortedInvoices = filteredInvoices.sort((a, b) => {
+    const dateA = new Date(a.issueDate || a.createdAt).getTime();
+    const dateB = new Date(b.issueDate || b.createdAt).getTime(); 
+    return dateA - dateB; // FIFO: oldest invoices first
+  });
+
   // Pagination calculations
-  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
+  const totalPages = Math.ceil(fifoSortedInvoices.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedInvoices = filteredInvoices.slice(startIndex, endIndex);
+  const paginatedInvoices = fifoSortedInvoices.slice(startIndex, endIndex);
 
   // Reset to first page when filters change
   useEffect(() => {
