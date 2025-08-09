@@ -91,3 +91,9 @@ The CRM system contains four functional sections:
   - Complete terminology standardization: "اعتبار" → "پرداختی" across all UI components
   - Database integrity verified: Invoice totals = Payment totals = 2,540,000
   - Cross-panel financial synchronization confirmed for corrected representative
+- **SHERLOCK v10.0 BATCH-BASED ACTIVE REPRESENTATIVES**: ✅ Complete dashboard statistics fix
+  - Fixed active representatives calculation from 1 → 207 (largest batch tracking)
+  - Changed logic from latest timestamp to largest significant batch (>=10 reps)
+  - Removed all trend comparisons and monthly statistics from dashboard
+  - Dashboard now shows authentic batch-based statistics automatically updating with each JSON upload
+  - System correctly identifies and displays the most substantial file upload batch
