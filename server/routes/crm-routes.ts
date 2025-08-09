@@ -550,12 +550,14 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
 
       const payment = await storage.createPayment(paymentData);
 
-      // Process smart allocations
+      // SHERLOCK v11.5: Process smart allocations with real-time status calculation
       if (allocations && allocations.length > 0) {
         for (const allocation of allocations) {
           await storage.allocatePaymentToInvoice(payment.id, allocation.invoiceId);
-          // Update invoice status
-          await storage.updateInvoice(allocation.invoiceId, { status: allocation.newStatus });
+          // CRITICAL: Calculate and update real invoice status based on actual payments
+          const calculatedStatus = await storage.calculateInvoicePaymentStatus(allocation.invoiceId);
+          await storage.updateInvoice(allocation.invoiceId, { status: calculatedStatus });
+          console.log(`📊 Invoice ${allocation.invoiceId} status updated to: ${calculatedStatus}`);
         }
       }
 

@@ -99,6 +99,9 @@ export interface IStorage {
   createTelegramSendHistory(history: InsertTelegramSendHistory): Promise<TelegramSendHistory>;
   markInvoicesAsSentToTelegramWithHistory(invoiceIds: number[], sentBy: string, botToken?: string, chatId?: string, template?: string): Promise<void>;
 
+  // SHERLOCK v11.5: Payment Status Calculation
+  calculateInvoicePaymentStatus(invoiceId: number): Promise<string>;
+
   // Payments
   getPayments(): Promise<Payment[]>;
   getPaymentsByRepresentative(repId: number): Promise<Payment[]>;
@@ -548,8 +551,10 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
+  // SHERLOCK v11.5: Enhanced with real-time payment allocation status calculation  
   async getInvoices(): Promise<any[]> {
-    return await db
+    // Get base invoice data
+    const invoiceResults = await db
       .select({
         id: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
@@ -570,10 +575,25 @@ export class DatabaseStorage implements IStorage {
       .from(invoices)
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
       .orderBy(desc(invoices.createdAt));
+
+    // Calculate real-time status for each invoice based on payments
+    const enhancedInvoices = await Promise.all(
+      invoiceResults.map(async (invoice) => {
+        const calculatedStatus = await this.calculateInvoicePaymentStatus(invoice.id);
+        return {
+          ...invoice,
+          status: calculatedStatus // Override with real-time calculated status
+        };
+      })
+    );
+
+    return enhancedInvoices;
   }
 
+  // SHERLOCK v11.5: Enhanced with real-time payment allocation status calculation
   async getInvoicesByRepresentative(repId: number): Promise<any[]> {
-    return await db
+    // Get base invoice data
+    const invoiceResults = await db
       .select({
         id: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
@@ -595,6 +615,19 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
       .where(eq(invoices.representativeId, repId))
       .orderBy(desc(invoices.createdAt));
+
+    // Calculate real-time status for each invoice based on payments
+    const enhancedInvoices = await Promise.all(
+      invoiceResults.map(async (invoice) => {
+        const calculatedStatus = await this.calculateInvoicePaymentStatus(invoice.id);
+        return {
+          ...invoice,
+          status: calculatedStatus // Override with real-time calculated status
+        };
+      })
+    );
+
+    return enhancedInvoices;
   }
 
   async getInvoicesForTelegram(): Promise<Invoice[]> {
@@ -676,6 +709,54 @@ export class DatabaseStorage implements IStorage {
       },
       'updateInvoice'
     );
+  }
+
+  // SHERLOCK v11.5: CRITICAL - Real-time Payment Status Calculator
+  async calculateInvoicePaymentStatus(invoiceId: number): Promise<string> {
+    try {
+      // Get invoice amount
+      const invoice = await db.select({ 
+        id: invoices.id, 
+        amount: invoices.amount,
+        dueDate: invoices.dueDate 
+      })
+        .from(invoices)
+        .where(eq(invoices.id, invoiceId))
+        .limit(1);
+      
+      if (!invoice.length) return 'unpaid';
+      
+      const invoiceAmount = parseFloat(invoice[0].amount);
+      const dueDate = invoice[0].dueDate;
+      
+      // Get total payments allocated to this invoice
+      const paymentResults = await db.select({ amount: payments.amount })
+        .from(payments)
+        .where(eq(payments.invoiceId, invoiceId));
+      
+      const totalPaid = paymentResults.reduce((sum, payment) => 
+        sum + parseFloat(payment.amount), 0);
+      
+      // Calculate status based on payment coverage
+      if (totalPaid >= invoiceAmount) {
+        return 'paid'; // Fully paid
+      } else if (totalPaid > 0) {
+        return 'partial'; // Partially paid
+      } else {
+        // Check if overdue
+        if (dueDate) {
+          const today = new Date();
+          const dueDateObj = new Date(dueDate);
+          if (today > dueDateObj) {
+            return 'overdue'; // Overdue and unpaid
+          }
+        }
+        return 'unpaid'; // Not paid and not overdue
+      }
+    } catch (error) {
+      console.error('Error calculating invoice payment status:', error);
+      return 'unpaid'; // Default fallback
+    }
   }
 
   // فاز ۲: Delete invoice method

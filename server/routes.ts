@@ -1491,6 +1491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual payment allocation API
+  // SHERLOCK v11.5: Manual payment allocation API with real-time status calculation
   app.post("/api/payments/allocate", requireAuth, async (req, res) => {
     try {
       const { paymentId, invoiceId } = req.body;
@@ -1501,21 +1502,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedPayment = await storage.allocatePaymentToInvoice(paymentId, invoiceId);
       
+      // CRITICAL: Recalculate invoice status based on actual payment allocations
+      const calculatedStatus = await storage.calculateInvoicePaymentStatus(invoiceId);
+      await storage.updateInvoice(invoiceId, { status: calculatedStatus });
+      console.log(`📊 Manual allocation: Invoice ${invoiceId} status updated to: ${calculatedStatus}`);
+      
       await storage.createActivityLog({
         type: "manual_payment_allocation",
-        description: `پرداخت ${paymentId} به فاکتور ${invoiceId} تخصیص یافت`,
+        description: `پرداخت ${paymentId} به فاکتور ${invoiceId} تخصیص یافت - وضعیت: ${calculatedStatus}`,
         relatedId: paymentId,
         metadata: {
           paymentId,
           invoiceId,
-          amount: updatedPayment.amount
+          amount: updatedPayment.amount,
+          newInvoiceStatus: calculatedStatus
         }
       });
 
-      res.json({ success: true, payment: updatedPayment });
+      res.json({ success: true, payment: updatedPayment, invoiceStatus: calculatedStatus });
     } catch (error) {
       console.error('Error allocating payment:', error);
       res.status(500).json({ error: "خطا در تخصیص دستی پرداخت" });
+    }
+  });
+
+  // SHERLOCK v11.5: CRITICAL - Batch Invoice Status Recalculation API
+  app.post("/api/invoices/recalculate-statuses", requireAuth, async (req, res) => {
+    try {
+      console.log('🔧 SHERLOCK v11.5: Starting batch invoice status recalculation...');
+      const { representativeId, invoiceIds } = req.body;
+      
+      let invoicesToProcess = [];
+      
+      if (representativeId) {
+        // Recalculate for specific representative
+        const repInvoices = await storage.getInvoicesByRepresentative(representativeId);
+        invoicesToProcess = repInvoices.map(inv => inv.id);
+        console.log(`📊 Processing ${invoicesToProcess.length} invoices for representative ${representativeId}`);
+      } else if (invoiceIds && Array.isArray(invoiceIds)) {
+        // Recalculate for specific invoices
+        invoicesToProcess = invoiceIds;
+        console.log(`📊 Processing ${invoicesToProcess.length} specific invoices`);
+      } else {
+        // Recalculate all invoices (expensive operation)
+        const allInvoices = await storage.getInvoices();
+        invoicesToProcess = allInvoices.map(inv => inv.id);
+        console.log(`📊 Processing ALL ${invoicesToProcess.length} invoices`);
+      }
+      
+      const results = {
+        processed: 0,
+        updated: 0,
+        statusChanges: []
+      };
+      
+      // Process each invoice
+      for (const invoiceId of invoicesToProcess) {
+        try {
+          const oldInvoice = await storage.getInvoice(invoiceId);
+          if (!oldInvoice) continue;
+          
+          const calculatedStatus = await storage.calculateInvoicePaymentStatus(invoiceId);
+          
+          if (calculatedStatus !== oldInvoice.status) {
+            await storage.updateInvoice(invoiceId, { status: calculatedStatus });
+            results.statusChanges.push({
+              invoiceId,
+              invoiceNumber: oldInvoice.invoiceNumber,
+              oldStatus: oldInvoice.status,
+              newStatus: calculatedStatus
+            });
+            results.updated++;
+          }
+          
+          results.processed++;
+        } catch (invoiceError) {
+          console.warn(`Error processing invoice ${invoiceId}:`, invoiceError);
+        }
+      }
+      
+      console.log(`✅ Batch recalculation complete: ${results.updated} invoices updated out of ${results.processed} processed`);
+      
+      // Log the batch operation
+      await storage.createActivityLog({
+        type: "batch_invoice_status_recalculation",
+        description: `بازمحاسبه وضعیت ${results.processed} فاکتور - ${results.updated} فاکتور به‌روزرسانی شد`,
+        metadata: {
+          processedCount: results.processed,
+          updatedCount: results.updated,
+          statusChanges: results.statusChanges,
+          representativeId: representativeId || null,
+          specificInvoices: invoiceIds || null,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      res.json({
+        success: true,
+        message: `وضعیت ${results.updated} فاکتور از ${results.processed} فاکتور بازمحاسبه و به‌روزرسانی شد`,
+        results
+      });
+    } catch (error) {
+      console.error('Batch status recalculation error:', error);
+      res.status(500).json({ error: "خطا در بازمحاسبه وضعیت فاکتورها" });
     }
   });
 
