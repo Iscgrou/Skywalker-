@@ -404,7 +404,7 @@ export default function Portal() {
       {/* Invoices Section */}
       <div style={{ marginBottom: '40px' }}>
         <h3 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>
-          ۲. فاکتورهای مرتب شده بر اساس تاریخ
+          ۲. فاکتورها (قدیمی‌ترین ابتدا - FIFO)
         </h3>
         <div style={{ 
           background: '#334155', 

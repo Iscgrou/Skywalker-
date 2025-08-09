@@ -925,7 +925,12 @@ export default function Representatives() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedRep.invoices.map((invoice) => (
+                          {selectedRep.invoices.sort((a: any, b: any) => {
+                            // SHERLOCK v11.5: FIFO sorting for invoice display (oldest first)
+                            const dateA = new Date(a.issueDate || a.createdAt).getTime();
+                            const dateB = new Date(b.issueDate || b.createdAt).getTime();
+                            return dateA - dateB; // FIFO: Oldest first
+                          }).map((invoice) => (
                             <TableRow key={invoice.id}>
                               <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
                               <TableCell>{formatCurrency(parseFloat(invoice.amount))}</TableCell>
@@ -1007,7 +1012,12 @@ export default function Representatives() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedRep.payments.map((payment) => (
+                          {selectedRep.payments.sort((a: any, b: any) => {
+                            // SHERLOCK v11.5: FIFO sorting for payment display (oldest first)
+                            const dateA = new Date(a.paymentDate || a.createdAt).getTime();
+                            const dateB = new Date(b.paymentDate || b.createdAt).getTime();
+                            return dateA - dateB; // FIFO: Oldest first
+                          }).map((payment) => (
                             <TableRow key={payment.id}>
                               <TableCell className="font-bold text-green-600">
                                 {formatCurrency(parseFloat(payment.amount))}

@@ -574,7 +574,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(invoices)
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
-      .orderBy(desc(invoices.createdAt));
+      .orderBy(invoices.issueDate, invoices.createdAt); // SHERLOCK v11.5: FIFO order (oldest first)
 
     // Calculate real-time status for each invoice based on payments
     const enhancedInvoices = await Promise.all(
@@ -630,10 +630,11 @@ export class DatabaseStorage implements IStorage {
     return enhancedInvoices;
   }
 
+  // SHERLOCK v11.5: FIFO ordering for Telegram sending (oldest first)
   async getInvoicesForTelegram(): Promise<Invoice[]> {
     return await db.select().from(invoices)
       .where(eq(invoices.sentToTelegram, false))
-      .orderBy(desc(invoices.createdAt));
+      .orderBy(invoices.issueDate, invoices.createdAt); // FIFO: Send oldest invoices first
   }
 
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
@@ -2039,7 +2040,7 @@ export class DatabaseStorage implements IStorage {
   }> {
     return await withDatabaseRetry(
       async () => {
-        // Get unallocated payments for this representative
+        // SHERLOCK v11.5: Get unallocated payments ordered by oldest first (FIFO principle)
         const unallocatedPayments = await db
           .select()
           .from(payments)
@@ -2049,7 +2050,7 @@ export class DatabaseStorage implements IStorage {
               eq(payments.isAllocated, false)
             )
           )
-          .orderBy(payments.createdAt);
+          .orderBy(payments.paymentDate, payments.createdAt); // FIFO: Process oldest payments first
 
         // SHERLOCK v11.5: Get unpaid invoices for this representative - FIFO (oldest first)
         const unpaidInvoices = await db

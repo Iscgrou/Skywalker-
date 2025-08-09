@@ -523,11 +523,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         showAdminUsername: showAdminUsername?.value === 'true'
       };
       
-      // Sort invoices by date (newest first)
+      // SHERLOCK v11.5: Sort invoices by FIFO principle (oldest first)
       const sortedInvoices = invoices.sort((a, b) => {
         const dateA = new Date(a.issueDate || a.createdAt);
         const dateB = new Date(b.issueDate || b.createdAt);
-        return dateB.getTime() - dateA.getTime();
+        return dateA.getTime() - dateB.getTime(); // FIFO: Oldest first
       });
       
       // Don't expose sensitive data in public portal

@@ -116,6 +116,7 @@ export default function Invoices() {
     }
   });
 
+  // SHERLOCK v11.5: Apply FIFO ordering to filtered invoices (oldest first)
   const filteredInvoices = invoices?.filter(invoice => {
     const matchesSearch = 
       invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -130,6 +131,11 @@ export default function Invoices() {
       (telegramFilter === "unsent" && !invoice.sentToTelegram);
     
     return matchesSearch && matchesStatus && matchesTelegram;
+  }).sort((a, b) => {
+    // SHERLOCK v11.5: FIFO sorting - oldest invoices first
+    const dateA = new Date(a.issueDate || a.createdAt).getTime();
+    const dateB = new Date(b.issueDate || b.createdAt).getTime();
+    return dateA - dateB; // Ascending: oldest first
   }) || [];
 
   // Pagination calculations
@@ -278,7 +284,7 @@ export default function Invoices() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">فاکتورها</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            مدیریت فاکتورها و ارسال به تلگرام
+            مدیریت فاکتورها (FIFO - قدیمی‌ترین ابتدا) و ارسال به تلگرام
           </p>
         </div>
         
