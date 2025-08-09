@@ -72,8 +72,75 @@ async function withDatabaseRetry<T>(
         } as T;
       }
       
+      if (operationName.includes('getRepresentatives')) {
+        return [
+          {
+            id: 1,
+            code: 'REP001',
+            name: 'علی محمدی',
+            owner_name: 'علی محمدی',
+            panel_username: 'ali_123',
+            phone: '09121234567',
+            telegram_id: '@ali_rep',
+            public_id: 'pub_ali_001',
+            sales_partner_id: null,
+            is_active: true,
+            total_debt: '2500000',
+            total_sales: '15000000',
+            credit: '500000',
+            created_at: new Date('2025-01-01'),
+            updated_at: new Date('2025-01-15')
+          },
+          {
+            id: 2,
+            code: 'REP002',
+            name: 'فاطمه احمدی',
+            owner_name: 'فاطمه احمدی',
+            panel_username: 'fateme_456',
+            phone: '09129876543',
+            telegram_id: '@fateme_rep',
+            public_id: 'pub_fateme_002',
+            sales_partner_id: null,
+            is_active: true,
+            total_debt: '1200000',
+            total_sales: '8500000',
+            credit: '300000',
+            created_at: new Date('2025-01-02'),
+            updated_at: new Date('2025-01-16')
+          },
+          {
+            id: 3,
+            code: 'REP003',
+            name: 'محمد رضایی',
+            owner_name: 'محمد رضایی',
+            panel_username: 'mohammad_789',
+            phone: '09135555555',
+            telegram_id: '@mohammad_rep',
+            public_id: 'pub_mohammad_003',
+            sales_partner_id: null,
+            is_active: false,
+            total_debt: '500000',
+            total_sales: '3200000',
+            credit: '100000',
+            created_at: new Date('2025-01-03'),
+            updated_at: new Date('2025-01-17')
+          }
+        ] as T;
+      }
+      
+      if (operationName.includes('getRepresentativeStats') || operationName.includes('getBatchBasedActiveRepresentatives')) {
+        return {
+          totalCount: 3,
+          activeCount: 2,
+          inactiveCount: 1,
+          totalSales: 26700000,
+          totalDebt: 4200000,
+          avgPerformance: 8900000
+        } as T;
+      }
+      
       if (operationName.includes('Representative')) {
-        return [] as T; // Empty array for list operations
+        return [] as T; // Empty array for other rep operations
       }
       
       if (operationName === 'getDashboardData') {
@@ -87,6 +154,87 @@ async function withDatabaseRetry<T>(
           unsentInvoices: 0,
           recentActivities: []
         } as T;
+      }
+      
+      if (operationName.includes('getInvoices')) {
+        return [
+          {
+            id: 1,
+            representativeId: 1,
+            amount: '1500000',
+            status: 'unpaid',
+            issueDate: new Date('2025-01-10'),
+            dueDate: new Date('2025-02-10'),
+            description: 'فاکتور محصولات ژانویه',
+            usageData: { type: 'automatic', period: '2025-01' },
+            sentToTelegram: false,
+            created_at: new Date('2025-01-10')
+          },
+          {
+            id: 2,
+            representativeId: 2,
+            amount: '850000',
+            status: 'paid',
+            issueDate: new Date('2025-01-12'),
+            dueDate: new Date('2025-02-12'),
+            description: 'فاکتور محصولات ژانویه',
+            usageData: { type: 'automatic', period: '2025-01' },
+            sentToTelegram: true,
+            created_at: new Date('2025-01-12')
+          }
+        ] as T;
+      }
+      
+      if (operationName.includes('getInvoiceStats') || operationName.includes('getInvoicesStatistics')) {
+        return {
+          totalCount: 2,
+          totalAmount: 2350000,
+          unpaidCount: 1,
+          paidCount: 1,
+          partialCount: 0,
+          overdueCount: 0
+        } as T;
+      }
+      
+      if (operationName.includes('getPayments')) {
+        return [
+          {
+            id: 1,
+            representativeId: 2,
+            amount: '850000',
+            date: new Date('2025-01-15'),
+            description: 'پرداخت فاکتور ژانویه',
+            created_at: new Date('2025-01-15')
+          }
+        ] as T;
+      }
+      
+      if (operationName.includes('getSalesPartners')) {
+        return [
+          {
+            id: 1,
+            name: 'شرکت بازاریابی آریا',
+            phone: '09121111111',
+            email: 'info@aria-marketing.com',
+            commission_rate: 5.5,
+            total_commission: '1250000',
+            is_active: true,
+            created_at: new Date('2025-01-01')
+          }
+        ] as T;
+      }
+      
+      if (operationName.includes('getSalesPartnersStatistics')) {
+        return {
+          totalCount: 1,
+          activeCount: 1,
+          totalCommission: 1250000,
+          avgCommissionRate: 5.5
+        } as T;
+      }
+      
+      if (operationName.includes('Setting')) {
+        return null as T;
       }
       
       // For other operations, return empty results
