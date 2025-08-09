@@ -969,10 +969,7 @@ export class DatabaseStorage implements IStorage {
         .from(invoices)
         .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
         .where(
-          and(
-            eq(representatives.isActive, true),
-            sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
-          )
+          sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
         )
         .groupBy(sql`DATE(invoices.created_at)`)
         .having(sql`COUNT(DISTINCT invoices.representative_id) >= 10`)
@@ -991,12 +988,8 @@ export class DatabaseStorage implements IStorage {
         const [fallbackResult] = await db
           .select({ count: sql<number>`COUNT(DISTINCT invoices.representative_id)` })
           .from(invoices)
-          .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
           .where(
-            and(
-              eq(representatives.isActive, true),
-              sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
-            )
+            sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
           );
           
         batchActiveReps = fallbackResult;
@@ -1019,8 +1012,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(salesPartners.isActive, true));
 
       // SHERLOCK v10.0 FIX: Get recent activities (limited to last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Reuse thirtyDaysAgo variable from above batch calculation
       
       const recentActivities = await db
         .select()
