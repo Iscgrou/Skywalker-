@@ -115,6 +115,13 @@ The CRM system contains four functional sections:
   - Identified 4 TypeScript errors in sales-partners.tsx requiring immediate fixes
   - Missing connection between representatives and sales partners in UI layer
   - CRUD operations for sales partners need full implementation
+- **SHERLOCK v12.3 TELEGRAM INTEGRATION FIX**: ✅ Complete Telegram invoice sending functionality restored
+  - Fixed critical duplicate route definitions causing API conflicts
+  - Resolved authentication middleware issues preventing request processing
+  - Enhanced error logging for comprehensive debugging capabilities
+  - Verified Telegram settings: Bot Token, Chat ID, and Template properly configured
+  - Dashboard statistics unified: 145 unsent invoices displayed consistently across panels
+  - Invoice sending now works with Persian template and automatic status updates
 - **SHERLOCK v11.5 CRITICAL FIFO PAYMENT ALLOCATION**: ✅ Complete payment allocation system overhaul
   - Fixed CRITICAL bug: Payment allocation now follows FIFO principle (oldest invoices first)
   - Updated frontend auto-allocation logic to sort by issueDate/createdAt ascending

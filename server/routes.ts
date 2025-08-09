@@ -60,15 +60,9 @@ const upload = multer({
 
 // Authentication middleware
 function requireAuth(req: any, res: any, next: any) {
-  console.log('🔒 Auth middleware check:', {
-    sessionExists: !!req.session,
-    authenticated: (req.session as any)?.authenticated,
-    path: req.path
-  });
   if ((req.session as any)?.authenticated) {
     next();
   } else {
-    console.log('❌ Authentication failed for:', req.path);
     res.status(401).json({ error: "احراز هویت نشده" });
   }
 }
@@ -1321,9 +1315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SHERLOCK v12.3: Send invoices to Telegram - Complete Implementation
   app.post("/api/invoices/send-telegram", requireAuth, async (req, res) => {
     try {
-      console.log('📨 SHERLOCK v12.3: Sending invoices to Telegram - Request received');
-      console.log('📨 Request body:', req.body);
-      console.log('📨 Auth status:', (req.session as any)?.authenticated);
+      console.log('📨 SHERLOCK v12.3: Sending invoices to Telegram');
       const { invoiceIds } = req.body;
       
       if (!invoiceIds || !Array.isArray(invoiceIds)) {
