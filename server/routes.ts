@@ -1378,7 +1378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           issueDate: invoices.issueDate,
           dueDate: invoices.dueDate,
           status: invoices.status,
-          usageData: invoices.usageData,
+
           sentToTelegram: invoices.sentToTelegram,
           telegramSentAt: invoices.telegramSentAt,
           createdAt: invoices.createdAt,
@@ -1400,7 +1400,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           invoices.issueDate,
           invoices.dueDate,
           invoices.status,
-          invoices.usageData,
           invoices.sentToTelegram,
           invoices.telegramSentAt,
           invoices.createdAt,
