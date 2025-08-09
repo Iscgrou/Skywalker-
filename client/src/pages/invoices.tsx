@@ -82,14 +82,10 @@ export default function Invoices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: invoicesResponse, isLoading } = useQuery({
-    queryKey: ["/api/invoices/with-batch-info", { 
-      page: currentPage, 
-      limit: pageSize, 
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      search: searchTerm || undefined 
-    }],
+  const { data: invoicesResponse, isLoading, error } = useQuery({
+    queryKey: ["/api/invoices/with-batch-info"],
     select: (data: any) => {
+      console.log('SHERLOCK v12.1 DEBUG: Raw data from API:', data);
       // Handle both array response and paginated response
       if (Array.isArray(data)) {
         return { data: data, pagination: null };
@@ -100,6 +96,10 @@ export default function Invoices() {
 
   const invoices = invoicesResponse?.data || [];
   const pagination = invoicesResponse?.pagination;
+  
+  console.log('SHERLOCK v12.1 DEBUG: Final invoices count:', invoices?.length || 0);
+  console.log('SHERLOCK v12.1 DEBUG: isLoading:', isLoading);
+  console.log('SHERLOCK v12.1 DEBUG: error:', error);
 
   const { data: representatives } = useQuery({
     queryKey: ["/api/representatives"]
@@ -247,6 +247,9 @@ export default function Invoices() {
   };
 
   const stats = getStats();
+
+  // SHERLOCK v12.1: Remove debug block and proceed with normal display logic
+  console.log('SHERLOCK v12.1 FINAL: Proceeding with display, invoice count:', invoices.length);
 
   if (isLoading) {
     return (
@@ -516,7 +519,17 @@ export default function Invoices() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedInvoices.map((invoice) => (
+              {paginatedInvoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                    {searchTerm || statusFilter !== 'all' || telegramFilter !== 'all' 
+                      ? 'هیچ فاکتوری با این فیلترها یافت نشد' 
+                      : 'هیچ فاکتوری یافت نشد'
+                    }
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedInvoices.map((invoice: Invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell>
                     <Checkbox
@@ -618,7 +631,8 @@ export default function Invoices() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                ))
+              )}
             </TableBody>
           </Table>
           
@@ -701,9 +715,9 @@ export default function Invoices() {
           </DialogHeader>
           <div className="space-y-4">
             {(() => {
-              const selectedInvoiceData = filteredInvoices.filter(inv => selectedInvoices.includes(inv.id));
-              const newSends = selectedInvoiceData.filter(inv => !inv.sentToTelegram);
-              const resends = selectedInvoiceData.filter(inv => inv.sentToTelegram);
+              const selectedInvoiceData = filteredInvoices.filter((inv: Invoice) => selectedInvoices.includes(inv.id));
+              const newSends = selectedInvoiceData.filter((inv: Invoice) => !inv.sentToTelegram);
+              const resends = selectedInvoiceData.filter((inv: Invoice) => inv.sentToTelegram);
               
               return (
                 <>
@@ -729,7 +743,7 @@ export default function Invoices() {
                         فاکتورهای جدید ({toPersianDigits(newSends.length.toString())}):
                       </h4>
                       <div className="space-y-1 max-h-24 overflow-y-auto">
-                        {newSends.map(inv => (
+                        {newSends.map((inv: Invoice) => (
                           <div key={inv.id} className="text-sm text-green-800 dark:text-green-300">
                             • {inv.invoiceNumber} - {inv.representativeName} ({formatCurrency(inv.amount)} ت)
                           </div>
@@ -744,7 +758,7 @@ export default function Invoices() {
                         فاکتورهای ارسال مجدد ({toPersianDigits(resends.length.toString())}):
                       </h4>
                       <div className="space-y-1 max-h-24 overflow-y-auto">
-                        {resends.map(inv => (
+                        {resends.map((inv: Invoice) => (
                           <div key={inv.id} className="text-sm text-orange-800 dark:text-orange-300">
                             • {inv.invoiceNumber} - {inv.representativeName} (ارسال #{toPersianDigits((inv.telegramSendCount || 0) + 1)})
                           </div>
