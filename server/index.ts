@@ -219,17 +219,23 @@ app.use((req, res, next) => {
     });
   });
 
-  // Enhanced error handling middleware with logging
+  // Enhanced error handling middleware with database fallback
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    let message = err.message || "Internal Server Error";
+    
+    // Special handling for database endpoint failures
+    if (message.includes('endpoint has been disabled')) {
+      message = "سیستم در حال بروزرسانی است، لطفاً کمی بعد مراجعه کنید";
+    }
     
     log(`Error ${status}: ${message} - ${req.method} ${req.path}`, 'error');
     
     // Don't crash the server, just log and respond
     res.status(status).json({ 
       error: message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      maintenance: message.includes('بروزرسانی')
     });
   });
 

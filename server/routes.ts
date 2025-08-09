@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, checkDatabaseHealth } from "./db";
 import { sql, eq, and, or } from "drizzle-orm";
 import { invoices } from "@shared/schema";
 // CRM routes are imported in registerCrmRoutes function
@@ -523,9 +523,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public Portal API
+  // Public Portal API with database fallback
   app.get("/api/portal/:publicId", async (req, res) => {
     try {
+      // Check database health first
+      const dbHealthy = await checkDatabaseHealth();
+      if (!dbHealthy) {
+        console.warn(`⚠️ Database unavailable for portal ${req.params.publicId} - maintenance mode`);
+        return res.status(503).json({
+          error: "سیستم در حال بروزرسانی است، لطفاً کمی بعد مراجعه کنید",
+          maintenance: true,
+          publicId: req.params.publicId,
+          retry_after: 300
+        });
+      }
+
       const representative = await storage.getRepresentativeByPublicId(req.params.publicId);
       if (!representative) {
         return res.status(404).json({ error: "پورتال یافت نشد" });
