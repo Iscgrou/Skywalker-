@@ -168,6 +168,16 @@ export interface IStorage {
     totalSalesPartners: number;
     recentActivities: ActivityLog[];
   }>;
+  
+  // SHERLOCK v10.0: Debtor representatives
+  getDebtorRepresentatives(): Promise<Array<{
+    id: number;
+    name: string;
+    code: string;
+    remainingDebt: string;
+    totalInvoices: string;
+    totalPayments: string;
+  }>>;
 
   // Financial Synchronization Methods
   getTotalRevenue(): Promise<string>;
@@ -916,25 +926,47 @@ export class DatabaseStorage implements IStorage {
 
   async getDashboardData() {
     return await withDatabaseRetry(async () => {
-      // Get financial totals
+      // SHERLOCK v10.0 FIX: Total Revenue = Sum of all payments made to representatives
       const [totalRevenueResult] = await db
         .select({ 
           totalRevenue: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
         })
-        .from(invoices)
-        .where(eq(invoices.status, "paid"));
+        .from(payments);
 
-      const [totalDebtResult] = await db
-        .select({ 
-          totalDebt: sql<string>`COALESCE(SUM(CAST(total_debt as DECIMAL)), 0)` 
+      // SHERLOCK v10.0 FIX: Remaining Debt = Total invoice amount - Total payments for each representative
+      const remainingDebtQuery = await db
+        .select({
+          representativeId: representatives.id,
+          totalInvoices: sql<string>`COALESCE(SUM(CAST(invoices.amount as DECIMAL)), 0)`,
+          totalPayments: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`,
+          remainingDebt: sql<string>`COALESCE(SUM(CAST(invoices.amount as DECIMAL)), 0) - COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
         })
-        .from(representatives);
-
-      // Count representatives and invoices
-      const [activeReps] = await db
-        .select({ count: sql<number>`count(*)` })
         .from(representatives)
-        .where(eq(representatives.isActive, true));
+        .leftJoin(invoices, eq(representatives.id, invoices.representativeId))
+        .leftJoin(payments, eq(representatives.id, payments.representativeId))
+        .groupBy(representatives.id);
+
+      // Calculate total remaining debt (only positive debts)
+      const totalRemainingDebt = remainingDebtQuery
+        .reduce((sum, rep) => {
+          const debt = parseFloat(rep.remainingDebt) || 0;
+          return sum + (debt > 0 ? debt : 0);
+        }, 0);
+
+      // SHERLOCK v10.0 FIX: Active Representatives = Active in last 7 days based on invoice creation
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const [weeklyActiveReps] = await db
+        .select({ count: sql<number>`COUNT(DISTINCT invoices.representative_id)` })
+        .from(invoices)
+        .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+        .where(
+          and(
+            eq(representatives.isActive, true),
+            sql`invoices.created_at >= ${sevenDaysAgo.toISOString()}`
+          )
+        );
 
       const [pendingInvs] = await db
         .select({ count: sql<number>`count(*)` })
@@ -951,19 +983,69 @@ export class DatabaseStorage implements IStorage {
         .from(salesPartners)
         .where(eq(salesPartners.isActive, true));
 
-      // Get recent activities
-      const recentActivities = await this.getActivityLogs(10);
+      // SHERLOCK v10.0 FIX: Get recent activities (limited to last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const recentActivities = await db
+        .select()
+        .from(activityLogs)
+        .where(sql`activity_logs.created_at >= ${thirtyDaysAgo.toISOString()}`)
+        .orderBy(sql`activity_logs.created_at DESC`)
+        .limit(10);
 
       return {
         totalRevenue: totalRevenueResult.totalRevenue || "0",
-        totalDebt: totalDebtResult.totalDebt || "0",
-        activeRepresentatives: activeReps.count,
+        totalDebt: totalRemainingDebt.toString(),
+        activeRepresentatives: weeklyActiveReps.count || 0,
         pendingInvoices: pendingInvs.count,
         overdueInvoices: overdueInvs.count,
         totalSalesPartners: totalPartners.count,
         recentActivities
       };
     }, 'getDashboardData');
+  }
+
+  // SHERLOCK v10.0 NEW METHOD: Get debtor representatives with remaining debt
+  async getDebtorRepresentatives(): Promise<Array<{
+    id: number;
+    name: string;
+    code: string;
+    remainingDebt: string;
+    totalInvoices: string;
+    totalPayments: string;
+  }>> {
+    return await withDatabaseRetry(async () => {
+      // SHERLOCK v10.0 AUTO-CLEANUP: Remove activity logs older than 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const cleanupResult = await db
+        .delete(activityLogs)
+        .where(sql`activity_logs.created_at < ${thirtyDaysAgo.toISOString()}`);
+      
+      if (cleanupResult.rowCount && cleanupResult.rowCount > 0) {
+        console.log(`🧹 SHERLOCK v10.0 Auto-cleanup: Removed ${cleanupResult.rowCount} old activity logs`);
+      }
+
+      const debtorReps = await db
+        .select({
+          id: representatives.id,
+          name: representatives.name,
+          code: representatives.code,
+          totalInvoices: sql<string>`COALESCE(SUM(CAST(invoices.amount as DECIMAL)), 0)`,
+          totalPayments: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`,
+          remainingDebt: sql<string>`COALESCE(SUM(CAST(invoices.amount as DECIMAL)), 0) - COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
+        })
+        .from(representatives)
+        .leftJoin(invoices, eq(representatives.id, invoices.representativeId))
+        .leftJoin(payments, eq(representatives.id, payments.representativeId))
+        .groupBy(representatives.id, representatives.name, representatives.code)
+        .having(sql`COALESCE(SUM(CAST(invoices.amount as DECIMAL)), 0) - COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0) > 0`)
+        .orderBy(sql`COALESCE(SUM(CAST(invoices.amount as DECIMAL)), 0) - COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0) DESC`);
+
+      return debtorReps;
+    }, 'getDebtorRepresentatives');
   }
 
   async updateRepresentativeFinancials(repId: number): Promise<void> {
