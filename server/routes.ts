@@ -586,6 +586,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SHERLOCK v12.4: Manual Invoices API - Dedicated endpoint for manual invoices management
+  app.get("/api/invoices/manual", requireAuth, async (req, res) => {
+    try {
+      console.log('📋 SHERLOCK v12.4: Fetching manual invoices');
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 30;
+      const search = req.query.search as string;
+      const status = req.query.status as string;
+      
+      // Get manual invoices with representative info
+      const manualInvoices = await storage.getManualInvoices({
+        page,
+        limit,
+        search,
+        status
+      });
+      
+      console.log(`📋 Found ${manualInvoices.data.length} manual invoices`);
+      res.json(manualInvoices);
+    } catch (error) {
+      console.error('Error fetching manual invoices:', error);
+      res.status(500).json({ error: "خطا در دریافت فاکتورهای دستی" });
+    }
+  });
+
+  // SHERLOCK v12.4: Manual Invoices Statistics
+  app.get("/api/invoices/manual/statistics", requireAuth, async (req, res) => {
+    try {
+      const stats = await storage.getManualInvoicesStatistics();
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching manual invoices statistics:', error);
+      res.status(500).json({ error: "خطا در دریافت آمار فاکتورهای دستی" });
+    }
+  });
+
   app.get("/api/sales-partners/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);

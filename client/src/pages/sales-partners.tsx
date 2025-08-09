@@ -413,7 +413,7 @@ export default function SalesPartners() {
                   <CardHeader>
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-lg">{partner.name}</CardTitle>
-                      {getStatusBadge(partner.isActive)}
+                      {getStatusBadge(partner.isActive ?? false)}
                     </div>
                     <CardDescription>کد: {partner.code}</CardDescription>
                   </CardHeader>
@@ -436,12 +436,12 @@ export default function SalesPartners() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">کل فروش:</span>
-                        <span className="font-semibold">{formatCurrency(parseFloat(partner.totalSales))}</span>
+                        <span className="font-semibold">{formatCurrency(parseFloat(partner.totalSales || "0"))}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">کمیسیون:</span>
                         <span className="font-semibold text-orange-600 dark:text-orange-400">
-                          {formatCurrency(parseFloat(partner.totalCommission))}
+                          {formatCurrency(parseFloat(partner.totalCommission || "0"))}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -487,9 +487,9 @@ export default function SalesPartners() {
               <CardContent className="p-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(0)}
+                    {formatCurrency(parseFloat(stats?.totalCoupledSales || "0"))}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">کل فروش</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">کل فروش کوپل شده</div>
                 </div>
               </CardContent>
             </Card>
@@ -514,7 +514,7 @@ export default function SalesPartners() {
                   </TableHeader>
                   <TableBody>
                     {filteredPartners.map((partner) => {
-                      const calculatedCommission = (parseFloat(partner.totalSales || "0") * (partner.commissionRate || 0)) / 100;
+                      const calculatedCommission = (parseFloat(partner.totalSales || "0") * parseFloat((partner.commissionRate || 0).toString())) / 100;
                       const paidCommission = parseFloat(partner.totalCommission || "0");
                       const remaining = calculatedCommission - paidCommission;
                       

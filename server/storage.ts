@@ -102,6 +102,10 @@ export interface IStorage {
   // SHERLOCK v11.5: Payment Status Calculation
   calculateInvoicePaymentStatus(invoiceId: number): Promise<string>;
 
+  // SHERLOCK v12.4: Manual Invoices Management
+  getManualInvoices(options: { page: number; limit: number; search?: string; status?: string }): Promise<{ data: Invoice[]; pagination: any }>;
+  getManualInvoicesStatistics(): Promise<{ totalCount: number; totalAmount: string; unpaidCount: number; paidCount: number; partialCount: number }>;
+
   // Payments
   getPayments(): Promise<Payment[]>;
   getPaymentsByRepresentative(repId: number): Promise<Payment[]>;
@@ -2383,17 +2387,38 @@ export class DatabaseStorage implements IStorage {
   async getSalesPartnersStatistics(): Promise<any> {
     return await withDatabaseRetry(
       async () => {
-        const totalCount = await db.select({ count: sql<number>`count(*)` }).from(salesPartners);
-        const activeCount = await db.select({ count: sql<number>`count(*)` }).from(salesPartners).where(eq(salesPartners.isActive, true));
-        const totalCommission = await db.select({ 
-          total: sql<string>`coalesce(sum(total_commission), '0')` 
-        }).from(salesPartners);
+        // SHERLOCK v12.4: Enhanced statistics with financial coupling
+        const result = await db
+          .select({
+            totalPartners: sql<number>`count(*)`,
+            totalActivePartners: sql<number>`count(*) filter (where is_active = true)`,
+            totalCommission: sql<string>`COALESCE(SUM(CAST(total_commission as DECIMAL)), 0)`,
+            totalSales: sql<string>`COALESCE(SUM(CAST(total_sales as DECIMAL)), 0)`,
+            averageCommissionRate: sql<number>`COALESCE(AVG(commission_rate), 0)`
+          })
+          .from(salesPartners);
+
+        // Calculate financial coupling - total sales from sub-representatives
+        const salesCouplingResult = await db
+          .select({
+            totalCoupledSales: sql<string>`COALESCE(SUM(CAST(total_sales as DECIMAL)), 0)`,
+            totalCoupledDebt: sql<string>`COALESCE(SUM(CAST(total_debt as DECIMAL)), 0)`,
+            coupledRepresentatives: sql<number>`COUNT(*)`
+          })
+          .from(representatives)
+          .where(sql`sales_partner_id IS NOT NULL`);
+
+        console.log(`📊 SHERLOCK v12.4: Sales partners with financial coupling - ${result[0].totalPartners} partners, ${salesCouplingResult[0].totalCoupledSales} coupled sales from ${salesCouplingResult[0].coupledRepresentatives} representatives`);
 
         return {
-          totalPartners: totalCount[0]?.count || 0,
-          activePartners: activeCount[0]?.count || 0,
-          totalCommission: totalCommission[0]?.total || "0",
-          averageCommissionRate: "5.0" // Could be calculated
+          totalPartners: result[0].totalPartners || 0,
+          activePartners: result[0].totalActivePartners || 0,
+          totalCommission: result[0].totalCommission || "0",
+          totalSales: result[0].totalSales || "0",
+          averageCommissionRate: parseFloat((result[0].averageCommissionRate || 0).toString()),
+          totalCoupledSales: salesCouplingResult[0].totalCoupledSales,
+          totalCoupledDebt: salesCouplingResult[0].totalCoupledDebt,
+          coupledRepresentatives: salesCouplingResult[0].coupledRepresentatives
         };
       },
       'getSalesPartnersStatistics'
@@ -2572,6 +2597,112 @@ export class DatabaseStorage implements IStorage {
         return result[0]?.count || 0;
       },
       'getOverdueInvoicesCount'
+    );
+  }
+
+  // SHERLOCK v12.4: Manual Invoices Management Implementation
+  async getManualInvoices(options: { page: number; limit: number; search?: string; status?: string }): Promise<{ data: Invoice[]; pagination: any }> {
+    return await withDatabaseRetry(
+      async () => {
+        let query = db
+          .select({
+            id: invoices.id,
+            invoiceNumber: invoices.invoiceNumber,
+            representativeId: invoices.representativeId,
+            amount: invoices.amount,
+            issueDate: invoices.issueDate,
+            dueDate: invoices.dueDate,
+            status: invoices.status,
+            usageData: invoices.usageData,
+            sentToTelegram: invoices.sentToTelegram,
+            telegramSentAt: invoices.telegramSentAt,
+            createdAt: invoices.createdAt,
+            representativeName: representatives.name,
+            representativeCode: representatives.code
+          })
+          .from(invoices)
+          .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+          .where(sql`${invoices.usageData}->>'type' = 'manual'`);
+
+        // Apply search filter
+        if (options.search) {
+          query = query.where(
+            or(
+              ilike(invoices.invoiceNumber, `%${options.search}%`),
+              ilike(representatives.name, `%${options.search}%`),
+              ilike(representatives.code, `%${options.search}%`)
+            )
+          );
+        }
+
+        // Apply status filter
+        if (options.status && options.status !== 'all') {
+          query = query.where(eq(invoices.status, options.status));
+        }
+
+        // Get total count first
+        const countQuery = await db
+          .select({ count: sql`count(*)` })
+          .from(invoices)
+          .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+          .where(sql`${invoices.usageData}->>'type' = 'manual'`);
+
+        const totalCount = Number(countQuery[0].count);
+
+        // Apply pagination and ordering
+        const result = await query
+          .orderBy(desc(invoices.createdAt))
+          .limit(options.limit)
+          .offset((options.page - 1) * options.limit);
+
+        const totalPages = Math.ceil(totalCount / options.limit);
+
+        console.log(`📋 SHERLOCK v12.4: Retrieved ${result.length} manual invoices (page ${options.page}/${totalPages})`);
+
+        return {
+          data: result,
+          pagination: {
+            currentPage: options.page,
+            pageSize: options.limit,
+            totalCount,
+            totalPages,
+            hasNextPage: options.page < totalPages,
+            hasPrevPage: options.page > 1
+          }
+        };
+      },
+      'getManualInvoices'
+    );
+  }
+
+  async getManualInvoicesStatistics(): Promise<{ totalCount: number; totalAmount: string; unpaidCount: number; paidCount: number; partialCount: number }> {
+    return await withDatabaseRetry(
+      async () => {
+        const stats = await db
+          .select({
+            totalCount: sql`count(*)`,
+            totalAmount: sql`COALESCE(SUM(CAST(amount as DECIMAL)), 0)`,
+            unpaidCount: sql`count(*) filter (where status = 'unpaid')`,
+            paidCount: sql`count(*) filter (where status = 'paid')`,
+            partialCount: sql`count(*) filter (where status = 'partial')`,
+            overdueCount: sql`count(*) filter (where status = 'overdue')`
+          })
+          .from(invoices)
+          .where(sql`${invoices.usageData}->>'type' = 'manual'`);
+
+        const result = stats[0];
+
+        console.log(`📊 SHERLOCK v12.4: Manual invoices statistics - Total: ${result.totalCount}, Amount: ${result.totalAmount}`);
+
+        return {
+          totalCount: Number(result.totalCount),
+          totalAmount: result.totalAmount.toString(),
+          unpaidCount: Number(result.unpaidCount),
+          paidCount: Number(result.paidCount),
+          partialCount: Number(result.partialCount)
+        };
+      },
+      'getManualInvoicesStatistics'
     );
   }
 }

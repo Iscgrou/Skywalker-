@@ -40,13 +40,32 @@ export function InvoiceManagement() {
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  // دریافت لیست فاکتورها با اطلاعات batch
-  const { data: invoices = [], isLoading, refetch } = useQuery({
-    queryKey: ['/api/invoices/with-batch-info'],
-    queryFn: () => apiRequest('/api/invoices/with-batch-info'),
+  // SHERLOCK v12.4: دریافت فاکتورهای دستی اختصاصی
+  const { data: manualInvoicesResponse, isLoading, refetch } = useQuery({
+    queryKey: ['/api/invoices/manual', { page: 1, limit: 50, search: searchTerm, status: statusFilter }],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '50',
+        ...(searchTerm && { search: searchTerm }),
+        ...(statusFilter && { status: statusFilter })
+      });
+      return apiRequest(`/api/invoices/manual?${params.toString()}`);
+    },
     retry: 1,
     retryOnMount: false
   });
+
+  // دریافت آمار فاکتورهای دستی
+  const { data: manualStats } = useQuery({
+    queryKey: ['/api/invoices/manual/statistics'],
+    queryFn: () => apiRequest('/api/invoices/manual/statistics'),
+    retry: 1
+  });
+
+  // استخراج فاکتورها از response
+  const invoices = manualInvoicesResponse?.data || [];
+  const pagination = manualInvoicesResponse?.pagination;
 
   // Mutation برای حذف فاکتور
   const deleteInvoiceMutation = useMutation({
@@ -104,7 +123,7 @@ export function InvoiceManagement() {
   return (
     <div className="container mx-auto p-6 space-y-6" dir="rtl">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">مدیریت فاکتورها</h1>
+        <h1 className="text-3xl font-bold">مدیریت فاکتورهای دستی</h1>
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -126,6 +145,66 @@ export function InvoiceManagement() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* SHERLOCK v12.4: آمار فاکتورهای دستی */}
+      {manualStats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {new Intl.NumberFormat('fa-IR').format(manualStats.totalCount)}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">کل فاکتورها</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                  {new Intl.NumberFormat('fa-IR').format(parseFloat(manualStats.totalAmount || "0"))}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">مبلغ کل</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {new Intl.NumberFormat('fa-IR').format(manualStats.unpaidCount)}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">پرداخت نشده</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {new Intl.NumberFormat('fa-IR').format(manualStats.paidCount)}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">پرداخت شده</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                  {new Intl.NumberFormat('fa-IR').format(manualStats.partialCount)}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">پرداخت جزئی</div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* فیلترها و جستجو */}
       <Card>
