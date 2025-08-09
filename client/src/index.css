@@ -896,3 +896,140 @@
 .telegram-failed {
   @apply text-red-600 dark:text-red-400;
 }
+
+/* ===== MOBILE RESPONSIVE FIXES FOR RADIX UI COMPONENTS ===== */
+/* Fix for dropdown positioning issues on mobile devices */
+
+/* Global mobile fixes for all Radix UI Select components */
+@media (max-width: 768px) {
+  /* Fix SelectContent positioning globally on mobile */
+  [data-radix-popper-content-wrapper] {
+    position: fixed !important;
+    z-index: 60 !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
+    transform: none !important;
+  }
+  
+  /* Fix SelectContent itself */
+  [data-radix-select-content] {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    margin: 0.5rem 0 !important;
+  }
+  
+  /* Ensure SelectContent viewport is properly sized */
+  [data-radix-select-viewport] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+  }
+  
+  /* Fix for all popper-based components (Select, Dropdown, etc.) */
+  [data-radix-popper-content-wrapper],
+  [data-radix-dropdown-content],
+  [data-radix-popover-content] {
+    position: fixed !important;
+    z-index: 60 !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    transform: translateX(0) translateY(0.5rem) !important;
+  }
+  
+  /* Portal interface specific fixes */
+  .portal-dark [data-radix-popper-content-wrapper],
+  .public-portal-isolated [data-radix-popper-content-wrapper] {
+    position: fixed !important;
+    z-index: 60 !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    transform: translateX(0) translateY(0.5rem) !important;
+  }
+  
+  /* Fix Select component trigger buttons on mobile */
+  [data-radix-select-trigger] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Center-align dropdown content */
+  [data-radix-select-content],
+  [data-radix-dropdown-content],
+  [data-radix-popover-content] {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) translateY(0.5rem) !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* Extra small screens (phones in portrait) */
+@media (max-width: 480px) {
+  [data-radix-popper-content-wrapper] {
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    max-width: calc(100vw - 1rem) !important;
+    width: calc(100vw - 1rem) !important;
+  }
+  
+  [data-radix-select-content],
+  [data-radix-dropdown-content],
+  [data-radix-popover-content] {
+    left: 50% !important;
+    transform: translateX(-50%) translateY(0.25rem) !important;
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    min-width: calc(100vw - 1rem) !important;
+  }
+}
+
+/* Specific fixes for invoice categorization dropdowns */
+@media (max-width: 768px) {
+  /* Invoice status and category dropdowns */
+  .invoice-filters [data-radix-select-content],
+  .categorization-dropdown [data-radix-select-content] {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: calc(100vw - 2rem) !important;
+    max-width: calc(100vw - 2rem) !important;
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+    z-index: 70 !important;
+  }
+  
+  /* Backdrop for mobile dropdowns */
+  .invoice-filters [data-radix-select-content]::before,
+  .categorization-dropdown [data-radix-select-content]::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+  }
+}
+
+/* Force proper stacking order for mobile dropdowns */
+@media (max-width: 768px) {
+  [data-radix-popper-content-wrapper],
+  [data-radix-select-content],
+  [data-radix-dropdown-content] {
+    z-index: 9999 !important;
+  }
+}
