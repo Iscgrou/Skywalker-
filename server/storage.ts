@@ -185,6 +185,9 @@ export interface IStorage {
   getActiveRepresentativesCount(): Promise<number>;
   getUnpaidInvoicesCount(): Promise<number>;
   getOverdueInvoicesCount(): Promise<number>;
+  
+  // SHERLOCK v11.0: Batch-based active representatives (unified calculation)
+  getBatchBasedActiveRepresentatives(): Promise<number>;
 
   // Financial calculations
   updateRepresentativeFinancials(repId: number): Promise<void>;
@@ -1031,6 +1034,50 @@ export class DatabaseStorage implements IStorage {
         recentActivities
       };
     }, 'getDashboardData');
+  }
+
+  // SHERLOCK v11.0: Unified Batch-Based Active Representatives Calculation
+  async getBatchBasedActiveRepresentatives(): Promise<number> {
+    return await withDatabaseRetry(async () => {
+      // Find the batch with most representatives (>=10) within the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const significantBatches = await db
+        .select({
+          uploadDate: sql<string>`DATE(invoices.created_at)`,
+          repCount: sql<number>`COUNT(DISTINCT invoices.representative_id)`,
+          invoiceCount: sql<number>`COUNT(*)`,
+          minTime: sql<string>`MIN(invoices.created_at)`,
+          maxTime: sql<string>`MAX(invoices.created_at)`
+        })
+        .from(invoices)
+        .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+        .where(
+          sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
+        )
+        .groupBy(sql`DATE(invoices.created_at)`)
+        .having(sql`COUNT(DISTINCT invoices.representative_id) >= 10`)
+        .orderBy(sql`COUNT(DISTINCT invoices.representative_id) DESC`)
+        .limit(1);
+
+      if (significantBatches.length > 0) {
+        const largestBatch = significantBatches[0];
+        console.log(`🎯 SHERLOCK v11.0 BATCH-SYNC: Found ${largestBatch.repCount} active representatives in largest batch (${largestBatch.uploadDate})`);
+        return largestBatch.repCount;
+      } else {
+        // Fallback: Use any recent activity if no significant batch exists
+        const [fallbackResult] = await db
+          .select({ count: sql<number>`COUNT(DISTINCT invoices.representative_id)` })
+          .from(invoices)
+          .where(
+            sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
+          );
+          
+        console.log(`🎯 SHERLOCK v11.0 BATCH-SYNC: No significant batch found, using recent activity count: ${fallbackResult.count}`);
+        return fallbackResult.count || 0;
+      }
+    }, 'getBatchBasedActiveRepresentatives');
   }
 
   // SHERLOCK v10.0 NEW METHOD: Get debtor representatives with remaining debt

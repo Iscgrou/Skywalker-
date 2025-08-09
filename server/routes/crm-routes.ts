@@ -102,18 +102,23 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
   // ==================== UNIFIED CRM REPRESENTATIVES ENDPOINTS ====================
   
   // Statistics endpoint - Optimized with caching
+  // SHERLOCK v11.0: CRM Statistics with Synchronized Batch-Based Active Count
   app.get("/api/crm/representatives/statistics", crmAuthMiddleware, async (req, res) => {
     try {
       const startTime = Date.now();
       const reps = await syncAdminCrmData(); // Use cached data
       
+      // SHERLOCK v11.0: Import storage for batch-based calculation
+      const { storage } = await import('../storage');
+      const batchBasedActiveCount = await storage.getBatchBasedActiveRepresentatives();
+      
       const stats = {
         totalCount: reps.length,
-        activeCount: reps.filter(r => r.isActive).length,
+        activeCount: batchBasedActiveCount, // 🎯 SYNC: Now matches dashboard and admin panel calculation
         inactiveCount: reps.filter(r => !r.isActive).length,
         totalSales: reps.reduce((sum, r) => sum + parseFloat(r.totalSales || '0'), 0),
         totalDebt: reps.reduce((sum, r) => sum + parseFloat(r.totalDebt || '0'), 0),
-        avgPerformance: reps.length > 0 ? Math.round((reps.filter(r => r.isActive).length / reps.length) * 100) : 0,
+        avgPerformance: reps.length > 0 ? Math.round((batchBasedActiveCount / reps.length) * 100) : 0,
         topPerformers: reps
           .sort((a, b) => parseFloat(b.totalSales || '0') - parseFloat(a.totalSales || '0'))
           .slice(0, 5)
@@ -128,7 +133,7 @@ export function registerCrmRoutes(app: Express, storage: IStorage) {
       };
       
       const responseTime = Date.now() - startTime;
-      console.log(`📊 Statistics generated in ${responseTime}ms`);
+      console.log(`📊 SHERLOCK v11.0 CRM-SYNC: Statistics generated in ${responseTime}ms - Active: ${stats.activeCount} (batch-based)`);
       
       res.json(stats);
     } catch (error) {

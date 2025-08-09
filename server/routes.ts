@@ -338,13 +338,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Representatives Statistics API - SHERLOCK v1.0 CRITICAL FIX (MOVED BEFORE :code route)
+  // SHERLOCK v11.0: Synchronized Representatives Statistics with Batch-Based Active Count
   app.get("/api/representatives/statistics", requireAuth, async (req, res) => {
     try {
       const representatives = await storage.getRepresentatives();
       
+      // SHERLOCK v11.0: Use unified batch-based calculation for activeCount
+      const batchBasedActiveCount = await storage.getBatchBasedActiveRepresentatives();
+      
       const stats = {
         totalCount: representatives.length,
-        activeCount: representatives.filter(rep => rep.isActive).length,
+        activeCount: batchBasedActiveCount, // 🎯 SYNC: Now matches dashboard calculation
         inactiveCount: representatives.filter(rep => !rep.isActive).length,
         totalSales: representatives.reduce((sum, rep) => sum + parseFloat(rep.totalSales || "0"), 0),
         totalDebt: representatives.reduce((sum, rep) => sum + parseFloat(rep.totalDebt || "0"), 0),
@@ -352,6 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           representatives.reduce((sum, rep) => sum + parseFloat(rep.totalSales || "0"), 0) / representatives.length : 0
       };
       
+      console.log(`📊 SHERLOCK v11.0: Representatives statistics - Active: ${stats.activeCount} (batch-based), Total: ${stats.totalCount}`);
       res.json(stats);
     } catch (error) {
       console.error('Error fetching representatives statistics:', error);
