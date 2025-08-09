@@ -853,9 +853,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const representativeId = parseInt(req.params.representativeId);
       const invoices = await storage.getInvoicesByRepresentative(representativeId);
       
-      // Filter only unpaid invoices
+      // SHERLOCK v11.5: Enhanced filter to include partial invoices
       const unpaidInvoices = invoices.filter(invoice => 
-        invoice.status === 'unpaid' || invoice.status === 'overdue'
+        invoice.status === 'unpaid' || invoice.status === 'overdue' || invoice.status === 'partial'
       );
       
       res.json(unpaidInvoices);

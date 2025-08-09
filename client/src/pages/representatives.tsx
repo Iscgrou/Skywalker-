@@ -931,8 +931,12 @@ export default function Representatives() {
                               <TableCell>{formatCurrency(parseFloat(invoice.amount))}</TableCell>
                               <TableCell>{invoice.issueDate}</TableCell>
                               <TableCell>
-                                <Badge variant={invoice.status === 'paid' ? 'default' : 'destructive'}>
-                                  {invoice.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+                                <Badge variant={
+                                  invoice.status === 'paid' ? 'default' : 
+                                  invoice.status === 'partial' ? 'secondary' : 'destructive'
+                                }>
+                                  {invoice.status === 'paid' ? 'پرداخت شده' : 
+                                   invoice.status === 'partial' ? 'تسویه جزئی' : 'پرداخت نشده'}
                                 </Badge>
                               </TableCell>
                               <TableCell>

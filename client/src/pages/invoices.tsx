@@ -10,6 +10,7 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
+  DollarSign,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -194,9 +195,13 @@ export default function Invoices() {
     }
   };
 
+  // SHERLOCK v11.5: Enhanced status badge with partial payment support
   const getInvoiceStatusBadge = (invoice: Invoice) => {
     if (invoice.status === 'paid') {
       return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">پرداخت شده</Badge>;
+    }
+    if (invoice.status === 'partial') {
+      return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">تسویه جزئی</Badge>;
     }
     if (invoice.status === 'overdue' || (invoice.dueDate && isOverdue(invoice.dueDate))) {
       return <Badge variant="destructive">سررسید گذشته</Badge>;
@@ -204,18 +209,20 @@ export default function Invoices() {
     return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">پرداخت نشده</Badge>;
   };
 
+  // SHERLOCK v11.5: Enhanced statistics with partial payment tracking
   const getStats = () => {
-    if (!invoices) return { total: 0, paid: 0, unpaid: 0, overdue: 0, unsent: 0 };
+    if (!invoices) return { total: 0, paid: 0, unpaid: 0, partial: 0, overdue: 0, unsent: 0 };
     
     const total = invoices.length;
     const paid = invoices.filter(inv => inv.status === 'paid').length;
+    const partial = invoices.filter(inv => inv.status === 'partial').length;
     const unpaid = invoices.filter(inv => inv.status === 'unpaid').length;
     const overdue = invoices.filter(inv => 
       inv.status === 'overdue' || (inv.dueDate && isOverdue(inv.dueDate))
     ).length;
     const unsent = invoices.filter(inv => !inv.sentToTelegram).length;
     
-    return { total, paid, unpaid, overdue, unsent };
+    return { total, paid, unpaid, partial, overdue, unsent };
   };
 
   const stats = getStats();
@@ -287,8 +294,8 @@ export default function Invoices() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      {/* Stats Cards - SHERLOCK v11.5: Enhanced with partial payment tracking */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -327,6 +334,20 @@ export default function Invoices() {
                 </p>
               </div>
               <Clock className="w-8 h-8 text-orange-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">تسویه جزئی</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-2">
+                  {toPersianDigits(stats.partial.toString())}
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-blue-400" />
             </div>
           </CardContent>
         </Card>
@@ -388,6 +409,7 @@ export default function Invoices() {
                 <SelectItem value="all">همه وضعیت‌ها</SelectItem>
                 <SelectItem value="unpaid">پرداخت نشده</SelectItem>
                 <SelectItem value="paid">پرداخت شده</SelectItem>
+                <SelectItem value="partial">تسویه جزئی</SelectItem>
                 <SelectItem value="overdue">سررسید گذشته</SelectItem>
               </SelectContent>
             </Select>

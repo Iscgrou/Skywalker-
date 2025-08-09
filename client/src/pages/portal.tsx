@@ -74,11 +74,13 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
             fontSize: '12px', 
             padding: '4px 8px', 
             borderRadius: '4px',
-            background: invoice.status === 'paid' ? '#059669' : '#dc2626',
+            background: invoice.status === 'paid' ? '#059669' : 
+                       invoice.status === 'partial' ? '#ea580c' : '#dc2626',
             color: 'white',
             display: 'inline-block'
           }}>
-            {invoice.status === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+            {invoice.status === 'paid' ? 'پرداخت شده' : 
+             invoice.status === 'partial' ? 'تسویه جزئی' : 'پرداخت نشده'}
           </p>
         </div>
       </div>
