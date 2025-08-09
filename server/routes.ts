@@ -2,8 +2,8 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db, checkDatabaseHealth } from "./db";
-import { sql, eq, and, or } from "drizzle-orm";
-import { invoices } from "@shared/schema";
+import { sql, eq, and, or, ilike, desc } from "drizzle-orm";
+import { invoices, representatives, payments } from "@shared/schema";
 // CRM routes are imported in registerCrmRoutes function
 
 import multer from "multer";
@@ -1315,10 +1315,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MISSING API: Get invoices with batch info - SHERLOCK v12.1 CRITICAL FIX  
+  // SHERLOCK v17.8: Optimized invoices API with database-level pagination and search
   app.get("/api/invoices/with-batch-info", requireAuth, async (req, res) => {
+    const startTime = Date.now();
+    
     try {
-      console.log('📋 SHERLOCK v12.1: دریافت کامل فاکتورها با pagination صحیح');
+      console.log('📋 SHERLOCK v17.8: Database-level pagination with optimized search');
       
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 30;
@@ -1326,67 +1328,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchTerm = req.query.search as string || '';
       const telegramFilter = req.query.telegram as string || 'all';
       
-      const invoices = await storage.getInvoices();
-      const representatives = await storage.getRepresentatives();
+      const offset = (page - 1) * limit;
       
-      // Create lookup maps for performance  
-      const repMap = new Map(representatives.map(rep => [rep.id, rep]));
+      // Build WHERE conditions
+      const whereConditions = [];
       
-      // Enhance invoices with additional info FIRST
-      let enhancedInvoices = invoices.map(invoice => {
-        const rep = repMap.get(invoice.representativeId);
-        
-        return {
-          ...invoice,
-          representativeName: rep?.name || 'نامشخص',
-          representativeCode: rep?.code || 'نامشخص',
-          panelUsername: rep?.panelUsername
-        };
-      });
-      
-      // Apply search filter
       if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        enhancedInvoices = enhancedInvoices.filter(invoice =>
-          invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
-          invoice.representativeName?.toLowerCase().includes(searchLower) ||
-          invoice.representativeCode?.toLowerCase().includes(searchLower)
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        whereConditions.push(
+          or(
+            ilike(invoices.invoiceNumber, searchLower),
+            ilike(representatives.name, searchLower),
+            ilike(representatives.code, searchLower)
+          )
         );
       }
       
-      // Apply status filter
       if (statusFilter && statusFilter !== 'all') {
-        enhancedInvoices = enhancedInvoices.filter(invoice => invoice.status === statusFilter);
+        whereConditions.push(eq(invoices.status, statusFilter));
       }
       
-      // Apply telegram status filter
       if (telegramFilter && telegramFilter !== 'all') {
         if (telegramFilter === 'sent') {
-          enhancedInvoices = enhancedInvoices.filter(invoice => invoice.sentToTelegram);
+          whereConditions.push(eq(invoices.sentToTelegram, true));
         } else if (telegramFilter === 'unsent') {
-          enhancedInvoices = enhancedInvoices.filter(invoice => !invoice.sentToTelegram);
+          whereConditions.push(eq(invoices.sentToTelegram, false));
         }
       }
       
-      // SHERLOCK v12.2: Apply Display sorting - newest invoices first for UI
-      // NOTE: This ONLY affects display order, not payment allocation (which uses FIFO)
-      enhancedInvoices.sort((a, b) => {
-        const dateA = new Date(a.issueDate || a.createdAt).getTime();
-        const dateB = new Date(b.issueDate || b.createdAt).getTime();
-        return dateB - dateA; // Descending: newest first for display
+      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+      
+      // Get total count for pagination
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(invoices)
+        .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
+        .where(whereClause);
+      
+      const totalCount = countResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+      
+      // Get paginated results with optimized single query
+      const invoiceResults = await db
+        .select({
+          id: invoices.id,
+          invoiceNumber: invoices.invoiceNumber,
+          representativeId: invoices.representativeId,
+          amount: invoices.amount,
+          issueDate: invoices.issueDate,
+          dueDate: invoices.dueDate,
+          status: invoices.status,
+          usageData: invoices.usageData,
+          sentToTelegram: invoices.sentToTelegram,
+          telegramSentAt: invoices.telegramSentAt,
+          createdAt: invoices.createdAt,
+          representativeName: representatives.name,
+          representativeCode: representatives.code,
+          panelUsername: representatives.panelUsername,
+          // Aggregate payment amount in single query
+          totalPaid: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
+        })
+        .from(invoices)
+        .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
+        .leftJoin(payments, eq(payments.invoiceId, invoices.id))
+        .where(whereClause)
+        .groupBy(
+          invoices.id,
+          invoices.invoiceNumber,
+          invoices.representativeId,
+          invoices.amount,
+          invoices.issueDate,
+          invoices.dueDate,
+          invoices.status,
+          invoices.usageData,
+          invoices.sentToTelegram,
+          invoices.telegramSentAt,
+          invoices.createdAt,
+          representatives.name,
+          representatives.code,
+          representatives.panelUsername
+        )
+        .orderBy(desc(invoices.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Calculate status locally without additional queries
+      const enhancedInvoices = invoiceResults.map((invoice) => {
+        const invoiceAmount = parseFloat(invoice.amount);
+        const totalPaid = parseFloat(invoice.totalPaid || '0');
+        const dueDate = invoice.dueDate;
+        const now = new Date();
+        
+        let calculatedStatus: string;
+        
+        if (totalPaid >= invoiceAmount) {
+          calculatedStatus = 'paid';
+        } else if (totalPaid > 0) {
+          calculatedStatus = 'partial';
+        } else if (dueDate && new Date(dueDate) < now) {
+          calculatedStatus = 'overdue';
+        } else {
+          calculatedStatus = 'unpaid';
+        }
+
+        return {
+          ...invoice,
+          status: calculatedStatus
+        };
       });
       
-      // Calculate pagination
-      const totalCount = enhancedInvoices.length;
-      const totalPages = Math.ceil(totalCount / limit);
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedInvoices = enhancedInvoices.slice(startIndex, endIndex);
+      const responseTime = Date.now() - startTime;
       
-      console.log(`✅ صفحه ${page}: ${paginatedInvoices.length} فاکتور از ${totalCount} فاکتور کل (${totalPages} صفحه)`);
+      if (responseTime > 1000) {
+        console.log(`⚠️ Slow endpoint: GET /api/invoices/with-batch-info - ${responseTime}ms`);
+      }
+      
+      console.log(`✅ صفحه ${page}: ${enhancedInvoices.length} فاکتور از ${totalCount} فاکتور کل (${totalPages} صفحه)`);
       
       res.json({
-        data: paginatedInvoices,
+        data: enhancedInvoices,
         pagination: {
           currentPage: page,
           pageSize: limit,
@@ -1397,7 +1457,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('❌ خطا در دریافت فاکتورها:', error);
+      const responseTime = Date.now() - startTime;
+      console.error(`❌ خطا در دریافت فاکتورها (${responseTime}ms):`, error);
       res.status(500).json({ error: "خطا در دریافت فهرست فاکتورها" });
     }
   });

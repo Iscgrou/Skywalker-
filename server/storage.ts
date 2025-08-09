@@ -613,7 +613,7 @@ export class DatabaseStorage implements IStorage {
 
   // SHERLOCK v11.5: Enhanced with real-time payment allocation status calculation  
   async getInvoices(): Promise<any[]> {
-    // Get base invoice data
+    // SHERLOCK v17.8: Performance Optimized - Single query with payment aggregation
     const invoiceResults = await db
       .select({
         id: invoices.id,
@@ -630,29 +630,62 @@ export class DatabaseStorage implements IStorage {
         // Join representative information
         representativeName: representatives.name,
         representativeCode: representatives.code,
-        panelUsername: representatives.panelUsername
+        panelUsername: representatives.panelUsername,
+        // Aggregate payment amount in single query
+        totalPaid: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
       })
       .from(invoices)
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
-      .orderBy(invoices.issueDate, invoices.createdAt); // SHERLOCK v11.5: FIFO order (oldest first)
+      .leftJoin(payments, eq(payments.invoiceId, invoices.id))
+      .groupBy(
+        invoices.id,
+        invoices.invoiceNumber,
+        invoices.representativeId,
+        invoices.amount,
+        invoices.issueDate,
+        invoices.dueDate,
+        invoices.status,
+        invoices.usageData,
+        invoices.sentToTelegram,
+        invoices.telegramSentAt,
+        invoices.createdAt,
+        representatives.name,
+        representatives.code,
+        representatives.panelUsername
+      )
+      .orderBy(invoices.issueDate, invoices.createdAt);
 
-    // Calculate real-time status for each invoice based on payments
-    const enhancedInvoices = await Promise.all(
-      invoiceResults.map(async (invoice) => {
-        const calculatedStatus = await this.calculateInvoicePaymentStatus(invoice.id);
-        return {
-          ...invoice,
-          status: calculatedStatus // Override with real-time calculated status
-        };
-      })
-    );
+    // Calculate status locally without additional queries
+    const enhancedInvoices = invoiceResults.map((invoice) => {
+      const invoiceAmount = parseFloat(invoice.amount);
+      const totalPaid = parseFloat(invoice.totalPaid || '0');
+      const dueDate = invoice.dueDate;
+      const now = new Date();
+      
+      let calculatedStatus: string;
+      
+      if (totalPaid >= invoiceAmount) {
+        calculatedStatus = 'paid';
+      } else if (totalPaid > 0) {
+        calculatedStatus = 'partial';
+      } else if (dueDate && new Date(dueDate) < now) {
+        calculatedStatus = 'overdue';
+      } else {
+        calculatedStatus = 'unpaid';
+      }
+
+      return {
+        ...invoice,
+        status: calculatedStatus
+      };
+    });
 
     return enhancedInvoices;
   }
 
-  // SHERLOCK v11.5: Enhanced with real-time payment allocation status calculation and FIFO ordering
+  // SHERLOCK v17.8: Optimized with single query and local status calculation
   async getInvoicesByRepresentative(repId: number): Promise<any[]> {
-    // Get base invoice data - CRITICAL: Order by oldest first (FIFO for payment allocation)
+    // Get base invoice data with payment aggregation in single query
     const invoiceResults = await db
       .select({
         id: invoices.id,
@@ -669,23 +702,56 @@ export class DatabaseStorage implements IStorage {
         // Join representative information
         representativeName: representatives.name,
         representativeCode: representatives.code,
-        panelUsername: representatives.panelUsername
+        panelUsername: representatives.panelUsername,
+        // Aggregate payment amount in single query
+        totalPaid: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
       })
       .from(invoices)
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
+      .leftJoin(payments, eq(payments.invoiceId, invoices.id))
       .where(eq(invoices.representativeId, repId))
+      .groupBy(
+        invoices.id,
+        invoices.invoiceNumber,
+        invoices.representativeId,
+        invoices.amount,
+        invoices.issueDate,
+        invoices.dueDate,
+        invoices.status,
+        invoices.usageData,
+        invoices.sentToTelegram,
+        invoices.telegramSentAt,
+        invoices.createdAt,
+        representatives.name,
+        representatives.code,
+        representatives.panelUsername
+      )
       .orderBy(invoices.issueDate, invoices.createdAt); // FIFO: Oldest first for payment processing
 
-    // Calculate real-time status for each invoice based on payments
-    const enhancedInvoices = await Promise.all(
-      invoiceResults.map(async (invoice) => {
-        const calculatedStatus = await this.calculateInvoicePaymentStatus(invoice.id);
-        return {
-          ...invoice,
-          status: calculatedStatus // Override with real-time calculated status
-        };
-      })
-    );
+    // Calculate status locally without additional queries
+    const enhancedInvoices = invoiceResults.map((invoice) => {
+      const invoiceAmount = parseFloat(invoice.amount);
+      const totalPaid = parseFloat(invoice.totalPaid || '0');
+      const dueDate = invoice.dueDate;
+      const now = new Date();
+      
+      let calculatedStatus: string;
+      
+      if (totalPaid >= invoiceAmount) {
+        calculatedStatus = 'paid';
+      } else if (totalPaid > 0) {
+        calculatedStatus = 'partial';
+      } else if (dueDate && new Date(dueDate) < now) {
+        calculatedStatus = 'overdue';
+      } else {
+        calculatedStatus = 'unpaid';
+      }
+
+      return {
+        ...invoice,
+        status: calculatedStatus
+      };
+    });
 
     return enhancedInvoices;
   }
@@ -1175,11 +1241,11 @@ export class DatabaseStorage implements IStorage {
       return {
         totalRevenue: totalRevenueResult.totalRevenue || "0",
         totalDebt: totalRemainingDebt.toString(),
-        activeRepresentatives: batchActiveReps.count || 0,
-        pendingInvoices: pendingInvs.count,
-        overdueInvoices: overdueInvs.count,
-        totalSalesPartners: totalPartners.count,
-        unsentInvoices: unsentInvs.count, // SHERLOCK v12.2: Add unsent invoices count
+        activeRepresentatives: batchActiveReps?.count || 0,
+        pendingInvoices: pendingInvs?.count || 0,
+        overdueInvoices: overdueInvs?.count || 0,
+        totalSalesPartners: totalPartners?.count || 0,
+        unsentInvoices: unsentInvs?.count || 0, // SHERLOCK v12.2: Add unsent invoices count
         recentActivities
       };
     }, 'getDashboardData');

@@ -228,16 +228,16 @@ export default function Invoices() {
   };
 
   // SHERLOCK v12.2: Use total statistics for widgets, not just current page  
-  const stats = totalStats ? {
-    total: totalStats.totalInvoices || 0,
-    unpaid: totalStats.unpaidCount || 0,
-    paid: totalStats.paidCount || 0,
-    partial: totalStats.partialCount || 0,
-    overdue: totalStats.overdueCount || 0,
-    totalAmount: totalStats.totalAmount || 0,
+  const stats = totalStats && typeof totalStats === 'object' ? {
+    total: (totalStats as any).totalInvoices || 0,
+    unpaid: (totalStats as any).unpaidCount || 0,
+    paid: (totalStats as any).paidCount || 0,
+    partial: (totalStats as any).partialCount || 0,
+    overdue: (totalStats as any).overdueCount || 0,
+    totalAmount: (totalStats as any).totalAmount || 0,
     // SHERLOCK v12.2: Use total telegram stats from API
-    sentToTelegram: totalStats.sentToTelegramCount || 0,
-    unsentToTelegram: totalStats.unsentToTelegramCount || 0
+    sentToTelegram: (totalStats as any).sentToTelegramCount || 0,
+    unsentToTelegram: (totalStats as any).unsentToTelegramCount || 0
   } : {
     total: filteredInvoices.length,
     unpaid: filteredInvoices.filter((inv: Invoice) => inv.status === 'unpaid').length,
