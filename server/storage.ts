@@ -2393,7 +2393,6 @@ export class DatabaseStorage implements IStorage {
             totalPartners: sql<number>`count(*)`,
             totalActivePartners: sql<number>`count(*) filter (where is_active = true)`,
             totalCommission: sql<string>`COALESCE(SUM(CAST(total_commission as DECIMAL)), 0)`,
-            totalSales: sql<string>`COALESCE(SUM(CAST(total_sales as DECIMAL)), 0)`,
             averageCommissionRate: sql<number>`COALESCE(AVG(commission_rate), 0)`
           })
           .from(salesPartners);
@@ -2414,7 +2413,7 @@ export class DatabaseStorage implements IStorage {
           totalPartners: result[0].totalPartners || 0,
           activePartners: result[0].totalActivePartners || 0,
           totalCommission: result[0].totalCommission || "0",
-          totalSales: result[0].totalSales || "0",
+          totalSales: salesCouplingResult[0].totalCoupledSales || "0", // Use coupled sales as total sales
           averageCommissionRate: parseFloat((result[0].averageCommissionRate || 0).toString()),
           totalCoupledSales: salesCouplingResult[0].totalCoupledSales,
           totalCoupledDebt: salesCouplingResult[0].totalCoupledDebt,

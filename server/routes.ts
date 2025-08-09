@@ -157,8 +157,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Authentication API
-  app.post("/api/auth/login", async (req, res) => {
+  // SHERLOCK v15.0 FIX: Add backward compatibility for old login endpoint
+  app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
       
