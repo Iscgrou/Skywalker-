@@ -76,6 +76,19 @@ async function withDatabaseRetry<T>(
         return [] as T; // Empty array for list operations
       }
       
+      if (operationName === 'getDashboardData') {
+        return {
+          totalRevenue: "0",
+          totalDebt: "0", 
+          activeRepresentatives: 0,
+          pendingInvoices: 0,
+          overdueInvoices: 0,
+          totalSalesPartners: 0,
+          unsentInvoices: 0,
+          recentActivities: []
+        } as T;
+      }
+      
       // For other operations, return empty results
       return [] as T;
     }
