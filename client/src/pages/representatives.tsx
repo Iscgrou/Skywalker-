@@ -2321,32 +2321,62 @@ function CreatePaymentDialog({
     }
   };
 
-  // Smart Auto-Allocation System
+  // SHERLOCK v11.5: CRITICAL FIX - FIFO Auto-Allocation System (Oldest First)
   const handleAutoAllocation = async (paymentAmount: number) => {
     try {
-      // Get unpaid invoices sorted by date (oldest first)
+      console.log('🔧 SHERLOCK v11.5 FIFO: Starting auto-allocation for oldest invoices first');
+      
+      // CRITICAL: Get unpaid invoices sorted by date (OLDEST FIRST - FIFO principle)
       const unpaidInvoices = (representative as any).invoices?.filter(
-        (inv: any) => inv.status === 'unpaid' || inv.status === 'partial'
-      ).sort((a: any, b: any) => new Date(a.issueDate).getTime() - new Date(b.issueDate).getTime()) || [];
+        (inv: any) => inv.status === 'unpaid' || inv.status === 'partial' || inv.status === 'overdue'
+      ).sort((a: any, b: any) => {
+        // FIFO: Oldest invoices first (ascending order by issue date)
+        const dateA = new Date(a.issueDate || a.createdAt).getTime();
+        const dateB = new Date(b.issueDate || b.createdAt).getTime();
+        return dateA - dateB; // Ascending: oldest first
+      }) || [];
+      
+      console.log(`📊 FIFO Order: Processing ${unpaidInvoices.length} invoices from oldest to newest`);
+      if (unpaidInvoices.length > 0) {
+        console.log(`🔍 First invoice (oldest): ${unpaidInvoices[0].invoiceNumber} - ${unpaidInvoices[0].issueDate || unpaidInvoices[0].createdAt}`);
+        console.log(`🔍 Last invoice (newest): ${unpaidInvoices[unpaidInvoices.length-1].invoiceNumber} - ${unpaidInvoices[unpaidInvoices.length-1].issueDate || unpaidInvoices[unpaidInvoices.length-1].createdAt}`);
+      }
 
       let remainingAmount = paymentAmount;
       const allocations: Array<{invoiceId: number, amount: number, newStatus: string}> = [];
       
+      // Process invoices in FIFO order (oldest first)
       for (const invoice of unpaidInvoices) {
         if (remainingAmount <= 0) break;
         
+        console.log(`🔄 Processing invoice ${invoice.invoiceNumber} (${invoice.issueDate || invoice.createdAt}) - Amount: ${invoice.amount}`);
+        
         const invoiceAmount = parseFloat(invoice.amount);
-        const allocationAmount = Math.min(remainingAmount, invoiceAmount);
         
-        const newStatus = allocationAmount >= invoiceAmount ? 'paid' : 'partial';
-        allocations.push({
-          invoiceId: invoice.id,
-          amount: allocationAmount,
-          newStatus
-        });
+        // Get already paid amount for partial invoices
+        const alreadyPaidAmount = invoice.status === 'partial' 
+          ? await getCurrentlyPaidAmount(invoice.id)
+          : 0;
         
-        remainingAmount -= allocationAmount;
+        const remainingInvoiceAmount = invoiceAmount - alreadyPaidAmount;
+        const allocationAmount = Math.min(remainingAmount, remainingInvoiceAmount);
+        
+        if (allocationAmount > 0) {
+          const totalAfterPayment = alreadyPaidAmount + allocationAmount;
+          const newStatus = totalAfterPayment >= invoiceAmount ? 'paid' : 'partial';
+          
+          allocations.push({
+            invoiceId: invoice.id,
+            amount: allocationAmount,
+            newStatus
+          });
+          
+          console.log(`✅ Allocated ${allocationAmount} to invoice ${invoice.invoiceNumber} - Status: ${newStatus}`);
+          remainingAmount -= allocationAmount;
+        }
       }
+      
+      console.log(`📊 FIFO allocation complete. ${allocations.length} invoices allocated, ${remainingAmount} remaining`);
 
       // Create payment record
       const paymentData = {
@@ -2369,6 +2399,18 @@ function CreatePaymentDialog({
       
     } catch (error) {
       throw error;
+    }
+  };
+
+  // Helper function to get currently paid amount for an invoice
+  const getCurrentlyPaidAmount = async (invoiceId: number): Promise<number> => {
+    try {
+      const paymentsResponse = await apiRequest(`/api/payments?invoiceId=${invoiceId}`);
+      const payments = Array.isArray(paymentsResponse) ? paymentsResponse : [];
+      return payments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+    } catch (error) {
+      console.warn('Could not fetch payment info for invoice', invoiceId, error);
+      return 0;
     }
   };
 

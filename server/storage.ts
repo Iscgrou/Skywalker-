@@ -590,9 +590,9 @@ export class DatabaseStorage implements IStorage {
     return enhancedInvoices;
   }
 
-  // SHERLOCK v11.5: Enhanced with real-time payment allocation status calculation
+  // SHERLOCK v11.5: Enhanced with real-time payment allocation status calculation and FIFO ordering
   async getInvoicesByRepresentative(repId: number): Promise<any[]> {
-    // Get base invoice data
+    // Get base invoice data - CRITICAL: Order by oldest first (FIFO for payment allocation)
     const invoiceResults = await db
       .select({
         id: invoices.id,
@@ -614,7 +614,7 @@ export class DatabaseStorage implements IStorage {
       .from(invoices)
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
       .where(eq(invoices.representativeId, repId))
-      .orderBy(desc(invoices.createdAt));
+      .orderBy(invoices.issueDate, invoices.createdAt); // FIFO: Oldest first for payment processing
 
     // Calculate real-time status for each invoice based on payments
     const enhancedInvoices = await Promise.all(
@@ -2051,17 +2051,19 @@ export class DatabaseStorage implements IStorage {
           )
           .orderBy(payments.createdAt);
 
-        // Get unpaid invoices for this representative
+        // SHERLOCK v11.5: Get unpaid invoices for this representative - FIFO (oldest first)
         const unpaidInvoices = await db
           .select()
           .from(invoices)
           .where(
             and(
               eq(invoices.representativeId, representativeId),
-              inArray(invoices.status, ['unpaid', 'overdue'])
+              inArray(invoices.status, ['unpaid', 'overdue', 'partial'])
             )
           )
-          .orderBy(invoices.createdAt);
+          .orderBy(invoices.issueDate, invoices.createdAt); // FIFO: Oldest invoices first
+
+        console.log(`🔧 SHERLOCK v11.5 FIFO: Found ${unpaidInvoices.length} unpaid invoices for auto-allocation (oldest first)`);
 
         let allocated = 0;
         let totalAmount = 0;

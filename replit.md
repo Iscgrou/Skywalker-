@@ -103,3 +103,11 @@ The CRM system contains four functional sections:
   - Enhanced representatives section: Smart pagination for large datasets, sortable columns
   - Fixed pagination logic for proper navigation through 240+ representatives
   - Added complete table sorting functionality (code, name, owner, status, sales, debt)
+- **SHERLOCK v11.5 CRITICAL FIFO PAYMENT ALLOCATION**: ✅ Complete payment allocation system overhaul
+  - Fixed CRITICAL bug: Payment allocation now follows FIFO principle (oldest invoices first)
+  - Updated frontend auto-allocation logic to sort by issueDate/createdAt ascending
+  - Enhanced backend storage methods to maintain FIFO ordering consistently
+  - Added real-time invoice status calculation with automatic partial payment detection
+  - Implemented comprehensive payment tracking for partial invoice settlements
+  - Added batch invoice status recalculation API for system-wide consistency
+  - Enhanced logging for payment allocation debugging and verification
