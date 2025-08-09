@@ -1089,13 +1089,11 @@ export class DatabaseStorage implements IStorage {
           eq(invoices.status, "partial")
         ));
 
+      // SHERLOCK v11.6 CRITICAL FIX: Count overdue only - simplified without Persian date issues
       const [overdueInvs] = await db
         .select({ count: sql<number>`count(*)` })
         .from(invoices)
-        .where(or(
-          eq(invoices.status, "overdue"), 
-          and(eq(invoices.status, "partial"), sql`invoices.due_date < CURRENT_DATE`)
-        ));
+        .where(eq(invoices.status, "overdue"));
 
       const [totalPartners] = await db
         .select({ count: sql<number>`count(*)` })
