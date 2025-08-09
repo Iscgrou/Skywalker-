@@ -953,37 +953,54 @@ export class DatabaseStorage implements IStorage {
           return sum + (debt > 0 ? debt : 0);
         }, 0);
 
-      // SHERLOCK v10.0 RECALIBRATED: Active Representatives = Based on most recent invoice batch upload
-      // Find the most recent invoice creation time (last upload batch)
-      const [latestInvoiceTime] = await db
-        .select({ 
-          latestTime: sql<string>`MAX(invoices.created_at)` 
+      // SHERLOCK v10.0 SIGNIFICANT-BATCH: Active Representatives = Most recent significant batch upload
+      // Find the most recent significant batch (>=10 representatives) within the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const significantBatches = await db
+        .select({
+          uploadDate: sql<string>`DATE(invoices.created_at)`,
+          repCount: sql<number>`COUNT(DISTINCT invoices.representative_id)`,
+          invoiceCount: sql<number>`COUNT(*)`,
+          minTime: sql<string>`MIN(invoices.created_at)`,
+          maxTime: sql<string>`MAX(invoices.created_at)`
         })
-        .from(invoices);
+        .from(invoices)
+        .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
+        .where(
+          and(
+            eq(representatives.isActive, true),
+            sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
+          )
+        )
+        .groupBy(sql`DATE(invoices.created_at)`)
+        .having(sql`COUNT(DISTINCT invoices.representative_id) >= 10`)
+        .orderBy(sql`DATE(invoices.created_at) DESC`)
+        .limit(1);
 
       let batchActiveReps = { count: 0 };
       
-      if (latestInvoiceTime.latestTime) {
-        const latestTime = new Date(latestInvoiceTime.latestTime);
-        // Consider invoices created within 5 minutes of the latest as part of the same batch
-        const batchStartTime = new Date(latestTime.getTime() - (5 * 60 * 1000));
-        
-        const [batchActiveRepsResult] = await db
+      if (significantBatches.length > 0) {
+        const latestSignificantBatch = significantBatches[0];
+        batchActiveReps = { count: latestSignificantBatch.repCount };
+        console.log(`🎯 SHERLOCK v10.0 SIGNIFICANT-BATCH: Found ${batchActiveReps.count} active representatives in latest significant batch (${latestSignificantBatch.uploadDate})`);
+        console.log(`📊 Batch details: ${latestSignificantBatch.invoiceCount} invoices created from ${latestSignificantBatch.minTime} to ${latestSignificantBatch.maxTime}`);
+      } else {
+        // Fallback: Use any recent activity if no significant batch exists
+        const [fallbackResult] = await db
           .select({ count: sql<number>`COUNT(DISTINCT invoices.representative_id)` })
           .from(invoices)
           .innerJoin(representatives, eq(invoices.representativeId, representatives.id))
           .where(
             and(
               eq(representatives.isActive, true),
-              sql`invoices.created_at >= ${batchStartTime.toISOString()}`,
-              sql`invoices.created_at <= ${latestTime.toISOString()}`
+              sql`invoices.created_at >= ${thirtyDaysAgo.toISOString()}`
             )
           );
           
-        batchActiveReps = batchActiveRepsResult;
-        console.log(`🎯 SHERLOCK v10.0: Found ${batchActiveReps.count} active representatives in latest batch (${batchStartTime.toISOString()} to ${latestTime.toISOString()})`);
-      } else {
-        console.log(`🎯 SHERLOCK v10.0: No invoices found, active representatives = 0`);
+        batchActiveReps = fallbackResult;
+        console.log(`🎯 SHERLOCK v10.0: No significant batch found, using recent activity count: ${batchActiveReps.count}`);
       }
 
       const [pendingInvs] = await db
