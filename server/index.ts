@@ -219,9 +219,43 @@ app.use((req, res, next) => {
     });
   });
 
-  // SHERLOCK v17.5: Enhanced error handling with frontend access bypass
+  // SHERLOCK v17.7: Fixed error handler - Complete maintenance bypass
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    // Prevent double response issue
+    if (res.headersSent) {
+      return _next(err);
+    }
+    
     const status = err.status || err.statusCode || 500;
+    
+    // SHERLOCK v17.7: Complete frontend asset bypass - NO MAINTENANCE BLOCKING
+    if (req.path === '/' || 
+        req.path.includes('.js') || 
+        req.path.includes('.css') || 
+        req.path.includes('.tsx') || 
+        req.path.includes('.ts') ||
+        req.path.includes('.jsx') ||
+        req.path.includes('.mjs') ||
+        req.path.startsWith('/@') || 
+        req.path.startsWith('/src/') ||
+        req.path.startsWith('/@fs/') ||
+        req.path.includes('node_modules') ||
+        req.path.includes('chunk-') ||
+        req.path.includes('deps/') ||
+        req.path.includes('vite') ||
+        req.path.includes('client') ||
+        req.path.includes('components') ||
+        req.path.includes('pages') ||
+        req.path.includes('lib/') ||
+        req.path.includes('hooks/') ||
+        req.path.includes('layout/') ||
+        req.path.startsWith('/api/login') ||
+        req.path.startsWith('/api/auth') ||
+        req.path.startsWith('/api/crm')) {
+      // COMPLETE BYPASS - Allow all frontend and auth routes
+      return _next();
+    }
+
     let message = err.message || "Internal Server Error";
     
     // Special handling for database endpoint failures
@@ -231,23 +265,7 @@ app.use((req, res, next) => {
     
     log(`Error ${status}: ${message} - ${req.method} ${req.path}`, 'error');
     
-    // SHERLOCK v17.5: Complete frontend asset bypass during maintenance
-    if (req.path === '/' || 
-        req.path.includes('.js') || 
-        req.path.includes('.css') || 
-        req.path.includes('.tsx') || 
-        req.path.includes('.ts') ||
-        req.path.startsWith('/@') || 
-        req.path.startsWith('/src/') ||
-        req.path.startsWith('/@fs/') ||
-        req.path.includes('node_modules') ||
-        req.path.includes('chunk-') ||
-        req.path.includes('deps/')) {
-      // Don't block any frontend assets during database maintenance
-      return _next();
-    }
-    
-    // Don't crash the server, just log and respond
+    // Only respond if headers not sent
     res.status(status).json({ 
       error: message,
       timestamp: new Date().toISOString(),
