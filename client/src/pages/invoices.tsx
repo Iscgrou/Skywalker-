@@ -235,9 +235,9 @@ export default function Invoices() {
     partial: totalStats.partialCount || 0,
     overdue: totalStats.overdueCount || 0,
     totalAmount: totalStats.totalAmount || 0,
-    // Calculate telegram stats from current page for now (could be enhanced later)
-    sentToTelegram: filteredInvoices.filter((inv: Invoice) => inv.sentToTelegram).length,
-    unsentToTelegram: filteredInvoices.filter((inv: Invoice) => !inv.sentToTelegram).length
+    // SHERLOCK v12.2: Use total telegram stats from API
+    sentToTelegram: totalStats.sentToTelegramCount || 0,
+    unsentToTelegram: totalStats.unsentToTelegramCount || 0
   } : {
     total: filteredInvoices.length,
     unpaid: filteredInvoices.filter((inv: Invoice) => inv.status === 'unpaid').length,

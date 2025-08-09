@@ -1298,7 +1298,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .reduce((sum, inv) => sum + parseFloat(inv.amount), 0),
         paidAmount: invoices
           .filter(inv => inv.status === 'paid')
-          .reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
+          .reduce((sum, inv) => sum + parseFloat(inv.amount), 0),
+        // SHERLOCK v12.2: Add telegram statistics for accurate unsent count
+        sentToTelegramCount: invoices.filter(inv => inv.sentToTelegram).length,
+        unsentToTelegramCount: invoices.filter(inv => !inv.sentToTelegram).length,
+        // SHERLOCK v12.2: Add telegram statistics for accurate unsent count
+        sentToTelegramCount: invoices.filter(inv => inv.sentToTelegram).length,
+        unsentToTelegramCount: invoices.filter(inv => !inv.sentToTelegram).length
       };
       
       console.log('📊 آمار فاکتورها:', stats);
