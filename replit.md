@@ -97,3 +97,9 @@ The CRM system contains four functional sections:
   - Removed all trend comparisons and monthly statistics from dashboard
   - Dashboard now shows authentic batch-based statistics automatically updating with each JSON upload
   - System correctly identifies and displays the most substantial file upload batch
+- **SHERLOCK v11.0 COMPREHENSIVE SYNCHRONIZATION**: ✅ Complete system harmonization
+  - Unified batch-based active representatives calculation across all endpoints (dashboard, admin, CRM)
+  - Standardized terminology: "اعتبار" → "کل پرداخت‌ها" across UI components
+  - Enhanced representatives section: Smart pagination for large datasets, sortable columns
+  - Fixed pagination logic for proper navigation through 240+ representatives
+  - Added complete table sorting functionality (code, name, owner, status, sales, debt)

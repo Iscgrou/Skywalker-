@@ -69,6 +69,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
+// SHERLOCK v11.0: Updated interface with standardized terminology
 interface Representative {
   id: number;
   code: string;
@@ -82,7 +83,7 @@ interface Representative {
   isActive: boolean;
   totalDebt: string;
   totalSales: string;
-  credit: string;
+  credit: string; // Keep for backend compatibility, mapped to payments in UI
   createdAt: string;
   updatedAt: string;
 }
@@ -149,10 +150,28 @@ export default function Representatives() {
   const [isPaymentDeleteConfirmOpen, setIsPaymentDeleteConfirmOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const itemsPerPage = 30;
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // SHERLOCK v11.0: Enhanced sorting logic
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  const getSortIcon = (column: string) => {
+    if (sortBy !== column) return "↕️";
+    return sortOrder === "asc" ? "⬆️" : "⬇️";
+  };
 
   const { data: representatives = [], isLoading } = useQuery<Representative[]>({
     queryKey: ["/api/representatives"],
@@ -177,20 +196,58 @@ export default function Representatives() {
     }
   });
 
-  // Filter representatives based on search term and status
-  const filteredRepresentatives = representatives.filter(rep => {
-    const matchesSearch = 
-      rep.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rep.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rep.ownerName?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = 
-      statusFilter === "all" || 
-      (statusFilter === "active" && rep.isActive) ||
-      (statusFilter === "inactive" && !rep.isActive);
-    
-    return matchesSearch && matchesStatus;
-  });
+  // SHERLOCK v11.0: Enhanced filtering and sorting
+  const filteredRepresentatives = representatives
+    .filter(rep => {
+      const matchesSearch = 
+        rep.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rep.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rep.ownerName?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = 
+        statusFilter === "all" || 
+        (statusFilter === "active" && rep.isActive) ||
+        (statusFilter === "inactive" && !rep.isActive);
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'code':
+          aValue = a.code;
+          bValue = b.code;
+          break;
+        case 'name':
+          aValue = a.name;
+          bValue = b.name;
+          break;
+        case 'ownerName':
+          aValue = a.ownerName || '';
+          bValue = b.ownerName || '';
+          break;
+        case 'isActive':
+          aValue = a.isActive ? 1 : 0;
+          bValue = b.isActive ? 1 : 0;
+          break;
+        case 'totalSales':
+          aValue = parseFloat(a.totalSales || '0');
+          bValue = parseFloat(b.totalSales || '0');
+          break;
+        case 'totalDebt':
+          aValue = parseFloat(a.totalDebt || '0');
+          bValue = parseFloat(b.totalDebt || '0');
+          break;
+        default:
+          aValue = a.name;
+          bValue = b.name;
+      }
+      
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredRepresentatives.length / itemsPerPage);
@@ -201,7 +258,7 @@ export default function Representatives() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, sortBy, sortOrder]);
 
   const getStatusBadge = (isActive: boolean) => {
     return isActive ? (
@@ -564,12 +621,42 @@ export default function Representatives() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>کد</TableHead>
-                  <TableHead>نام فروشگاه</TableHead>
-                  <TableHead>مالک</TableHead>
-                  <TableHead>وضعیت</TableHead>
-                  <TableHead>کل فروش</TableHead>
-                  <TableHead>بدهی</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => handleSort('code')}
+                  >
+                    کد {getSortIcon('code')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => handleSort('name')}
+                  >
+                    نام فروشگاه {getSortIcon('name')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => handleSort('ownerName')}
+                  >
+                    مالک {getSortIcon('ownerName')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => handleSort('isActive')}
+                  >
+                    وضعیت {getSortIcon('isActive')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => handleSort('totalSales')}
+                  >
+                    کل فروش {getSortIcon('totalSales')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => handleSort('totalDebt')}
+                  >
+                    بدهی {getSortIcon('totalDebt')}
+                  </TableHead>
                   <TableHead>عملیات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -637,20 +724,27 @@ export default function Representatives() {
               
               <div className="flex gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = i + 1;
+                  let page;
                   if (totalPages <= 5) {
-                    return (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                      >
-                        {toPersianDigits(page.toString())}
-                      </Button>
-                    );
+                    page = i + 1;
+                  } else {
+                    // SHERLOCK v11.0: Smart pagination for large datasets
+                    const start = Math.max(1, currentPage - 2);
+                    const end = Math.min(totalPages, start + 4);
+                    page = start + i;
+                    if (page > end) return null;
                   }
-                  return null;
+                  
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {toPersianDigits(page.toString())}
+                    </Button>
+                  );
                 })}
               </div>
               
@@ -777,7 +871,7 @@ export default function Representatives() {
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">کل پرداخت‌ها:</span>
                       <span className="font-bold text-blue-600 dark:text-blue-400">
-                        {formatCurrency(parseFloat(selectedRep.credit))}
+                        {formatCurrency(selectedRep.payments?.reduce((sum, payment) => sum + parseFloat(payment.amount), 0) || parseFloat(selectedRep.credit || "0"))}
                       </span>
                     </div>
                     <Separator />
