@@ -24,7 +24,7 @@ if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD && proces
   process.env.DATABASE_URL = databaseUrl;
 } else {
   // Fallback to existing DATABASE_URL if new credentials not available
-  databaseUrl = process.env.DATABASE_URL;
+  databaseUrl = process.env.DATABASE_URL || '';
   if (databaseUrl && !databaseUrl.includes('sslmode=require')) {
     databaseUrl = databaseUrl.includes('?') ? `${databaseUrl}&sslmode=require` : `${databaseUrl}?sslmode=require`;
     process.env.DATABASE_URL = databaseUrl;

@@ -170,12 +170,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get admin user from database
       const adminUser = await storage.getAdminUser(username);
       
-      if (!adminUser || !adminUser.is_active) {
+      if (!adminUser || !adminUser.isActive) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
       }
 
       // Verify password
-      const isPasswordValid = await bcrypt.compare(password, adminUser.password_hash);
+      console.log('🔐 SHERLOCK Debug AUTH - Password Comparison:', {
+        inputPassword: password,
+        storedHash: adminUser.passwordHash,
+        username: adminUser.username
+      });
+      
+      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      console.log('🔐 SHERLOCK Debug AUTH - Password Valid:', isPasswordValid);
       
       if (!isPasswordValid) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
@@ -220,12 +227,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get admin user from database
       const adminUser = await storage.getAdminUser(username);
       
-      if (!adminUser || !adminUser.is_active) {
+      if (!adminUser || !adminUser.isActive) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
       }
 
       // Verify password
-      const isPasswordValid = await bcrypt.compare(password, adminUser.password_hash);
+      console.log('🔐 SHERLOCK Debug LEGACY - Password Comparison:', {
+        inputPassword: password,
+        storedHash: adminUser.passwordHash,
+        username: adminUser.username
+      });
+      
+      const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
+      console.log('🔐 SHERLOCK Debug LEGACY - Password Valid:', isPasswordValid);
       
       if (!isPasswordValid) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
@@ -2671,7 +2685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           database_info: {
             database: versionResult.rows[0]?.current_database,
-            version: versionResult.rows[0]?.version?.substring(0, 50) + '...',
+            version: typeof versionResult.rows[0]?.version === 'string' ? versionResult.rows[0].version.substring(0, 50) + '...' : 'N/A',
             success: true
           }
         },
