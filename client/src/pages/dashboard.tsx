@@ -24,6 +24,7 @@ interface DashboardData {
   pendingInvoices: number;
   overdueInvoices: number;
   totalSalesPartners: number;
+  unsentInvoices: number; // SHERLOCK v12.2: Add unsent invoices field
   recentActivities: Array<{
     id: number;
     type: string;
@@ -170,9 +171,9 @@ export default function Dashboard() {
         />
         
         <StatCard
-          title="فاکتورهای در انتظار"
-          value={toPersianDigits(dashboardData.pendingInvoices.toString())}
-          subtitle="آماده ارسال - فاکتور"
+          title="فاکتورهای ارسال نشده"
+          value={toPersianDigits((dashboardData.unsentInvoices || 0).toString())}
+          subtitle="نیازمند ارسال به تلگرام"
           icon={FileText}
           colorClass="text-orange-600"
           onClick={() => window.location.href = '/invoices'}
