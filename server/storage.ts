@@ -953,8 +953,8 @@ export class DatabaseStorage implements IStorage {
           return sum + (debt > 0 ? debt : 0);
         }, 0);
 
-      // SHERLOCK v10.0 SIGNIFICANT-BATCH: Active Representatives = Most recent significant batch upload
-      // Find the most recent significant batch (>=10 representatives) within the last 30 days
+      // SHERLOCK v10.0 LARGEST-BATCH: Active Representatives = Largest significant batch in last 30 days
+      // Find the batch with most representatives (>=10) within the last 30 days
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
@@ -973,7 +973,7 @@ export class DatabaseStorage implements IStorage {
         )
         .groupBy(sql`DATE(invoices.created_at)`)
         .having(sql`COUNT(DISTINCT invoices.representative_id) >= 10`)
-        .orderBy(sql`DATE(invoices.created_at) DESC`)
+        .orderBy(sql`COUNT(DISTINCT invoices.representative_id) DESC`)
         .limit(1);
 
       let batchActiveReps = { count: 0 };
@@ -981,7 +981,7 @@ export class DatabaseStorage implements IStorage {
       if (significantBatches.length > 0) {
         const latestSignificantBatch = significantBatches[0];
         batchActiveReps = { count: latestSignificantBatch.repCount };
-        console.log(`🎯 SHERLOCK v10.0 SIGNIFICANT-BATCH: Found ${batchActiveReps.count} active representatives in latest significant batch (${latestSignificantBatch.uploadDate})`);
+        console.log(`🎯 SHERLOCK v10.0 LARGEST-BATCH: Found ${batchActiveReps.count} active representatives in largest significant batch (${latestSignificantBatch.uploadDate})`);
         console.log(`📊 Batch details: ${latestSignificantBatch.invoiceCount} invoices created from ${latestSignificantBatch.minTime} to ${latestSignificantBatch.maxTime}`);
       } else {
         // Fallback: Use any recent activity if no significant batch exists
