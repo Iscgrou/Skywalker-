@@ -925,14 +925,7 @@ export default function Representatives() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedRep.invoices
-                            .sort((a, b) => {
-                              // SHERLOCK v11.5: FIFO Display - Show oldest unpaid invoices first  
-                              const dateA = new Date(a.issueDate).getTime();
-                              const dateB = new Date(b.issueDate).getTime();
-                              return dateA - dateB; // Ascending: oldest first (FIFO order)
-                            })
-                            .map((invoice) => (
+                          {selectedRep.invoices.map((invoice) => (
                             <TableRow key={invoice.id}>
                               <TableCell className="font-mono">{invoice.invoiceNumber}</TableCell>
                               <TableCell>{formatCurrency(parseFloat(invoice.amount))}</TableCell>

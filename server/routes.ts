@@ -1553,7 +1553,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results = {
         processed: 0,
         updated: 0,
-        statusChanges: [] as Array<{invoiceId: number; invoiceNumber: string; oldStatus: string; newStatus: string}>
+        statusChanges: []
       };
       
       // Process each invoice

@@ -111,9 +111,3 @@ The CRM system contains four functional sections:
   - Implemented comprehensive payment tracking for partial invoice settlements
   - Added batch invoice status recalculation API for system-wide consistency
   - Enhanced logging for payment allocation debugging and verification
-- **SHERLOCK v11.6 CRITICAL DASHBOARD STATISTICS**: ✅ Complete dashboard statistics accuracy fix
-  - CRITICAL FIX: Dashboard pendingInvoices now includes partial status (unpaid + partial)
-  - CRITICAL FIX: Dashboard overdueInvoices now includes partial overdue invoices
-  - Enhanced FIFO display ordering across all invoice lists (main page + representatives)
-  - Fixed TypeScript LSP errors for improved system stability
-  - Applied systematic FIFO principle to all invoice displays for consistent visualization

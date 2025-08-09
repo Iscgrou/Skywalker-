@@ -413,7 +413,7 @@ export default function SalesPartners() {
                   <CardHeader>
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-lg">{partner.name}</CardTitle>
-                      {getStatusBadge(partner.isActive ?? false)}
+                      {getStatusBadge(partner.isActive)}
                     </div>
                     <CardDescription>کد: {partner.code}</CardDescription>
                   </CardHeader>
@@ -436,12 +436,12 @@ export default function SalesPartners() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">کل فروش:</span>
-                        <span className="font-semibold">{formatCurrency(parseFloat(partner.totalSales || "0"))}</span>
+                        <span className="font-semibold">{formatCurrency(parseFloat(partner.totalSales))}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">کمیسیون:</span>
                         <span className="font-semibold text-orange-600 dark:text-orange-400">
-                          {formatCurrency(parseFloat(partner.totalCommission || "0"))}
+                          {formatCurrency(parseFloat(partner.totalCommission))}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -514,7 +514,7 @@ export default function SalesPartners() {
                   </TableHeader>
                   <TableBody>
                     {filteredPartners.map((partner) => {
-                      const calculatedCommission = (parseFloat(partner.totalSales || "0") * parseFloat((partner.commissionRate || 0).toString())) / 100;
+                      const calculatedCommission = (parseFloat(partner.totalSales || "0") * (partner.commissionRate || 0)) / 100;
                       const paidCommission = parseFloat(partner.totalCommission || "0");
                       const remaining = calculatedCommission - paidCommission;
                       
