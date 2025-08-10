@@ -15,6 +15,7 @@ import {
 import { PersianAIEngine } from "./persian-ai-engine";
 import { XAIGrokEngine } from "./xai-grok-engine";
 import { nanoid } from "nanoid";
+import { nowPersian, addHoursPersian } from "../lib/persian-time";
 
 export interface TaskContext {
   representativeId: number;
@@ -79,20 +80,17 @@ export class TaskManagementService {
         description: culturalContext.adjustedDescription,
         priority: this.mapPriorityToWorkspace(primaryRecommendation.priority),
         status: 'ASSIGNED',
-        assignedTo: representative.name,
         representativeId: context.representativeId,
-        dueDate: this.calculateDueDate(primaryRecommendation.dueHours),
-        isAiGenerated: true,
-        culturalContext: JSON.stringify(culturalContext),
-        aiModel: 'Persian-AI-v3.0',
-        createdBy: `Manager-${managerUserId}`,
-        taskMetadata: JSON.stringify({
+  assignedAt: nowPersian(),
+  deadline: addHoursPersian(primaryRecommendation.dueHours || 24),
+        aiContext: culturalContext as any,
+        managerTaskId: String(context.taskType),
+        generatedFromSettings: {
           originalRecommendation: primaryRecommendation,
           culturalFactors: representative.culturalProfile,
           financialSnapshot: context.financialSnapshot,
           urgencyLevel: context.urgencyLevel
-        }),
-        createdAt: new Date()
+        } as any
       }).returning();
 
       // Step 5: Log AI decision
@@ -140,11 +138,10 @@ export class TaskManagementService {
       }
 
       // Step 2: Update task status
-      await db.update(workspaceTasks)
+  await db.update(workspaceTasks)
         .set({ 
           status: 'COMPLETED',
-          completedAt: new Date(),
-          completionNotes: reportContent
+      completedAt: nowPersian()
         })
         .where(eq(workspaceTasks.id, taskId));
 
@@ -207,8 +204,8 @@ export class TaskManagementService {
           await db.update(workspaceTasks)
             .set({
               priority: priorityAdjustment.newPriority,
-              updatedAt: new Date(),
-              adjustmentReason: priorityAdjustment.reason
+              updatedAt: new Date()
+              // adjustmentReason field not in schema; skip storing reason here
             })
             .where(eq(workspaceTasks.id, task.id));
 
@@ -240,7 +237,12 @@ export class TaskManagementService {
           sql`${workspaceTasks.completedAt} > ${thirtyDaysAgo}`
         ));
 
-      const learningData = {
+      const learningData: {
+        successPatterns: any[];
+        failurePatterns: any[];
+        culturalInsights: any[];
+        improvementAreas: any[];
+      } = {
         successPatterns: [],
         failurePatterns: [],
         culturalInsights: [],
@@ -392,17 +394,17 @@ export class TaskManagementService {
   private async analyzeTaskCompletion(task: any, reportContent: string): Promise<any> {
     // Use XAI to analyze completion quality
     const analysis = await this.xaiEngine.analyzeTaskCompletion(
-      task.representativeId,
-      task.description,
+      task,
+      'COMPLETED',
       reportContent
     );
 
     return {
-      qualityScore: analysis.score || 80,
-      completionEffectiveness: analysis.effectiveness || 'GOOD',
-      learningPoints: analysis.learnings || [],
-      culturalAlignment: analysis.culturalAlignment || 85,
-      recommendedFollowUp: analysis.followUp || false
+  qualityScore: analysis.qualityScore || 80,
+  completionEffectiveness: analysis.feedback || 'GOOD',
+  learningPoints: analysis.improvements || [],
+  culturalAlignment: 85,
+  recommendedFollowUp: false
     };
   }
 
@@ -471,4 +473,6 @@ export class TaskManagementService {
   private async adjustAIParameters(learningData: any): Promise<void> {
     console.log('⚙️ Adjusting AI parameters based on learning');
   }
+
+  // Persian datetime handled in ../lib/persian-time
 }

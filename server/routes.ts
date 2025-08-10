@@ -264,7 +264,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Logout error:", err);
         return res.status(500).json({ error: "خطا در فرآیند خروج" });
       }
-      res.clearCookie('connect.sid');
+      // Clear the correct session cookie set in server/index.ts (name: 'marfanet.sid')
+      // Match key cookie options to ensure the browser removes it successfully
+      res.clearCookie('marfanet.sid', {
+        path: '/',
+        sameSite: 'lax',
+        // secure should match session cookie; in production behind HTTPS set to true
+        secure: false,
+        httpOnly: true,
+      });
       res.json({ success: true, message: "خروج موفقیت‌آمیز" });
     });
   });
@@ -913,7 +921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "نماینده یافت نشد" });
       }
 
-      const insights = await xaiGrokEngine.generateCulturalInsights({
+  const insights = await xaiGrokEngine.generateCulturalInsightsData({
         representative,
         context: "business_relationship_management"
       });
@@ -973,9 +981,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // فاز ۱: دریافت پارامترهای batch و تاریخ از request body
-      const { batchName, periodStart, periodEnd, description, invoiceDateMode, customInvoiceDate } = req.body;
+  const { batchName, periodStart, periodEnd, description, invoiceDateMode, customInvoiceDate, discountPercent, taxPercent, rounding } = req.body;
       console.log('Batch params:', { batchName, periodStart, periodEnd, description });
-      console.log('Invoice date params:', { invoiceDateMode, customInvoiceDate });
+  console.log('Invoice date params:', { invoiceDateMode, customInvoiceDate });
+  console.log('Calculation params:', { discountPercent, taxPercent, rounding });
 
       console.log('File details:', {
         originalname: req.file.originalname,
@@ -1047,7 +1056,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('📅 Invoice date configuration:', { mode: invoiceDateMode, date: invoiceDate });
       
-      const sequentialResult = await processUsageDataSequential(valid, storage, invoiceDate);
+      // Strict validation for calculation params
+      const allowedRounding = new Set(['nearest', 'floor', 'ceil']);
+
+      if (typeof rounding !== 'undefined' && !allowedRounding.has(String(rounding))) {
+        return res.status(400).json({
+          error: "rounding نامعتبر است",
+          details: "rounding باید یکی از مقادیر nearest, floor, ceil باشد"
+        });
+      }
+
+      const parsedDiscount = (typeof discountPercent !== 'undefined' && String(discountPercent).trim() !== '')
+        ? Number(discountPercent)
+        : undefined;
+      if (typeof parsedDiscount !== 'undefined' && (Number.isNaN(parsedDiscount) || parsedDiscount < 0 || parsedDiscount > 100)) {
+        return res.status(400).json({
+          error: "درصد تخفیف نامعتبر است",
+          details: "discountPercent باید عددی بین ۰ تا ۱۰۰ باشد"
+        });
+      }
+
+      const parsedTax = (typeof taxPercent !== 'undefined' && String(taxPercent).trim() !== '')
+        ? Number(taxPercent)
+        : undefined;
+      if (typeof parsedTax !== 'undefined' && (Number.isNaN(parsedTax) || parsedTax < 0 || parsedTax > 100)) {
+        return res.status(400).json({
+          error: "درصد مالیات نامعتبر است",
+          details: "taxPercent باید عددی بین ۰ تا ۱۰۰ باشد"
+        });
+      }
+
+      const calcOptions = {
+        discountPercent: parsedDiscount,
+        taxPercent: parsedTax,
+        rounding: (typeof rounding === 'string' && allowedRounding.has(rounding)) ? rounding as 'nearest' | 'floor' | 'ceil' : 'nearest'
+      } as const;
+
+      const sequentialResult = await processUsageDataSequential(valid, storage, invoiceDate, calcOptions);
       const createdInvoices = [];
       const { processedInvoices, newRepresentatives, statistics } = sequentialResult;
       

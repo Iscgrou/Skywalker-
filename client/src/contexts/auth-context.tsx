@@ -20,7 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
       console.log('Admin Login Request:', credentials);
-      const response = await apiRequest('/api/login', { method: 'POST', data: credentials });
+      // Use canonical endpoint; legacy '/api/login' still supported server-side
+      const response = await apiRequest('/api/auth/login', { method: 'POST', data: credentials });
       console.log('Admin Login Success Response:', response);
       return response;
     },

@@ -486,9 +486,19 @@ export function ManagerWorkspace() {
                               AI
                             </Badge>
                           )}
-                          <Badge className={`text-xs ${priorityColors[task.priority]}`}>
-                            {task.priority === 'HIGH' ? 'بالا' : task.priority === 'MEDIUM' ? 'متوسط' : 'پایین'}
-                          </Badge>
+                          {(() => {
+                            const map: Record<string, string> = {
+                              HIGH: priorityColors.HIGH,
+                              MEDIUM: priorityColors.MEDIUM,
+                              LOW: priorityColors.LOW,
+                            };
+                            const cls = map[String(task.priority)] || priorityColors.MEDIUM;
+                            return (
+                              <Badge className={`text-xs ${cls}`}>
+                                {task.priority === 'HIGH' ? 'بالا' : task.priority === 'MEDIUM' ? 'متوسط' : 'پایین'}
+                              </Badge>
+                            );
+                          })()}
                         </div>
                         <p className="text-xs text-gray-400 mt-1">مسئول: {task.assignedTo}</p>
                         <p className="text-xs text-gray-500 mt-1">{task.description}</p>

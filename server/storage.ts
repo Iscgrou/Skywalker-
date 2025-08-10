@@ -2629,13 +2629,13 @@ export class DatabaseStorage implements IStorage {
         let conditions = [sql`${invoices.usageData}->>'type' = 'manual'`];
         
         if (options.search) {
-          conditions.push(
-            or(
-              ilike(invoices.invoiceNumber, `%${options.search}%`),
-              ilike(representatives.name, `%${options.search}%`),
-              ilike(representatives.code, `%${options.search}%`)
-            )
+          const search = `%${options.search}%`;
+          const orClause: any = or(
+            ilike(invoices.invoiceNumber, search),
+            ilike(representatives.name, search),
+            ilike(representatives.code, search)
           );
+          conditions.push(orClause);
         }
 
         if (options.status && options.status !== 'all') {

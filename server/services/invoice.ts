@@ -1,4 +1,5 @@
 import { toPersianDigits, getCurrentPersianDate } from "../../client/src/lib/persian-date";
+import { z } from "zod";
 
 // Re-export Persian date utilities for use in routes
 export { toPersianDigits, getCurrentPersianDate };
@@ -20,6 +21,47 @@ export interface ProcessedInvoice {
   usageData: UsageDataRecord;
   issueDate: string;
   dueDate: string;
+}
+
+// Zod schema for robust usage record validation
+export const UsageRecordSchema = z.object({
+  admin_username: z.string().min(1, "admin_username الزامی است").transform((s) => s.trim()),
+  amount: z.union([z.number(), z.string()])
+    .transform((v) => typeof v === 'string' ? parseFloat(v) : v)
+    .refine((v) => !isNaN(v) && v > 0, "مبلغ باید عدد معتبر و بزرگ‌تر از صفر باشد"),
+  event_timestamp: z.string().min(1, "event_timestamp الزامی است"),
+  representative_code: z.string().optional(),
+  panel_username: z.string().optional(),
+}).passthrough();
+
+export type UsageRecordValidated = z.infer<typeof UsageRecordSchema> & Required<Pick<UsageDataRecord,
+  'representative_code' | 'panel_username' | 'usage_amount' | 'period_start' | 'period_end'>>;
+
+export interface InvoiceCalculationOptions {
+  discountPercent?: number; // 0-100
+  taxPercent?: number; // 0-100
+  rounding?: 'nearest' | 'floor' | 'ceil';
+}
+
+function applyRounding(value: number, mode: InvoiceCalculationOptions['rounding'] = 'nearest'): number {
+  switch (mode) {
+    case 'floor': return Math.floor(value);
+    case 'ceil': return Math.ceil(value);
+    default: return Math.round(value);
+  }
+}
+
+export function applyDiscountAndTax(baseAmount: number, options?: InvoiceCalculationOptions): number {
+  if (!options) return applyRounding(baseAmount);
+  const { discountPercent, taxPercent, rounding } = options;
+  let amount = baseAmount;
+  if (typeof discountPercent === 'number' && !isNaN(discountPercent) && discountPercent > 0) {
+    amount = amount * (1 - discountPercent / 100);
+  }
+  if (typeof taxPercent === 'number' && !isNaN(taxPercent) && taxPercent > 0) {
+    amount = amount * (1 + taxPercent / 100);
+  }
+  return applyRounding(amount, rounding);
 }
 
 export function parseUsageJsonData(jsonData: string): UsageDataRecord[] {
@@ -327,38 +369,27 @@ export function validateUsageData(records: UsageDataRecord[]): {
 } {
   const valid: UsageDataRecord[] = [];
   const invalid: { record: any, errors: string[] }[] = [];
-  
-  records.forEach(record => {
-    const errors: string[] = [];
-    
-    // For MarFaNet JSON format validation - check actual data format
-    // Allow both admin_username and representative_code as valid identifiers
-    const username = record.admin_username || record.representative_code;
-    if (!username || typeof username !== 'string' || username.trim() === '') {
-      errors.push('admin_username یا representative_code وجود ندارد یا خالی است');
+
+  for (const record of records) {
+    const parse = UsageRecordSchema.safeParse(record);
+    if (!parse.success) {
+      invalid.push({ record, errors: parse.error.errors.map(e => e.message) });
+      continue;
     }
-    
-    const amountValue = parseFloat(record.amount || '0');
-    if (!record.amount || isNaN(amountValue) || amountValue <= 0) {
-      errors.push(`مبلغ نامعتبر: ${record.amount}`);
-    }
-    
-    if (errors.length === 0) {
-      // Add derived fields for processing compatibility
-      const username = record.admin_username || record.representative_code || '';
-      record.admin_username = username; // Ensure consistency
-      record.representative_code = username;
-      record.panel_username = username;  
-      record.usage_amount = amountValue;
-      record.period_start = record.event_timestamp || new Date().toISOString();
-      record.period_end = record.event_timestamp || new Date().toISOString();
-      
-      valid.push(record);
-    } else {
-      invalid.push({ record, errors });
-    }
-  });
-  
+    const data = parse.data;
+    const username = data.admin_username || data.representative_code || '';
+    const enriched: UsageDataRecord = {
+      ...record,
+      admin_username: username,
+      representative_code: username,
+      panel_username: username,
+      usage_amount: data.amount,
+      period_start: (record as any).event_timestamp || new Date().toISOString(),
+      period_end: (record as any).event_timestamp || new Date().toISOString(),
+    };
+    valid.push(enriched);
+  }
+
   return { valid, invalid };
 }
 
@@ -366,7 +397,8 @@ export function validateUsageData(records: UsageDataRecord[]): {
 export async function processUsageDataSequential(
   usageData: UsageDataRecord[],
   storage: any,
-  customInvoiceDate?: string | null
+  customInvoiceDate?: string | null,
+  options?: InvoiceCalculationOptions
 ): Promise<{
   processedInvoices: ProcessedInvoice[],
   newRepresentatives: any[],
@@ -460,11 +492,12 @@ export async function processUsageDataSequential(
         newRepresentatives.push(representative);
       }
       
-      // محاسبه مجموع مبلغ برای این نماینده (فقط از رکوردهای معتبر)
-      const totalAmount = validRecords.reduce((sum, record) => {
+  // محاسبه مجموع مبلغ برای این نماینده (فقط از رکوردهای معتبر)
+  const totalAmount = validRecords.reduce((sum, record) => {
         const amount = parseFloat(record.amount.toString());
         return sum + (isNaN(amount) ? 0 : amount);
       }, 0);
+  const finalAmount = applyDiscountAndTax(totalAmount, options);
       
       // تنظیم تاریخ صدور فاکتور (شمسی)
       const invoiceDate = customInvoiceDate && customInvoiceDate.trim() 
@@ -475,7 +508,7 @@ export async function processUsageDataSequential(
       const processedInvoice: ProcessedInvoice = {
         representativeCode: adminUsername,
         panelUsername: adminUsername,
-        amount: totalAmount,
+        amount: finalAmount,
         issueDate: invoiceDate,
         dueDate: addDaysToPersianDate(invoiceDate, 30),
         usageData: {
@@ -491,7 +524,12 @@ export async function processUsageDataSequential(
           totalRecords: validRecords.length,
           period_start: validRecords[0]?.event_timestamp || '',
           period_end: validRecords[validRecords.length - 1]?.event_timestamp || '',
-          usage_amount: totalAmount
+          usage_amount: totalAmount,
+          calculation: {
+            discountPercent: options?.discountPercent ?? 0,
+            taxPercent: options?.taxPercent ?? 0,
+            finalAmount
+          }
         }
       };
       

@@ -6,7 +6,8 @@
 import { XAIGrokEngine } from './xai-grok-engine';
 import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
-import * as persianDate from 'persian-date';
+import persianDate from 'persian-date';
+import { addDaysPersian } from '../lib/persian-time';
 
 export interface TaskReport {
   id: string;
@@ -304,8 +305,7 @@ JSON format:
    * دریافت روز کاری بعدی
    */
   private getNextWorkday(): string {
-    const tomorrow = new persianDate().add(1, 'day');
-    return tomorrow.format('YYYY-MM-DD');
+  return addDaysPersian(1, 'YYYY-MM-DD');
   }
 
   /**
