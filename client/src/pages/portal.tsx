@@ -86,7 +86,7 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
       </div>
 
       {/* Toggle Button for Usage Details - Show for all invoices with usage data */}
-      {invoice.usageData && (
+      {invoice.usageData && Object.keys(invoice.usageData).length > 0 && (
         <button 
           onClick={toggleUsageDetails}
           style={{
