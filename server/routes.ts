@@ -1,9 +1,9 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db, checkDatabaseHealth } from "./db";
-import { sql, eq, and, or, ilike, desc } from "drizzle-orm";
-import { invoices, representatives, payments } from "@shared/schema";
+import { db } from "./db";
+import { sql, eq, and, or } from "drizzle-orm";
+import { invoices } from "@shared/schema";
 // CRM routes are imported in registerCrmRoutes function
 
 import multer from "multer";
@@ -157,7 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // SHERLOCK v17.6: Fixed admin login endpoint with correct field mapping
+  // SHERLOCK v15.0 FIX: Add backward compatibility for both login endpoints
   // Main admin login endpoint
   app.post("/api/auth/login", async (req, res) => {
     try {
@@ -175,14 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify password
-      console.log('🔐 SHERLOCK Debug AUTH - Password Comparison:', {
-        inputPassword: password,
-        storedHash: adminUser.passwordHash,
-        username: adminUser.username
-      });
-      
       const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
-      console.log('🔐 SHERLOCK Debug AUTH - Password Valid:', isPasswordValid);
       
       if (!isPasswordValid) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
@@ -215,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SHERLOCK v17.6: Fixed legacy login endpoint with correct field mapping
+  // Legacy backward compatibility endpoint
   app.post("/api/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -232,14 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify password
-      console.log('🔐 SHERLOCK Debug LEGACY - Password Comparison:', {
-        inputPassword: password,
-        storedHash: adminUser.passwordHash,
-        username: adminUser.username
-      });
-      
       const isPasswordValid = await bcrypt.compare(password, adminUser.passwordHash);
-      console.log('🔐 SHERLOCK Debug LEGACY - Password Valid:', isPasswordValid);
       
       if (!isPasswordValid) {
         return res.status(401).json({ error: "نام کاربری یا رمز عبور اشتباه است" });
@@ -279,20 +265,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: "خطا در فرآیند خروج" });
       }
       res.clearCookie('connect.sid');
-      res.clearCookie('marfanet.sid');
       res.json({ success: true, message: "خروج موفقیت‌آمیز" });
     });
   });
 
   app.get("/api/auth/check", (req, res) => {
-    console.log('🔍 Auth Check - Session Data:', {
-      sessionId: req.sessionID,
-      authenticated: (req.session as any)?.authenticated,
-      userId: (req.session as any)?.userId,
-      hasSession: !!req.session,
-      sessionObject: req.session
-    });
-    
     if ((req.session as any)?.authenticated) {
       res.json({ 
         authenticated: true, 
@@ -305,7 +282,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } else {
-      console.log('❌ Auth Failed - Session invalid or expired');
       res.status(401).json({ authenticated: false });
     }
   });
@@ -547,21 +523,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public Portal API with database fallback
+  // Public Portal API
   app.get("/api/portal/:publicId", async (req, res) => {
     try {
-      // Check database health first
-      const dbHealthy = await checkDatabaseHealth();
-      if (!dbHealthy) {
-        console.warn(`⚠️ Database unavailable for portal ${req.params.publicId} - maintenance mode`);
-        return res.status(503).json({
-          error: "سیستم در حال بروزرسانی است، لطفاً کمی بعد مراجعه کنید",
-          maintenance: true,
-          publicId: req.params.publicId,
-          retry_after: 300
-        });
-      }
-
       const representative = await storage.getRepresentativeByPublicId(req.params.publicId);
       if (!representative) {
         return res.status(404).json({ error: "پورتال یافت نشد" });
@@ -1315,12 +1279,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SHERLOCK v17.8: Optimized invoices API with database-level pagination and search
+  // MISSING API: Get invoices with batch info - SHERLOCK v12.1 CRITICAL FIX  
   app.get("/api/invoices/with-batch-info", requireAuth, async (req, res) => {
-    const startTime = Date.now();
-    
     try {
-      console.log('📋 SHERLOCK v17.8: Database-level pagination with optimized search');
+      console.log('📋 SHERLOCK v12.1: دریافت کامل فاکتورها با pagination صحیح');
       
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 30;
@@ -1328,124 +1290,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchTerm = req.query.search as string || '';
       const telegramFilter = req.query.telegram as string || 'all';
       
-      const offset = (page - 1) * limit;
+      const invoices = await storage.getInvoices();
+      const representatives = await storage.getRepresentatives();
       
-      // Build WHERE conditions
-      const whereConditions = [];
+      // Create lookup maps for performance  
+      const repMap = new Map(representatives.map(rep => [rep.id, rep]));
       
-      if (searchTerm) {
-        const searchLower = `%${searchTerm.toLowerCase()}%`;
-        whereConditions.push(
-          or(
-            ilike(invoices.invoiceNumber, searchLower),
-            ilike(representatives.name, searchLower),
-            ilike(representatives.code, searchLower)
-          )
-        );
-      }
-      
-      if (statusFilter && statusFilter !== 'all') {
-        whereConditions.push(eq(invoices.status, statusFilter));
-      }
-      
-      if (telegramFilter && telegramFilter !== 'all') {
-        if (telegramFilter === 'sent') {
-          whereConditions.push(eq(invoices.sentToTelegram, true));
-        } else if (telegramFilter === 'unsent') {
-          whereConditions.push(eq(invoices.sentToTelegram, false));
-        }
-      }
-      
-      const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-      
-      // Get total count for pagination
-      const countResult = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(invoices)
-        .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
-        .where(whereClause);
-      
-      const totalCount = countResult[0]?.count || 0;
-      const totalPages = Math.ceil(totalCount / limit);
-      
-      // Get paginated results with optimized single query
-      const invoiceResults = await db
-        .select({
-          id: invoices.id,
-          invoiceNumber: invoices.invoiceNumber,
-          representativeId: invoices.representativeId,
-          amount: invoices.amount,
-          issueDate: invoices.issueDate,
-          dueDate: invoices.dueDate,
-          status: invoices.status,
-
-          sentToTelegram: invoices.sentToTelegram,
-          telegramSentAt: invoices.telegramSentAt,
-          createdAt: invoices.createdAt,
-          representativeName: representatives.name,
-          representativeCode: representatives.code,
-          panelUsername: representatives.panelUsername,
-          // Aggregate payment amount in single query
-          totalPaid: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
-        })
-        .from(invoices)
-        .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
-        .leftJoin(payments, eq(payments.invoiceId, invoices.id))
-        .where(whereClause)
-        .groupBy(
-          invoices.id,
-          invoices.invoiceNumber,
-          invoices.representativeId,
-          invoices.amount,
-          invoices.issueDate,
-          invoices.dueDate,
-          invoices.status,
-          invoices.sentToTelegram,
-          invoices.telegramSentAt,
-          invoices.createdAt,
-          representatives.name,
-          representatives.code,
-          representatives.panelUsername
-        )
-        .orderBy(desc(invoices.createdAt))
-        .limit(limit)
-        .offset(offset);
-
-      // Calculate status locally without additional queries
-      const enhancedInvoices = invoiceResults.map((invoice) => {
-        const invoiceAmount = parseFloat(invoice.amount);
-        const totalPaid = parseFloat(invoice.totalPaid || '0');
-        const dueDate = invoice.dueDate;
-        const now = new Date();
+      // Enhance invoices with additional info FIRST
+      let enhancedInvoices = invoices.map(invoice => {
+        const rep = repMap.get(invoice.representativeId);
         
-        let calculatedStatus: string;
-        
-        if (totalPaid >= invoiceAmount) {
-          calculatedStatus = 'paid';
-        } else if (totalPaid > 0) {
-          calculatedStatus = 'partial';
-        } else if (dueDate && new Date(dueDate) < now) {
-          calculatedStatus = 'overdue';
-        } else {
-          calculatedStatus = 'unpaid';
-        }
-
         return {
           ...invoice,
-          status: calculatedStatus
+          representativeName: rep?.name || 'نامشخص',
+          representativeCode: rep?.code || 'نامشخص',
+          panelUsername: rep?.panelUsername
         };
       });
       
-      const responseTime = Date.now() - startTime;
-      
-      if (responseTime > 1000) {
-        console.log(`⚠️ Slow endpoint: GET /api/invoices/with-batch-info - ${responseTime}ms`);
+      // Apply search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        enhancedInvoices = enhancedInvoices.filter(invoice =>
+          invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
+          invoice.representativeName?.toLowerCase().includes(searchLower) ||
+          invoice.representativeCode?.toLowerCase().includes(searchLower)
+        );
       }
       
-      console.log(`✅ صفحه ${page}: ${enhancedInvoices.length} فاکتور از ${totalCount} فاکتور کل (${totalPages} صفحه)`);
+      // Apply status filter
+      if (statusFilter && statusFilter !== 'all') {
+        enhancedInvoices = enhancedInvoices.filter(invoice => invoice.status === statusFilter);
+      }
+      
+      // Apply telegram status filter
+      if (telegramFilter && telegramFilter !== 'all') {
+        if (telegramFilter === 'sent') {
+          enhancedInvoices = enhancedInvoices.filter(invoice => invoice.sentToTelegram);
+        } else if (telegramFilter === 'unsent') {
+          enhancedInvoices = enhancedInvoices.filter(invoice => !invoice.sentToTelegram);
+        }
+      }
+      
+      // SHERLOCK v12.2: Apply Display sorting - newest invoices first for UI
+      // NOTE: This ONLY affects display order, not payment allocation (which uses FIFO)
+      enhancedInvoices.sort((a, b) => {
+        const dateA = new Date(a.issueDate || a.createdAt).getTime();
+        const dateB = new Date(b.issueDate || b.createdAt).getTime();
+        return dateB - dateA; // Descending: newest first for display
+      });
+      
+      // Calculate pagination
+      const totalCount = enhancedInvoices.length;
+      const totalPages = Math.ceil(totalCount / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedInvoices = enhancedInvoices.slice(startIndex, endIndex);
+      
+      console.log(`✅ صفحه ${page}: ${paginatedInvoices.length} فاکتور از ${totalCount} فاکتور کل (${totalPages} صفحه)`);
       
       res.json({
-        data: enhancedInvoices,
+        data: paginatedInvoices,
         pagination: {
           currentPage: page,
           pageSize: limit,
@@ -1456,8 +1361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      const responseTime = Date.now() - startTime;
-      console.error(`❌ خطا در دریافت فاکتورها (${responseTime}ms):`, error);
+      console.error('❌ خطا در دریافت فاکتورها:', error);
       res.status(500).json({ error: "خطا در دریافت فهرست فاکتورها" });
     }
   });
@@ -2721,49 +2625,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sync: "simplified"
       }
     });
-  });
-
-  // SHERLOCK v17.0: Enhanced database connectivity test
-  app.get('/api/sherlock/database-test', async (req, res) => {
-    console.log(`🔧 SHERLOCK v17.0: Comprehensive database connectivity test starting...`);
-    
-    try {
-      // Test 1: Basic connection with new SSL configuration  
-      const basicResult = await db.execute(sql`SELECT 1 as test_value`);
-      
-      // Test 2: Check if we're using the new database
-      const versionResult = await db.execute(sql`SELECT version() as version, current_database() as current_database`);
-      
-      res.json({
-        sherlock_version: 'v17.0',
-        success: true,
-        database_status: 'connected',
-        tests: {
-          basic_connection: {
-            test_value: basicResult.rows[0]?.test_value,
-            success: true
-          },
-          database_info: {
-            database: versionResult.rows[0]?.current_database,
-            version: typeof versionResult.rows[0]?.version === 'string' ? versionResult.rows[0].version.substring(0, 50) + '...' : 'N/A',
-            success: true
-          }
-        },
-        timestamp: new Date().toISOString(),
-        ssl_enabled: true,
-        database_connectivity: 'SHERLOCK v17.0 SUCCESS'
-      });
-    } catch (error) {
-      console.error('🚨 SHERLOCK v17.0: Database connectivity test failed:', error);
-      res.status(503).json({
-        sherlock_version: 'v17.0',
-        success: false,
-        database_status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-        fallback_mode: true
-      });
-    }
   });
 
   const httpServer = createServer(app);
