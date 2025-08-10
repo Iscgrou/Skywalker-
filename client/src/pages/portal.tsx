@@ -85,8 +85,8 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
         </div>
       </div>
 
-      {/* Toggle Button for Usage Details - Enhanced for Manual Invoices */}
-      {(invoice.usageData && (invoice.usageData.records || invoice.usageData.type === 'manual')) && (
+      {/* Toggle Button for Usage Details - Show for all invoices with usage data */}
+      {invoice.usageData && (
         <button 
           onClick={toggleUsageDetails}
           style={{
@@ -109,7 +109,7 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
       {showUsageDetails && invoice.usageData && (
         <div>
           {/* Automatic Invoice Details (JSON-based with records) */}
-          {invoice.usageData.records && (
+          {invoice.usageData.records && Array.isArray(invoice.usageData.records) && invoice.usageData.records.length > 0 && (
             <div style={{
               background: '#1f2937',
               padding: '15px',
@@ -176,6 +176,23 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
                   مجموع مبلغ: {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
                 </p>
               </div>
+            </div>
+          )}
+          
+          {/* No usage data available message */}
+          {(!invoice.usageData.records || !Array.isArray(invoice.usageData.records) || invoice.usageData.records.length === 0) && 
+           invoice.usageData.type !== 'manual' && (
+            <div style={{
+              background: '#374151',
+              padding: '15px',
+              borderRadius: '8px',
+              border: '1px solid #4b5563',
+              marginTop: '10px',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#9ca3af', fontSize: '14px' }}>
+                برای این فاکتور جزئیات مصرف ثبت نشده است
+              </p>
             </div>
           )}
           
