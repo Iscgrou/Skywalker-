@@ -13,9 +13,7 @@ import { db } from "../db";
 import { eq, desc, and, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-// Import persian-date with type annotation
-// @ts-ignore - persian-date type resolution issue
-import * as persianDate from "persian-date";
+import { nowPersian } from "../lib/persian-time";
 
 export class WorkspaceStorage {
   
@@ -65,7 +63,7 @@ export class WorkspaceStorage {
       };
 
       // Set timestamps based on status
-      const now = new (persianDate as any)().format('YYYY/MM/DD HH:mm:ss');
+  const now = nowPersian('YYYY/MM/DD HH:mm:ss');
       
       if (status === 'READ') {
         updateData.readAt = now;

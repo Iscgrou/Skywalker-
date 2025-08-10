@@ -1,8 +1,10 @@
-import { toPersianDigits, getCurrentPersianDate } from "../../client/src/lib/persian-date";
+import { toPersianDigits } from "../../client/src/lib/persian-date";
+import { nowPersian, addDaysPersian } from "../lib/persian-time";
+import persianDate from 'persian-date';
 import { z } from "zod";
 
-// Re-export Persian date utilities for use in routes
-export { toPersianDigits, getCurrentPersianDate };
+// Re-export Persian digit utility only
+export { toPersianDigits };
 
 export interface UsageDataRecord {
   representative_code?: string;
@@ -250,7 +252,7 @@ export function calculateInvoiceAmount(usageData: UsageDataRecord): number {
 export function processUsageData(usageRecords: UsageDataRecord[], customInvoiceDate?: string | null): ProcessedInvoice[] {
   const currentDate = customInvoiceDate && customInvoiceDate.trim() 
     ? customInvoiceDate.trim() 
-    : getCurrentPersianDate();
+  : nowPersian('YYYY/MM/DD');
   
   // Group by admin_username and sum amounts
   const groupedData = usageRecords.reduce((acc, record) => {
@@ -349,18 +351,20 @@ export async function getOrCreateDefaultSalesPartner(dbInstance: any): Promise<n
   return newPartner.id;
 }
 
-export function addDaysToPersianDate(persianDate: string, days: number): string {
-  // For now, return a simple 30-day due date from issue date
-  // This avoids date calculation errors until proper Persian calendar library is integrated
-  const currentDate = new Date();
-  currentDate.setDate(currentDate.getDate() + days);
-  
-  // Convert to Persian date (simplified approximation)
-  const year = currentDate.getFullYear() - 1979 + 621;
-  const month = currentDate.getMonth() + 1;
-  const day = currentDate.getDate();
-  
-  return toPersianDigits(`${year}/${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}`);
+export function addDaysToPersianDate(_persianDate: string, days: number): string {
+  // Use true Persian calendar arithmetic based on the provided base date
+  try {
+    const parts = _persianDate.split('/').map((p) => parseInt(p, 10));
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [y, m, d] = parts as [number, number, number];
+      return new persianDate([y, m, d]).add(days, 'day').format('YYYY/MM/DD');
+    }
+    // Fallback: try native constructor parse
+    return new persianDate(_persianDate).add(days, 'day').format('YYYY/MM/DD');
+  } catch (_e) {
+    // Fallback: add relative to now if input couldn't be parsed
+    return addDaysPersian(days, 'YYYY/MM/DD');
+  }
 }
 
 export function validateUsageData(records: UsageDataRecord[]): { 
@@ -502,7 +506,7 @@ export async function processUsageDataSequential(
       // تنظیم تاریخ صدور فاکتور (شمسی)
       const invoiceDate = customInvoiceDate && customInvoiceDate.trim() 
         ? customInvoiceDate.trim() 
-        : getCurrentPersianDate();
+        : nowPersian('YYYY/MM/DD');
       
       // ایجاد فاکتور با جزئیات کامل (use validRecords instead of records)
       const processedInvoice: ProcessedInvoice = {

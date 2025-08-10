@@ -28,7 +28,6 @@ import {
   validateUsageData, 
   getOrCreateDefaultSalesPartner, 
   createRepresentativeFromUsageData,
-  getCurrentPersianDate,
   addDaysToPersianDate,
   toPersianDigits 
 } from "./services/invoice";
@@ -933,14 +932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Invoices API - Protected
-  app.get("/api/invoices", requireAuth, async (req, res) => {
-    try {
-      const invoices = await storage.getInvoices();
-      res.json(invoices);
-    } catch (error) {
-      res.status(500).json({ error: "خطا در دریافت فاکتورها" });
-    }
-  });
+  // NOTE: Canonical implementation is defined later with enhanced logging (SHERLOCK v12.1)
 
   // Unpaid Invoices by Representative API - SHERLOCK v1.0 CRITICAL FIX
   app.get("/api/invoices/unpaid/:representativeId", requireAuth, async (req, res) => {
@@ -1306,7 +1298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MISSING API: Get all invoices - SHERLOCK v12.1 CRITICAL FIX
+  // MISSING API: Get all invoices - SHERLOCK v12.1 CRITICAL FIX (Canonical)
   app.get("/api/invoices", requireAuth, async (req, res) => {
     try {
       console.log('📋 SHERLOCK v12.1: Fetching all invoices for main invoices page');
@@ -1870,41 +1862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual payment allocation API
-  // SHERLOCK v11.5: Manual payment allocation API with real-time status calculation
-  app.post("/api/payments/allocate", requireAuth, async (req, res) => {
-    try {
-      const { paymentId, invoiceId } = req.body;
-      
-      if (!paymentId || !invoiceId) {
-        return res.status(400).json({ error: "شناسه پرداخت و فاکتور الزامی است" });
-      }
-
-      const updatedPayment = await storage.allocatePaymentToInvoice(paymentId, invoiceId);
-      
-      // CRITICAL: Recalculate invoice status based on actual payment allocations
-      const calculatedStatus = await storage.calculateInvoicePaymentStatus(invoiceId);
-      await storage.updateInvoice(invoiceId, { status: calculatedStatus });
-      console.log(`📊 Manual allocation: Invoice ${invoiceId} status updated to: ${calculatedStatus}`);
-      
-      await storage.createActivityLog({
-        type: "manual_payment_allocation",
-        description: `پرداخت ${paymentId} به فاکتور ${invoiceId} تخصیص یافت - وضعیت: ${calculatedStatus}`,
-        relatedId: paymentId,
-        metadata: {
-          paymentId,
-          invoiceId,
-          amount: updatedPayment.amount,
-          newInvoiceStatus: calculatedStatus
-        }
-      });
-
-      res.json({ success: true, payment: updatedPayment, invoiceStatus: calculatedStatus });
-    } catch (error) {
-      console.error('Error allocating payment:', error);
-      res.status(500).json({ error: "خطا در تخصیص دستی پرداخت" });
-    }
-  });
+  // Removed duplicate manual payment allocation endpoint.
 
   // SHERLOCK v11.5: CRITICAL - Batch Invoice Status Recalculation API
   app.post("/api/invoices/recalculate-statuses", requireAuth, async (req, res) => {
@@ -2025,41 +1983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Payments API - Protected
-  app.get("/api/payments", requireAuth, async (req, res) => {
-    try {
-      const payments = await storage.getPayments();
-      res.json(payments);
-    } catch (error) {
-      res.status(500).json({ error: "خطا در دریافت پرداخت‌ها" });
-    }
-  });
-
-  app.post("/api/payments", requireAuth, async (req, res) => {
-    try {
-      const validatedData = insertPaymentSchema.parse(req.body);
-      const payment = await storage.createPayment(validatedData);
-      res.json(payment);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "داده‌های ورودی نامعتبر", details: error.errors });
-      } else {
-        res.status(500).json({ error: "خطا در ثبت پرداخت" });
-      }
-    }
-  });
-
-  app.put("/api/payments/:id/allocate", requireAuth, async (req, res) => {
-    try {
-      const paymentId = parseInt(req.params.id);
-      const { invoiceId } = req.body;
-      
-      await storage.allocatePaymentToInvoice(paymentId, invoiceId);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "خطا در تخصیص پرداخت" });
-    }
-  });
+  // Payments API - Protected (duplicate definitions removed; canonical versions are earlier)
 
   // فاز ۱: Invoice Batches API - مدیریت دوره‌ای فاکتورها
   app.get("/api/invoice-batches", requireAuth, async (req, res) => {
