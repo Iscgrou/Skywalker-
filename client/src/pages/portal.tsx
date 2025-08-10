@@ -46,7 +46,11 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
   const [showUsageDetails, setShowUsageDetails] = useState(false);
 
   const toggleUsageDetails = () => {
-    setShowUsageDetails(!showUsageDetails);
+    try {
+      setShowUsageDetails(!showUsageDetails);
+    } catch (error) {
+      console.error('Toggle usage details error:', error);
+    }
   };
 
   return (
@@ -68,7 +72,7 @@ function InvoiceCard({ invoice }: { invoice: Invoice }) {
         </div>
         <div style={{ textAlign: 'left' }}>
           <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981' }}>
-            {parseFloat(invoice.amount).toLocaleString('fa-IR')} تومان
+            {parseFloat(String(invoice.amount || '0')).toLocaleString('fa-IR')} تومان
           </p>
           <p style={{ 
             fontSize: '12px', 
@@ -301,12 +305,29 @@ export default function Portal() {
     );
   }
 
-  // Safely extract data - Use database-calculated values for consistency
-  const totalSales = parseFloat(data.totalSales || '0');
-  const totalDebt = parseFloat(data.totalDebt || '0'); // Use database-calculated debt
-  const credit = parseFloat(data.credit || '0'); // Use database-calculated credit
-  const invoices = data.invoices || [];
-  const payments = data.payments || [];
+  // SHERLOCK v16.3 RUNTIME ERROR FIX: Safe data extraction with comprehensive error handling
+  let totalSales: number, totalDebt: number, credit: number, invoices: Invoice[], payments: Payment[];
+  
+  try {
+    totalSales = parseFloat(String(data.totalSales || '0'));
+    totalDebt = parseFloat(String(data.totalDebt || '0'));
+    credit = parseFloat(String(data.credit || '0'));
+    invoices = Array.isArray(data.invoices) ? data.invoices : [];
+    payments = Array.isArray(data.payments) ? data.payments : [];
+    
+    // Validate numeric values
+    if (isNaN(totalSales)) totalSales = 0;
+    if (isNaN(totalDebt)) totalDebt = 0;
+    if (isNaN(credit)) credit = 0;
+    
+  } catch (error) {
+    console.error('Portal data extraction error:', error);
+    totalSales = 0;
+    totalDebt = 0;
+    credit = 0;
+    invoices = [];
+    payments = [];
+  }
   
   // Use database values instead of recalculating for consistency
   const actualTotalDebt = totalDebt;

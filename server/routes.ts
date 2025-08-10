@@ -1455,7 +1455,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Prepare Telegram message
-          const portalLink = `https://6df5df6a-a51b-4cee-96d1-55579a825ab7-00-3txw9pqslon4v.picard.replit.dev/portal/${representative.publicId}`;
+          // SHERLOCK v16.3 TELEGRAM URL FIX: Use proper portal link generation
+          const { getPortalLink } = await import('./config');
+          const portalLink = getPortalLink(representative.publicId);
           const telegramMessage = {
             representativeName: representative.name,
             shopOwner: representative.ownerName || representative.name,
