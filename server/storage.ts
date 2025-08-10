@@ -644,6 +644,7 @@ export class DatabaseStorage implements IStorage {
         invoices.issueDate,
         invoices.dueDate,
         invoices.status,
+        invoices.usageData,
         invoices.sentToTelegram,
         invoices.telegramSentAt,
         invoices.createdAt,
@@ -681,10 +682,10 @@ export class DatabaseStorage implements IStorage {
     return enhancedInvoices;
   }
 
-  // SHERLOCK v17.8: Optimized with single query and local status calculation
+  // SHERLOCK v17.8: Fixed usage data retrieval - separate queries to avoid JSON grouping issues
   async getInvoicesByRepresentative(repId: number): Promise<any[]> {
-    // Get base invoice data with payment aggregation in single query
-    const invoiceResults = await db
+    // First get base invoice data without payments to include usageData
+    const baseInvoices = await db
       .select({
         id: invoices.id,
         invoiceNumber: invoices.invoiceNumber,
@@ -693,36 +694,34 @@ export class DatabaseStorage implements IStorage {
         issueDate: invoices.issueDate,
         dueDate: invoices.dueDate,
         status: invoices.status,
+        usageData: invoices.usageData,
         sentToTelegram: invoices.sentToTelegram,
         telegramSentAt: invoices.telegramSentAt,
-        createdAt: invoices.createdAt,
-        // Join representative information
-        representativeName: representatives.name,
-        representativeCode: representatives.code,
-        panelUsername: representatives.panelUsername,
-        // Aggregate payment amount in single query
-        totalPaid: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
+        createdAt: invoices.createdAt
       })
       .from(invoices)
       .leftJoin(representatives, eq(invoices.representativeId, representatives.id))
-      .leftJoin(payments, eq(payments.invoiceId, invoices.id))
       .where(eq(invoices.representativeId, repId))
-      .groupBy(
-        invoices.id,
-        invoices.invoiceNumber,
-        invoices.representativeId,
-        invoices.amount,
-        invoices.issueDate,
-        invoices.dueDate,
-        invoices.status,
-        invoices.sentToTelegram,
-        invoices.telegramSentAt,
-        invoices.createdAt,
-        representatives.name,
-        representatives.code,
-        representatives.panelUsername
-      )
-      .orderBy(invoices.issueDate, invoices.createdAt); // FIFO: Oldest first for payment processing
+      .orderBy(invoices.issueDate, invoices.createdAt);
+
+    // Then get payment amounts separately
+    const paymentTotals = await db
+      .select({
+        invoiceId: payments.invoiceId,
+        totalPaid: sql<string>`COALESCE(SUM(CAST(payments.amount as DECIMAL)), 0)`
+      })
+      .from(payments)
+      .where(eq(payments.representativeId, repId))
+      .groupBy(payments.invoiceId);
+
+    // Create payment lookup map
+    const paymentMap = new Map(paymentTotals.map(p => [p.invoiceId, p.totalPaid]));
+
+    // Combine results
+    const invoiceResults = baseInvoices.map(invoice => ({
+      ...invoice,
+      totalPaid: paymentMap.get(invoice.id) || '0'
+    }));
 
     // Calculate status locally without additional queries
     const enhancedInvoices = invoiceResults.map((invoice) => {
