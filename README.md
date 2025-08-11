@@ -25,7 +25,7 @@ Notes
 - Use a strong SESSION_SECRET and CRM_MANAGER_PASSWORD in production
 - To explore DB visually: npm run db:studio
 
-## 1) پیش‌نیازها
+## 1) پیش‌نیازها ( نصب دستی روی سرور ابونتو)
 - یک سرور Ubuntu 22.04 به‌همراه دسترسی SSH
 - نصب بودن Node.js نسخه 18 یا بالاتر (ترجیحاً 20)
 - نصب بودن PostgreSQL نسخه 14 یا بالاتر
