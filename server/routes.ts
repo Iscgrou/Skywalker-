@@ -816,6 +816,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Deep audit: allocation details for a specific payment
+  app.get("/api/payments/:id/allocation-details", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ error: "شناسه نامعتبر است" });
+      const details = await storage.getPaymentAllocationDetails(id);
+      if (!details.payment) return res.status(404).json({ error: "پرداخت یافت نشد" });
+      res.json(details);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت جزئیات تخصیص پرداخت" });
+    }
+  });
+
   app.get("/api/payments/representative/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -831,8 +844,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertPaymentSchema.parse(req.body);
       const payment = await storage.createPayment(validatedData);
       
-      // Auto-allocate to oldest unpaid invoice if representativeId provided
-      if (validatedData.representativeId) {
+      // Phase 3: allow skipping auto-allocation via query (?skipAuto=true or &auto=false)
+      const skipAuto = (req.query.skipAuto === 'true') || (req.query.auto === 'false');
+      // Auto-allocate to oldest unpaid invoice if representativeId provided and auto is not skipped
+      if (validatedData.representativeId && !skipAuto) {
         await storage.autoAllocatePaymentToInvoices(payment.id, validatedData.representativeId);
       }
       
@@ -865,6 +880,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(payment);
     } catch (error) {
       res.status(500).json({ error: "خطا در تخصیص پرداخت" });
+    }
+  });
+
+  // Alias finance routes to avoid any potential path conflicts
+  app.get("/api/finance/payments/:id/allocation", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ error: "شناسه نامعتبر است" });
+      const details = await storage.getPaymentAllocationDetails(id);
+      if (!details.payment) return res.status(404).json({ error: "پرداخت یافت نشد" });
+      res.json(details);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت جزئیات تخصیص پرداخت" });
+    }
+  });
+
+  app.get("/api/finance/representatives/:id/summary", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ error: "شناسه نامعتبر است" });
+      const summary = await storage.getRepresentativeFinancialSummary(id);
+      if (!summary.representative) return res.status(404).json({ error: "نماینده یافت نشد" });
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت جمع‌بندی مالی نماینده" });
+    }
+  });
+
+  // Representative financial summary (unpaid, totals, credit, payment stats)
+  app.get("/api/representatives/:id/financial-summary", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (Number.isNaN(id)) return res.status(400).json({ error: "شناسه نامعتبر است" });
+      const summary = await storage.getRepresentativeFinancialSummary(id);
+      if (!summary.representative) return res.status(404).json({ error: "نماینده یافت نشد" });
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: "خطا در دریافت جمع‌بندی مالی نماینده" });
     }
   });
 
@@ -1741,6 +1794,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Phase 3: Batch auto-allocate all unallocated payments for a representative (FIFO)
+  app.post("/api/payments/auto-allocate/batch/:representativeId", requireAuth, async (req, res) => {
+    try {
+      const representativeId = parseInt(req.params.representativeId);
+      if (Number.isNaN(representativeId)) return res.status(400).json({ error: "شناسه نامعتبر است" });
+      const result = await storage.autoAllocatePayments(representativeId);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error('Error in batch auto-allocation:', error);
+      res.status(500).json({ error: "خطا در تخصیص خودکار دسته‌ای پرداخت‌ها" });
+    }
+  });
+
   // CRM debt synchronization endpoint - Enhanced Financial Synchronization
   app.post("/api/crm/representatives/:id/sync-debt", requireAuth, async (req, res) => {
     try {
@@ -2373,8 +2439,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Financial transaction management API routes
   app.get("/api/financial/transactions", requireAuth, async (req, res) => {
     try {
-      const transactions = await storage.getFinancialTransactions();
-      res.json(transactions);
+      const page = parseInt((req.query.page as string) || '1');
+      const limit = parseInt((req.query.limit as string) || '30');
+      const representativeId = req.query.representativeId ? parseInt(req.query.representativeId as string) : undefined;
+      const status = (req.query.status as string) || undefined;
+      const type = (req.query.type as string) || undefined;
+      const entityType = (req.query.entityType as string) || undefined;
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
+      const dateFrom = (req.query.dateFrom as string) || undefined;
+      const dateTo = (req.query.dateTo as string) || undefined;
+      const sort = (req.query.sort as 'newest' | 'oldest') || 'newest';
+
+      const result = await storage.getFinancialTransactionsPaginated({
+        page: Number.isFinite(page) && page > 0 ? page : 1,
+        limit: Number.isFinite(limit) && limit > 0 ? limit : 30,
+        representativeId,
+        status,
+        type,
+        entityType,
+        entityId,
+        dateFrom,
+        dateTo,
+        sort
+      });
+
+      res.json(result);
     } catch (error: any) {
       console.error('خطا در دریافت تراکنش‌های مالی:', error);
       res.status(500).json({ 
@@ -2502,6 +2591,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('خطا در دریافت نقض محدودیت‌ها:', error);
       res.status(500).json({ error: 'خطا در دریافت نقض محدودیت‌ها', details: error.message });
+    }
+  });
+
+  // Create a data integrity constraint (for testing negative scenarios)
+  app.post("/api/constraints", requireAuth, async (req, res) => {
+    try {
+      const { constraintType, entityType, entityId, constraintRule } = req.body || {};
+      if (!constraintType || !entityType || !entityId) {
+        return res.status(400).json({ error: "پارامترهای ضروری ناقص است" });
+      }
+      const created = await storage.createIntegrityConstraint({
+        constraintType,
+        entityType,
+        entityId: parseInt(entityId),
+        constraintRule: constraintRule || {}
+      });
+      res.json(created);
+    } catch (error: any) {
+      console.error('خطا در ایجاد محدودیت:', error);
+      res.status(500).json({ error: 'خطا در ایجاد محدودیت', details: error.message });
     }
   });
 

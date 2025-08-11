@@ -1,3 +1,5 @@
+// Load environment variables as early as possible so downstream imports (e.g., db.ts) see them
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -171,6 +173,11 @@ app.use((req, res, next) => {
   }
 
   const server = await registerRoutes(app);
+
+  // Ensure unmatched API routes never fall through to SPA (strict)
+  app.all(/^\/api\//, (req, res) => {
+    return res.status(404).json({ error: 'API route not found', path: req.path, method: req.method });
+  });
 
   // SHERLOCK v16.2 DEPLOYMENT STABILITY: Enhanced health endpoints with comprehensive checks
   app.get('/health', async (req, res) => {
