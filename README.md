@@ -1,6 +1,29 @@
-# راهنمای استقرار و اجرای MarFaNet (گام‌به‌گام برای افراد غیرتخصصی)
+# MarFaNet – Quickstart (English) + راهنمای کامل فارسی
 
-این راهنما مراحل نصب و اجرای سامانه مدیریت مالی MarFaNet را بر روی سرور Ubuntu 22.04 (یا 22) به‌صورت کامل و ساده توضیح می‌دهد. پایگاه داده مورد استفاده PostgreSQL است و برنامه با Node.js اجرا می‌شود.
+This repo contains a full-stack CRM/finance mirror system:
+- Backend: Node.js + Express (TypeScript), PostgreSQL via Drizzle ORM
+- Frontend: React + Vite, Tailwind
+- Security: CRM manager gate (TTL), strict read-only policy for finance
+
+Quickstart (Local/Replit)
+- Requirements: Node.js 20+, PostgreSQL 14+
+- Copy env and edit credentials
+   - cp .env.example .env
+   - Set DATABASE_URL, SESSION_SECRET, PORT (optional)
+   - Optional: GEMINI_API_KEY, TELEGRAM_BOT_TOKEN/CHAT_ID, CRM_MANAGER_PASSWORD, CRM_MANAGER_UNLOCK_TTL_MS
+- Install and init DB
+   - npm install
+   - npm run db:push
+- Run in dev
+   - npm run dev
+- Build and run in production
+   - npm run build
+   - npm start
+
+Notes
+- Default port is 3000 unless overridden in .env
+- Use a strong SESSION_SECRET and CRM_MANAGER_PASSWORD in production
+- To explore DB visually: npm run db:studio
 
 ## 1) پیش‌نیازها
 - یک سرور Ubuntu 22.04 به‌همراه دسترسی SSH
@@ -194,6 +217,8 @@ PORT=3000
 GEMINI_API_KEY=اختیاری
 TELEGRAM_BOT_TOKEN=اختیاری
 TELEGRAM_CHAT_ID=اختیاری
+CRM_MANAGER_PASSWORD=رمز_مدیر_CRM
+CRM_MANAGER_UNLOCK_TTL_MS=1800000
 ```
 
 ## 15) به‌روزرسانی سامانه

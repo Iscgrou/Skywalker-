@@ -15,6 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { crmFetch } from '@/lib/utils';
 
 const passwordSchema = z.object({
   password: z.string().min(1, 'رمز عبور الزامی است'),
@@ -27,9 +28,6 @@ interface SettingsPasswordModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-// Default settings access password (as per requirements: Aa867945)
-const SETTINGS_ACCESS_PASSWORD = 'Aa867945';
 
 export function SettingsPasswordModal({ isOpen, onClose, onSuccess }: SettingsPasswordModalProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -48,10 +46,25 @@ export function SettingsPasswordModal({ isOpen, onClose, onSuccess }: SettingsPa
     setIsVerifying(true);
     setError(null);
 
-    // Simulate verification delay for security
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+  const res = await crmFetch('/api/crm/auth/manager-unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: data.password })
+      });
 
-    if (data.password === SETTINGS_ACCESS_PASSWORD) {
+      if (res.status === 401) {
+        setError('رمز عبور نادرست است. تنها مدیر واحد CRM دسترسی دارد.');
+        form.setValue('password', '');
+        return;
+      }
+      if (!res.ok) {
+        const txt = await res.text();
+        setError('خطای سرور در احراز دسترسی: ' + (txt || res.statusText));
+        return;
+      }
+
+      // Success
       toast({
         title: 'دسترسی تایید شد',
         description: 'به تنظیمات سیستم خوش آمدید',
@@ -59,12 +72,11 @@ export function SettingsPasswordModal({ isOpen, onClose, onSuccess }: SettingsPa
       form.reset();
       onSuccess();
       onClose();
-    } else {
-      setError('رمز عبور نادرست است. تنها مدیر واحد CRM دسترسی دارد.');
-      form.setValue('password', '');
+    } catch (e) {
+      setError('عدم دسترسی به سرور. لطفاً دوباره تلاش کنید.');
+    } finally {
+      setIsVerifying(false);
     }
-
-    setIsVerifying(false);
   };
 
   const handleClose = () => {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { crmFetch } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,7 +68,7 @@ export function TaskForm({ task, onClose, onSuccess }: TaskFormProps) {
         isAiGenerated: false
       };
 
-      const response = await fetch(
+  const response = await crmFetch(
         task ? `/api/workspace/tasks/${task.id}` : '/api/workspace/tasks',
         {
           method: task ? 'PUT' : 'POST',

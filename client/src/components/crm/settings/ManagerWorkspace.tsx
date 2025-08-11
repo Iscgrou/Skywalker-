@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { crmFetch } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
@@ -95,10 +96,9 @@ export function ManagerWorkspace() {
   // Manual Task Creation Mutation
   const createTaskMutation = useMutation({
     mutationFn: (taskData: TaskCreationRequest) => 
-      fetch('/api/workspace/tasks', {
+      crmFetch('/api/workspace/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(taskData)
       }).then(res => res.json()),
     onSuccess: () => {
@@ -130,7 +130,7 @@ export function ManagerWorkspace() {
   // AI Task Generation Mutation  
   const generateAITasksMutation = useMutation({
     mutationFn: (requestData: AITaskGenerationRequest) => 
-      fetch('/api/workspace/tasks/generate', {
+      crmFetch('/api/workspace/tasks/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData)
@@ -156,7 +156,7 @@ export function ManagerWorkspace() {
   // Delete Task Mutation
   const deleteTaskMutation = useMutation({
     mutationFn: (taskId: string) => 
-      fetch(`/api/workspace/tasks/${taskId}`, { method: 'DELETE' }).then(res => res.json()),
+      crmFetch(`/api/workspace/tasks/${taskId}`, { method: 'DELETE' }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workspace/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/workspace/stats'] });
