@@ -1,5 +1,17 @@
 # MarFaNet – Quickstart (English) + راهنمای کامل فارسی
 
+## Architecture Overview (Express + React + Vite + TypeScript + Drizzle)
+Fullstack integrated single-process dev (Express server embedding Vite dev middleware) with:
+- Backend: Express (TypeScript) + Drizzle ORM (PostgreSQL)
+- Frontend: React 18 + Vite (ESM, fast HMR)
+- Shared: Type-safe schema & utilities under `shared/`
+- Build: `vite build` for client, `esbuild` bundle for server (`dist/index.js`)
+- Dev Script: `npm run dev` (single process) plus explicit `client:dev` script for standalone Vite if needed
+- Ports: Dynamic `process.env.PORT` fallback to 5000 (no fixed port in .replit now)
+- Plugins: `@vitejs/plugin-react`, `@replit/vite-plugin-runtime-error-modal`, `@replit/vite-plugin-cartographer` (static import)
+
+This section intentionally contains canonical keywords to aid automated framework detection: Express, React, Vite, TypeScript, Drizzle ORM, Fullstack, Middleware, Postgres.
+
 This repo contains a full-stack CRM/finance mirror system:
 - Backend: Node.js + Express (TypeScript), PostgreSQL via Drizzle ORM
 - Frontend: React + Vite, Tailwind
