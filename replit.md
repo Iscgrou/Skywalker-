@@ -34,6 +34,8 @@ This repository has been standardized for Replit AI assistant recognition.
 
 ## Replit Configuration Highlights
 - Modules: `nodejs-20`, `web`, `postgresql-16`
+- Deployment target: `autoscale` (aligned with Replit generated pattern)
+- Outer workflow `Project` invoking `Start application`
 - Single exposed port: `5000`
 - Workflow waits for port 5000 (health endpoint `/health` available after boot)
 
@@ -43,7 +45,7 @@ This repository has been standardized for Replit AI assistant recognition.
 
 ## Cleanup Actions Completed
 - Removed legacy backup `*.tsx.backup` pages
-- Moved architectural spec files to `docs/specs/` (`CONTRACTS.ts`, `CONTRACTS_V2.ts`)
+- Moved architectural spec files to `docs/specs/` (`CONTRACTS.ts`, `CONTRACTS_V2.ts`) and hid specs via `.replit` hidden
 - Removed unused services: `advanced-currency-intelligence.ts`, `report-generator.ts`
 - Pruned stale commented import in `server/routes.ts`
 
