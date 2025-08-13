@@ -205,6 +205,19 @@ app.use((req, res, next) => {
 
   const server = await registerRoutes(app);
 
+  // R3/R5: Start real-time aggregator & rollup writer
+  try {
+    const { intelAggregator } = await import('./services/intel-aggregator');
+    intelAggregator.start(5000);
+    log('[Intel] Aggregator started (5s)');
+    import('./services/intel-rollup-writer').then(m=>{
+      const jitter = 1500 + Math.random()*2000;
+      setTimeout(()=> { m.intelRollupWriter.start(); log('[Intel] Rollup writer started'); }, jitter);
+    });
+  } catch(e:any){
+    log(`[Intel] Startup error: ${e.message}`,'error');
+  }
+
   // Ensure unmatched API routes never fall through to SPA (strict)
   app.all(/^\/api\//, (req, res) => {
     return res.status(404).json({ error: 'API route not found', path: req.path, method: req.method });

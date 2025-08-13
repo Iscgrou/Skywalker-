@@ -118,6 +118,22 @@ export const activityLogs = pgTable("activity_logs", {
   };
 });
 
+// R5: Intel Rollups (historical aggregated event counts)
+export const intelRollups = pgTable('intel_rollups', {
+  id: serial('id').primaryKey(),
+  bucketTs: timestamp('bucket_ts', { withTimezone: true }).notNull(),
+  windowMs: integer('window_ms').notNull(),
+  domain: text('domain').notNull(),
+  kind: text('kind').notNull(),
+  eventCount: integer('event_count').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow()
+}, (t)=>{
+  return {
+    idxWindowBucket: index('idx_intel_rollups_window_bucket').on(t.windowMs, t.bucketTs),
+    idxDomainKind: index('idx_intel_rollups_domain_kind').on(t.domain, t.kind, t.windowMs, t.bucketTs)
+  };
+});
+
 // SHERLOCK v2.0 - Removed duplicate table definition
 // Consolidated into representativeLevels table below (line 308)
 
