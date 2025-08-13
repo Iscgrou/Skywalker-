@@ -44,6 +44,7 @@ import {
 
 import { xaiGrokEngine } from "./services/xai-grok-engine";
 import { registerCrmRoutes, invalidateCrmCache } from "./routes/crm-routes";
+import { readinessGuard } from './middleware/readiness';
 import { registerSettingsRoutes } from "./routes/settings-routes";
 import bcrypt from "bcryptjs";
 
@@ -281,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Phase 41b: Explainability Retrieval Endpoints
-  app.get('/api/prescriptive/explain/history', rbac({ anyOf:['explain.history.view'] }), async (req, res) => {
+  app.get('/api/prescriptive/explain/history', readinessGuard(['prescriptive']), rbac({ anyOf:['explain.history.view'] }), async (req, res) => {
     try {
       const { listExplainabilitySessions } = await import('./services/explainability-retrieval-service.ts');
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
@@ -292,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: e.message || 'history_failed' });
     }
   });
-  app.get('/api/prescriptive/explain/session/:policyVersionId', rbac({ anyOf:['explain.session.meta.view'] }), async (req, res) => {
+  app.get('/api/prescriptive/explain/session/:policyVersionId', readinessGuard(['prescriptive']), rbac({ anyOf:['explain.session.meta.view'] }), async (req, res) => {
     try {
       const { getExplainabilitySessionMeta } = await import('./services/explainability-retrieval-service.ts');
       const data = await getExplainabilitySessionMeta(req.params.policyVersionId);
@@ -303,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: e.message || 'session_meta_failed' });
     }
   });
-  app.get('/api/prescriptive/explain/session/:policyVersionId/full', rbac({ anyOf:['explain.session.full.view'] }), async (req, res) => {
+  app.get('/api/prescriptive/explain/session/:policyVersionId/full', readinessGuard(['prescriptive']), rbac({ anyOf:['explain.session.full.view'] }), async (req, res) => {
     try {
       const { getExplainabilitySessionFull } = await import('./services/explainability-retrieval-service.ts');
       const { redactSnapshot, defaultRedactionForRole } = await import('./services/explainability-redaction-service.ts');
@@ -328,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ error: e.message || 'session_full_failed' });
     }
   });
-  app.get('/api/prescriptive/explain/diff', rbac({ anyOf:['explain.diff.view'] }), async (req, res) => {
+  app.get('/api/prescriptive/explain/diff', readinessGuard(['prescriptive']), rbac({ anyOf:['explain.diff.view'] }), async (req, res) => {
     try {
       const { from, to, lineage } = req.query as any;
       const { diffExplainability } = await import('./services/explainability-diff-service.ts');
@@ -343,8 +344,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const levelParam = (req.query.redaction as string|undefined)?.toLowerCase();
       const role = (req as any).session?.role || (req as any).session?.crmUser?.role;
       const level = (levelParam==='full'||levelParam==='partial'||levelParam==='minimal')? levelParam : defaultRedactionForRole(role);
-      // Rate limiting (identity: username || role)
-      const identity = (req as any).session?.user?.username || (req as any).session?.crmUser?.username || role || 'anon';
+      // Rate limiting (strengthened identity: session id + usernames + role + UA base64)
+      const ua = (req.headers['user-agent']||'').slice(0,120);
+      const rawIdentity = [
+        (req as any).session?.id,
+        (req as any).session?.user?.username,
+        (req as any).session?.crmUser?.username,
+        role,
+        ua
+      ].filter(Boolean).join('|');
+      const identity = Buffer.from(rawIdentity||'anon').toString('base64');
       const rl = diffRateLimitConsume(identity, req);
       if (!rl.allowed) return res.status(429).json({ ok:false, reason:'rate_limited', retryMs: 30000 });
       // Cache lookup AFTER rate check to avoid bypass via cache hits? Decision: allow cache hits to skip token consumption (future). Simplicity: consume first.

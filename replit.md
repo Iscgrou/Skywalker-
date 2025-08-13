@@ -58,10 +58,18 @@ This repository has been standardized for Replit AI assistant recognition.
 1. Introduce Jest/Vitest tests for core route handlers
 2. Implement manualChunks in `vite.config.ts` for dashboard heavy pages
 3. Gradually remove verbose version banner comments after tagging a release
+4. Extend readiness guard to predictive routes when exposed
+5. Add structured JSON logging including correlation id
 
 ## Health & Stability
 - Robust error handling & graceful shutdown in `server/index.ts`
 - Database health preflight (non-blocking)
+- Readiness guard (prescriptive diff waits for engine flag)
+- Correlation IDs via `X-Request-Id` header middleware
+- Transactional invoice create/update (atomic + logged)
+- Strengthened explain diff rate-limit identity (session+UA composite)
+- Diff cache memory watermark & trimming (150MB soft limit)
+- Structured JSON-ready request logging with correlation id
 
 ## Migration Guarantees
 - Deterministic dev/start commands

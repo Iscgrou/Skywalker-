@@ -7,6 +7,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { checkDatabaseHealth, closeDatabaseConnection, getPool } from "./db";
 import { performanceMonitoringMiddleware } from "./middleware/performance";
+import { markPredictiveReady, markPrescriptiveReady } from './middleware/readiness';
+import { correlationIdMiddleware } from './middleware/request-correlation';
 
 
 const app = express();
@@ -97,6 +99,7 @@ app.use((req, res, next) => {
 
 // Performance monitoring middleware
 app.use(performanceMonitoringMiddleware);
+app.use(correlationIdMiddleware);
 
 // Session idle and absolute timeout enforcement
 const IDLE_TIMEOUT_MS = Number(process.env.SESSION_IDLE_TIMEOUT_MS || 30 * 60 * 1000); // 30m
@@ -176,16 +179,18 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      const cid = (req as any).correlationId;
+      const base = { m:req.method, p:path, status: res.statusCode, ms: duration, cid };
+      let payload: any = base;
+      if (capturedJsonResponse && typeof capturedJsonResponse === 'object') {
+        // Only attach a shallow clone if small
+        const str = JSON.stringify(capturedJsonResponse);
+        if (str.length < 400) payload = { ...base, body: capturedJsonResponse };
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      let line = `${payload.m} ${payload.p} ${payload.status} in ${payload.ms}ms` + (cid? ` cid=${cid}`:'');
+      if (payload.body) line += ` :: ${JSON.stringify(payload.body)}`;
+      if (line.length > 160) line = line.slice(0,159)+'…';
+      log(line);
     }
   });
 
@@ -624,7 +629,8 @@ app.use((req, res, next) => {
 
             try {
               await predictiveEngineInstance.initialize();
-              log(`[Predictive] Predictive Analytics & Forecasting Engine initialized successfully`);
+              markPredictiveReady();
+              log(`[Predictive] Predictive Analytics & Forecasting Engine initialized successfully (ready flag set)`);
               log(`[Predictive] - Data ingestion & quality signals: ENABLED`);
               log(`[Predictive] - Feature store & aggregations: ENABLED`);
               log(`[Predictive] - Models hub & uncertainty bands: ENABLED`);
@@ -672,7 +678,8 @@ app.use((req, res, next) => {
           }
           try {
             await prescriptiveEngine.initialize();
-            log(`[Prescriptive] Prescriptive Optimization & Decision Simulation Engine initialized`);
+            markPrescriptiveReady();
+            log(`[Prescriptive] Prescriptive Optimization & Decision Simulation Engine initialized (ready flag set)`);
             log(`[Prescriptive] - Objective & Policy registry: ENABLED`);
             log(`[Prescriptive] - Constraint & feasibility manager: ENABLED`);
             log(`[Prescriptive] - Scenario sandbox & sampling: ENABLED`);

@@ -686,18 +686,18 @@ export class DatabaseStorage implements IStorage {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
 
-    const [newInvoice] = await db
-      .insert(invoices)
-      .values({ ...invoice, invoiceNumber })
-      .returning();
-
-    // Update representative's total debt
-    await this.updateRepresentativeFinancials(newInvoice.representativeId);
-
-    await this.createActivityLog({
-      type: "invoice_created",
-      description: `فاکتور ${invoiceNumber} برای نماینده ایجاد شد`,
-      relatedId: newInvoice.id
+    const newInvoice = await (db as any).transaction(async (tx:any) => {
+      const [row] = await tx
+        .insert(invoices)
+        .values({ ...invoice, invoiceNumber })
+        .returning();
+      await this.updateRepresentativeFinancials(row.representativeId);
+      await tx.insert(activityLogs).values({
+        type: 'invoice_created',
+        description: `فاکتور ${invoiceNumber} برای نماینده ایجاد شد`,
+        relatedId: row.id
+      });
+      return row;
     });
 
     return newInvoice;
@@ -717,12 +717,22 @@ export class DatabaseStorage implements IStorage {
   async updateInvoice(id: number, invoice: Partial<Invoice>): Promise<Invoice> {
     return await withDatabaseRetry(
       async () => {
-        const [updated] = await db
-          .update(invoices)
-          .set(invoice)
-          .where(eq(invoices.id, id))
-          .returning();
-        return updated;
+        return await (db as any).transaction(async (tx:any) => {
+          const [before] = await tx.select().from(invoices).where(eq(invoices.id, id));
+          const [updated] = await tx
+            .update(invoices)
+            .set(invoice)
+            .where(eq(invoices.id, id))
+            .returning();
+          if (before) {
+            await tx.insert(activityLogs).values({
+              type: 'invoice_updated',
+              description: `به‌روزرسانی فاکتور ${before.invoiceNumber}`,
+              relatedId: updated.id
+            });
+          }
+          return updated;
+        });
       },
       'updateInvoice'
     );
