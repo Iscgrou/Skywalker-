@@ -1,0 +1,12 @@
+import { PrescriptiveTelemetry } from '../../shared/prescriptive/prescriptive-telemetry.ts';
+process.env.PODSE_ROBUST_V1 = 'true';
+PrescriptiveTelemetry.reset();
+const snap = PrescriptiveTelemetry.snapshot();
+console.log('SNAP2_OK', !!snap.rollups, snap.rollups?.totalSpans);
+PrescriptiveTelemetry.reset();
+const snap2 = PrescriptiveTelemetry.snapshot();
+console.log('SNAP3_OK', !!snap2.rollups, snap2.rollups?.totalSpans);
+PrescriptiveTelemetry.startSpan('alpha');
+PrescriptiveTelemetry.endSpan('alpha');
+const snap3 = PrescriptiveTelemetry.snapshot();
+console.log('SNAP4_OK', snap3.rollups?.spanStats['alpha']?.count);

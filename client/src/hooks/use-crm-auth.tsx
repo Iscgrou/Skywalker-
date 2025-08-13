@@ -42,6 +42,7 @@ interface AuthContextType {
   loginMutation: UseMutationResult<any, Error, LoginCredentials>;
   logoutMutation: UseMutationResult<void, Error, void>;
   hasPermission: (resource: string, action: string) => boolean;
+  hasAction: (action: string) => boolean; // unified resource.action style (align with server RBAC)
   isAdmin: boolean;
   isCrm: boolean;
 }
@@ -144,15 +145,19 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
   // Helper function to check permissions
   const hasPermission = (resource: string, action: string): boolean => {
     if (!user) return false;
-    
-    // Admin has full access
     if (user.role === 'ADMIN') return true;
-    
-    // Check specific permissions for CRM users
     if (Array.isArray(user.permissions)) {
       return user.permissions.includes(action) || user.permissions.includes('*');
     }
-    
+    return false;
+  };
+
+  const hasAction = (action: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'ADMIN') return true; // admin escalation
+    if (Array.isArray(user.permissions)) {
+      return user.permissions.includes(action) || user.permissions.includes('*');
+    }
     return false;
   };
 
@@ -167,7 +172,8 @@ export function CrmAuthProvider({ children }: { children: ReactNode }) {
         error,
         loginMutation,
         logoutMutation,
-        hasPermission,
+  hasPermission,
+  hasAction,
         isAdmin,
         isCrm
       }}

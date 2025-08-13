@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "server/services/**/*",
+    "server/index.ts",
+    "server/routes.ts",
+    "predictive-analytics-engine.ts",
+  "prescriptive-*.ts",
+  "types/**/*",
+  "server/types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "client",
+    "migrations",
+    "server/services/strategy-security-intelligence-validation.ts",
+  "strategy-executive-dashboard-engine.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "skipLibCheck": true
+  }
+}

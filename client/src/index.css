@@ -3,6 +3,35 @@
 @tailwind utilities;
 
 :root {
+  /* CRM Neo Aurora Theme (Light) */
+  --crm-surface-base: hsl(220 20% 98%);
+  --crm-surface-alt: hsl(0 0% 100% / 96%);
+  --crm-surface-raised: hsl(220 30% 99%);
+  --crm-border: hsl(220 14% 90% / 70%);
+  --crm-text-primary: hsl(225 22% 16%);
+  --crm-text-secondary: hsl(225 8% 46%);
+  --crm-text-faint: hsl(225 6% 62%);
+  --crm-focus-ring: hsl(194 82% 54%);
+  --crm-accent-primary: linear-gradient(90deg,#7B5BFA,#35C6F5);
+  --crm-accent-elevate: linear-gradient(120deg,#F8AF3C,#F5558B);
+  --crm-intent-success: hsl(150 58% 46%);
+  --crm-intent-warning: hsl(38 92% 56%);
+  --crm-intent-danger: hsl(352 74% 52%);
+  --crm-intent-info: hsl(202 78% 52%);
+  --crm-chart-1: #7B5BFA;
+  --crm-chart-2: #35C6F5;
+  --crm-chart-3: #5BD58C;
+  --crm-chart-4: #F8AF3C;
+  --crm-chart-5: #F5558B;
+  --crm-chart-6: #8B5CF6;
+  --crm-chart-7: #14B8A6;
+  --crm-ease-emphasis: cubic-bezier(.34,1.56,.64,1);
+  --crm-radius-xs: 4px;
+  --crm-radius-sm: 8px;
+  --crm-radius-md: 14px;
+  --crm-radius-lg: 22px;
+  --crm-radius-pill: 999px;
+
   /* Claymorphism Theme - Soft Pastel Colors */
   --background: hsl(280, 15%, 97%);
   --foreground: hsl(260, 15%, 25%);
@@ -50,60 +79,6 @@
 /* Force Dark Mode for Admin Panel */
 :root {
   /* Override light mode with dark values */
-  --background: hsl(220, 30%, 8%);
-  --foreground: hsl(280, 15%, 85%);
-  --muted: hsl(270, 20%, 15%);
-  --muted-foreground: hsl(270, 10%, 60%);
-  --popover: hsl(265, 25%, 12%);
-  --popover-foreground: hsl(280, 15%, 85%);
-  --card: hsl(265, 25%, 10%);
-  --card-foreground: hsl(280, 15%, 85%);
-  --border: hsl(270, 15%, 20%);
-  --input: hsl(270, 20%, 18%);
-  --primary: hsl(258, 62%, 65%);
-  --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(155, 35%, 35%);
-  --secondary-foreground: hsl(155, 45%, 85%);
-  --accent: hsl(195, 45%, 35%);
-  --accent-foreground: hsl(195, 55%, 85%);
-  --destructive: hsl(350, 55%, 45%);
-  --destructive-foreground: hsl(0, 0%, 100%);
-  --ring: hsl(258, 30%, 55%);
-}
-
-/* 🔒 SECURITY: Public Portal Isolation */
-.public-portal-isolated {
-  /* Hide all admin UI elements */
-  --admin-sidebar-display: none !important;
-  --admin-header-display: none !important;
-  --admin-nav-display: none !important;
-}
-
-.public-portal-isolated .admin-panel-background,
-.public-portal-isolated .sidebar,
-.public-portal-isolated .main-content,
-.public-portal-isolated .admin-header,
-.public-portal-isolated [data-admin-only],
-.public-portal-isolated [class*="admin"],
-.public-portal-isolated [class*="sidebar"],
-.public-portal-isolated [class*="nav"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-/* Only allow portal-specific elements */
-.public-portal-isolated .portal-header,
-.public-portal-isolated .portal-content,
-.public-portal-isolated [class*="portal"] {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.dark {
-  /* Dark Claymorphism Theme */
   --background: hsl(220, 30%, 8%);
   --foreground: hsl(280, 15%, 85%);
   --muted: hsl(270, 20%, 15%);
@@ -747,155 +722,28 @@
 }
 
 @layer components {
-  /* Custom component styles */
-  .sidebar-nav {
-    @apply w-64 bg-white dark:bg-gray-900 shadow-lg border-l border-gray-200 dark:border-gray-700;
-  }
-  
-  .main-content {
-    @apply min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-300;
-  }
-
-  @media (min-width: 1024px) {
-    .main-content {
-      @apply mr-64;
-    }
-  }
-  
-  .stat-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6 hover:shadow-md transition-shadow cursor-pointer;
-  }
-
-  /* Mobile optimizations */
-  @media (max-width: 768px) {
-    .sidebar-nav {
-      @apply w-80;
-    }
-    
-    .grid-mobile-optimize {
-      @apply grid-cols-1 gap-3;
-    }
-    
-    .text-mobile-sm {
-      @apply text-sm;
-    }
-    
-    .p-mobile-sm {
-      @apply p-3;
-    }
-  }
-  
-  .invoice-status-unpaid {
-    @apply px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 text-xs rounded-full;
-  }
-  
-  .invoice-status-paid {
-    @apply px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full;
-  }
-  
-  .invoice-status-overdue {
-    @apply px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 text-xs rounded-full;
-  }
-  
-  .telegram-connected {
-    @apply px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm;
-  }
-  
-  .ai-assistant-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6;
-  }
-  
-  .activity-item {
-    @apply flex items-start space-x-3 space-x-reverse p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg;
-  }
+  /* CRM Core Components */
+  .crm-card { @apply rounded-[var(--crm-radius-md)] bg-[--crm-surface-alt] shadow-crm-sm border border-[--crm-border] relative overflow-hidden; }
+  .crm-card-raised { @apply rounded-[var(--crm-radius-lg)] bg-[--crm-surface-raised] shadow-crm-md border border-[--crm-border]; }
+  .crm-card::before { content:""; position:absolute; inset:0; background:linear-gradient(140deg,rgba(123,91,250,0.06),rgba(53,198,245,0.03) 40%,transparent 70%); pointer-events:none; }
+  .crm-kpi { @apply crm-card p-4 flex flex-col gap-2; }
+  .crm-kpi-value { @apply text-lg font-semibold tracking-tight; }
+  .crm-kpi-delta { @apply text-xs font-medium rounded-full px-2 py-0.5 bg-[--crm-surface-raised] shadow-crm-xs; }
+  .crm-filter-bar { @apply flex flex-wrap gap-2 items-center rounded-[var(--crm-radius-lg)] py-2 px-3 bg-[--crm-surface-alt] border border-[--crm-border] shadow-crm-xs; }
+  .crm-chip { @apply inline-flex items-center gap-1 text-xs font-medium px-3 py-1 rounded-[var(--crm-radius-pill)] bg-[--crm-surface-raised] border border-[--crm-border] hover:shadow-crm-sm transition; }
+  .crm-chip-active { @apply bg-[--crm-surface-base] shadow-crm-glow text-[--crm-text-primary]; }
+  .crm-timeline { @apply relative flex flex-col gap-4 pl-4; }
+  .crm-timeline::before { content:""; position:absolute; left:0.5rem; top:0; bottom:0; width:2px; background:linear-gradient(to bottom,#7B5BFA,#35C6F5); }
+  .crm-timeline-item { @apply relative pl-4; }
+  .crm-timeline-item::before { content:""; position:absolute; left:-0.15rem; top:0.35rem; width:10px; height:10px; border-radius:999px; background:linear-gradient(90deg,#7B5BFA,#35C6F5); box-shadow:0 0 0 3px hsl(228 16% 9%); }
+  .crm-focus-ring { box-shadow: var(--crm-focus-ring) 0 0 0 2px !important; }
+  .crm-nav-rail { @apply flex flex-col gap-3 py-4 w-14 items-center bg-[--crm-surface-base] border-r border-[--crm-border]; }
+  .crm-nav-btn { @apply w-10 h-10 rounded-[var(--crm-radius-sm)] flex items-center justify-center text-[--crm-text-secondary] hover:text-[--crm-text-primary] hover:bg-[--crm-surface-alt] transition relative; }
+  .crm-nav-btn-active { @apply text-[--crm-text-primary]; }
+  /* ...existing code... */
 }
 
-@layer utilities {
-  /* Persian/Farsi number utilities */
-  .persian-digits {
-    font-variant-numeric: normal;
-  }
-  
-  /* Loading states */
-  .loading-shimmer {
-    @apply animate-pulse bg-gray-200 dark:bg-gray-700 rounded;
-  }
-  
-  /* Portal-specific dark theme */
-  .portal-dark {
-    @apply bg-gray-900 text-white;
-  }
-  
-  .portal-card {
-    @apply bg-gray-800 rounded-lg p-4;
-  }
-  
-  .portal-stat-value {
-    @apply text-2xl font-bold;
-  }
-  
-  .portal-debt {
-    @apply text-red-400;
-  }
-  
-  .portal-credit {
-    @apply text-green-400;
-  }
-  
-  .portal-warning {
-    @apply text-yellow-400;
-  }
-}
-
-/* Custom scrollbar for RTL */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-gray-800;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500 dark:bg-gray-500;
-}
-
-/* Upload area styles */
-.upload-area {
-  @apply border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-colors hover:border-primary hover:bg-blue-50 dark:hover:bg-blue-900;
-}
-
-.upload-area.dragover {
-  @apply border-primary bg-blue-100 dark:bg-blue-900;
-}
-
-/* Animation for success states */
-.success-animation {
-  animation: successPulse 0.6s ease-in-out;
-}
-
-@keyframes successPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-/* Telegram status indicators */
-.telegram-sent {
-  @apply text-green-600 dark:text-green-400;
-}
-
-.telegram-pending {
-  @apply text-orange-600 dark:text-orange-400;
-}
-
-.telegram-failed {
-  @apply text-red-600 dark:text-red-400;
-}
+/* ...existing code... */
 
 /* ===== MOBILE RESPONSIVE FIXES FOR RADIX UI COMPONENTS ===== */
 /* Fix for dropdown positioning issues on mobile devices */

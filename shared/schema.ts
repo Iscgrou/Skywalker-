@@ -414,61 +414,149 @@ export const aiDecisionLog = pgTable("ai_decision_log", {
   evaluatedAt: timestamp("evaluated_at")
 });
 
-// CRM Performance Analytics (آنالیز عملکرد)
-export const crmPerformanceAnalytics = pgTable("crm_performance_analytics", {
-  id: serial("id").primaryKey(),
-  representativeId: integer("representative_id").notNull(),
-  analyticsId: text("analytics_id").notNull().unique(),
-  period: text("period").notNull(), // "DAILY", "WEEKLY", "MONTHLY", "QUARTERLY"
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
-  
-  // Task Performance
-  tasksAssigned: integer("tasks_assigned").default(0),
-  tasksCompleted: integer("tasks_completed").default(0),
-  tasksOverdue: integer("tasks_overdue").default(0),
-  averageCompletionTime: integer("average_completion_time"), // in hours
-  
-  // Quality Metrics
-  averageQualityScore: decimal("average_quality_score", { precision: 5, scale: 2 }),
-  communicationQuality: decimal("communication_quality", { precision: 5, scale: 2 }),
-  customerSatisfaction: decimal("customer_satisfaction", { precision: 5, scale: 2 }),
-  
-  // Relationship Metrics
-  relationshipScore: integer("relationship_score"), // 1-100
-  responseTime: integer("response_time"), // average response time in hours
-  proactiveActions: integer("proactive_actions"), // self-initiated actions
-  
-  // Improvement Tracking
-  improvementAreas: json("improvement_areas"),
-  strengthAreas: json("strength_areas"),
-  recommendedActions: json("recommended_actions"),
-  
-  // AI Analysis
-  aiInsights: json("ai_insights"),
-  predictedTrends: json("predicted_trends"),
-  personalizedRecommendations: json("personalized_recommendations"),
-  
-  createdAt: timestamp("created_at").defaultNow()
+// ================== Knowledge & Feedback Graph (Iteration 9) ==================
+export const aiKnowledgeSources = pgTable('ai_knowledge_sources', {
+  id: serial('id').primaryKey(),
+  sourceType: text('source_type').notNull(), // DECISION_LOG | TASK_EVALUATION | SNAPSHOT_ANOMALY
+  referenceId: text('reference_id').notNull(), // e.g. decisionId, taskId, snapshot compound key
+  capturedAt: timestamp('captured_at').defaultNow(),
+  summary: text('summary'),
+  tags: json('tags').default([]),
+  metadata: json('metadata'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    refIdx: index('ai_knowledge_sources_ref_idx').on(table.referenceId),
+    typeIdx: index('ai_knowledge_sources_type_idx').on(table.sourceType)
+  };
 });
 
-// CRM System Events (رویدادهای سیستم)
-export const crmSystemEvents = pgTable("crm_system_events", {
-  id: serial("id").primaryKey(),
-  eventId: text("event_id").notNull().unique(),
-  eventType: text("event_type").notNull(), // "ADMIN_SYNC", "AI_DECISION", "PERFORMANCE_ALERT", "SYSTEM_LEARNING"
-  description: text("description").notNull(),
-  relatedEntities: json("related_entities"), // What entities are affected
-  adminPanelData: json("admin_panel_data"), // Data pulled from admin panel
-  crmPanelImpact: json("crm_panel_impact"), // How this affects CRM panel
-  automatedActions: json("automated_actions"), // What actions were taken automatically
-  requiresHumanReview: boolean("requires_human_review").default(false),
-  reviewedBy: text("reviewed_by"),
-  reviewNotes: text("review_notes"),
-  reviewedAt: timestamp("reviewed_at"),
-  priority: text("priority").notNull(), // "LOW", "MEDIUM", "HIGH", "CRITICAL"
-  status: text("status").notNull().default("ACTIVE"), // "ACTIVE", "RESOLVED", "ESCALATED"
-  createdAt: timestamp("created_at").defaultNow()
+export const aiKnowledgeEdges = pgTable('ai_knowledge_edges', {
+  id: serial('id').primaryKey(),
+  fromSourceId: integer('from_source_id').notNull(),
+  toSourceId: integer('to_source_id').notNull(),
+  edgeType: text('edge_type').notNull(), // INFLUENCES | FOLLOWS | CORRELATED_WITH
+  weight: decimal('weight', { precision: 6, scale: 4 }).default('0.1000'),
+  metadata: json('metadata'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    fromIdx: index('ai_knowledge_edges_from_idx').on(table.fromSourceId),
+    toIdx: index('ai_knowledge_edges_to_idx').on(table.toSourceId),
+    typeIdx: index('ai_knowledge_edges_type_idx').on(table.edgeType)
+  };
+});
+
+// Adaptive Strategy Performance (Iteration 10)
+export const aiStrategyPerformance = pgTable('ai_strategy_performance', {
+  id: serial('id').primaryKey(),
+  strategy: text('strategy').notNull(), // RISK_MITIGATION | EXPEDITE | RE_ENGAGE | STEADY | ...
+  window: text('window').notNull(), // LAST_50 | 7D
+  decisionsCount: integer('decisions_count').default(0),
+  avgEffectiveness: decimal('avg_effectiveness', { precision: 4, scale: 2 }),
+  p90Effectiveness: decimal('p90_effectiveness', { precision: 4, scale: 2 }),
+  decayWeightedScore: decimal('decay_weighted_score', { precision: 5, scale: 3 }),
+  weightsApplied: json('weights_applied'), // snapshot of normalized weights when row updated
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => {
+  return {
+    stratWinIdx: index('ai_strategy_performance_strat_win_idx').on(table.strategy, table.window)
+  };
+});
+
+// Strategy Weight Snapshots (Iteration 14 - Persistence Layer)
+export const aiStrategyWeightSnapshots = pgTable('ai_strategy_weight_snapshots', {
+  id: serial('id').primaryKey(),
+  capturedAt: timestamp('captured_at').defaultNow(),
+  version: text('version').notNull(), // unified-v1 ...
+  strategy: text('strategy').notNull(),
+  weight: decimal('weight', { precision: 6, scale: 4 }).notNull(),
+  basePost: decimal('base_post', { precision: 8, scale: 4 }),
+  decayScore: decimal('decay_score', { precision: 8, scale: 4 }),
+  avgEff: decimal('avg_eff', { precision: 5, scale: 2 }),
+  p90Eff: decimal('p90_eff', { precision: 5, scale: 2 }),
+  spread: decimal('spread', { precision: 5, scale: 2 }),
+  earlyGated: boolean('early_gated').default(false),
+  checksum: decimal('checksum', { precision: 8, scale: 6 }),
+  seed: integer('seed'),
+  modifiers: json('modifiers'), // flags & factors (stabilityBoostApplied, volatilityPenaltyFactor, clampApplied, dominanceCapApplied, floorApplied)
+  meta: json('meta'), // normalization sums, earlyGatedStrategies length
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    stratTimeIdx: index('ai_strategy_weight_snapshots_strat_time_idx').on(table.strategy, table.capturedAt),
+    timeIdx: index('ai_strategy_weight_snapshots_time_idx').on(table.capturedAt)
+  };
+});
+
+// Governance Alerts Persistent Store (Iteration 21)
+export const aiGovernanceAlerts = pgTable('ai_governance_alerts', {
+  id: serial('id').primaryKey(),
+  createdAt: timestamp('created_at').defaultNow(),
+  alertTimestamp: timestamp('alert_timestamp').notNull(), // original alert timestamp
+  generatedAt: timestamp('generated_at').notNull(), // governance report generatedAt
+  strategy: text('strategy').notNull(),
+  alertId: text('alert_id').notNull(), // TrendBreakout, VolatilitySurge, ...
+  severity: text('severity').notNull(), // info|warn|critical
+  message: text('message').notNull(),
+  hash: text('hash').notNull(), // truncated stable hash for dedup
+  rationale: json('rationale'),
+  context: json('context'), // persistContext meta
+  dedupGroup: text('dedup_group'), // strategy+alertId+message for fast dedup querying
+  processed: boolean('processed').default(false), // future workflow flag
+  acknowledged: boolean('acknowledged').default(false),
+  acknowledgedAt: timestamp('acknowledged_at'),
+}, (table) => {
+  return {
+    stratTimeIdx: index('ai_gov_alerts_strategy_time_idx').on(table.strategy, table.alertTimestamp),
+    severityIdx: index('ai_gov_alerts_severity_idx').on(table.severity),
+    dedupIdx: index('ai_gov_alerts_dedup_idx').on(table.dedupGroup, table.alertTimestamp),
+    createdIdx: index('ai_gov_alerts_created_idx').on(table.createdAt)
+  };
+});
+
+// Governance Alert Acknowledgements (Iteration 23)
+export const aiGovernanceAlertAcks = pgTable('ai_governance_alert_acks', {
+  id: serial('id').primaryKey(),
+  alertId: integer('alert_id').notNull(), // FK -> ai_governance_alerts.id (enforced at SQL migration layer)
+  alertTimestamp: timestamp('alert_timestamp').notNull(), // denormalized for window queries
+  severity: text('severity').notNull(),
+  dedupGroup: text('dedup_group'),
+  acknowledgedAt: timestamp('acknowledged_at').defaultNow().notNull(),
+  acknowledgedBy: text('acknowledged_by'),
+  note: text('note'),
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => {
+  return {
+    uniqueAlert: index('ai_gov_alert_acks_alert_unique_idx').on(table.alertId), // uniqueness enforced (unique index)
+    timeIdx: index('ai_gov_alert_acks_time_idx').on(table.alertTimestamp),
+    sevIdx: index('ai_gov_alert_acks_severity_idx').on(table.severity),
+    dedupIdx: index('ai_gov_alert_acks_dedup_idx').on(table.dedupGroup, table.alertTimestamp)
+  };
+});
+
+// Governance Alert Escalations (Iteration 25)
+export const aiGovernanceAlertEscalations = pgTable('ai_governance_alert_escalations', {
+  id: serial('id').primaryKey(),
+  alertId: integer('alert_id').notNull(), // FK -> ai_governance_alerts.id (SQL layer)
+  alertTimestamp: timestamp('alert_timestamp').notNull(), // copy for window / age calculations
+  severity: text('severity').notNull(),
+  escalatedAt: timestamp('escalated_at').defaultNow().notNull(),
+  reasonCode: text('reason_code').notNull().default('STALE_UNACK'), // STALE_UNACK | MANUAL_TEST | MANUAL_TEST_FORCE
+  thresholdMs: integer('threshold_ms'), // threshold used when escalating
+  ageMsAtEscalation: integer('age_ms_at_escalation'), // age when triggered
+  cooldownUntil: timestamp('cooldown_until'), // future re-escalation gate (not used Phase 1 except projection)
+  ackAfterEscalationMs: integer('ack_after_escalation_ms'), // populated when ack occurs post escalation
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => {
+  return {
+    uniqueAlert: index('ai_gov_alert_escalations_alert_unique_idx').on(table.alertId), // Phase 1: single escalation per alert
+    sevIdx: index('ai_gov_alert_escalations_severity_idx').on(table.severity),
+    timeIdx: index('ai_gov_alert_escalations_time_idx').on(table.escalatedAt),
+    alertTimeIdx: index('ai_gov_alert_escalations_alert_time_idx').on(table.alertTimestamp)
+  };
 });
 
 // ==================== DA VINCI v1.0 SCHEMAS ====================
@@ -1102,6 +1190,30 @@ export const crmTaskResultsRelations = relations(crmTaskResults, ({ one }) => ({
   })
 }));
 
+// --- Temporary stub definitions (Iteration 21 fix) ---
+// برخی جداول CRM هنوز به طور کامل طراحی نشده‌اند اما روابط/اسکیماهای درج به آن‌ها ارجاع می‌دهند.
+// برای عبور از TypeScript check و ادامه‌ی توسعه DA VINCI، حداقل اسکیماهای قابل‑استفاده تعریف می‌گردند.
+// وقتی طراحی نهایی آماده شد، این ساختار می‌تواند گسترش یابد یا جایگزین شود.
+export const crmPerformanceAnalytics = pgTable('crm_performance_analytics', {
+  id: serial('id').primaryKey(),
+  representativeId: integer('representative_id').references(() => representatives.id),
+  metric: text('metric').notNull(),
+  value: decimal('value', { precision: 10, scale: 4 }),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
+export const crmSystemEvents = pgTable('crm_system_events', {
+  id: serial('id').primaryKey(),
+  eventType: text('event_type').notNull(),
+  severity: text('severity'),
+  details: json('details'),
+  representativeId: integer('representative_id').references(() => representatives.id),
+  reviewedBy: integer('reviewed_by'),
+  reviewNotes: text('review_notes'),
+  reviewedAt: timestamp('reviewed_at'),
+  createdAt: timestamp('created_at').defaultNow()
+});
+
 export const crmPerformanceAnalyticsRelations = relations(crmPerformanceAnalytics, ({ one }) => ({
   representative: one(representatives, {
     fields: [crmPerformanceAnalytics.representativeId],
@@ -1502,3 +1614,263 @@ export type InsertWorkspaceAiReminder = z.infer<typeof insertWorkspaceAiReminder
 
 export type RepresentativeSupportHistory = typeof representativeSupportHistory.$inferSelect;
 export type InsertRepresentativeSupportHistory = z.infer<typeof insertRepresentativeSupportHistorySchema>;
+
+// ================== EVENT SOURCING EXTENSIONS (Task Lifecycle v1) ==================
+import { jsonb } from 'drizzle-orm/pg-core'; // if needed fallback to json already imported
+
+export const taskEvents = pgTable('task_events', {
+  id: serial('id').primaryKey(),
+  taskId: text('task_id').notNull(),
+  type: text('type').notNull(), // TASK_CREATED, TASK_STATUS_CHANGED, TASK_NOTE_ADDED, TASK_COMPLETED, TASK_REMINDER_LINKED
+  occurredAt: timestamp('occurred_at').defaultNow(),
+  payload: json('payload'),
+  correlationId: text('correlation_id'), // link to ai command if any
+  actor: text('actor').default('SYSTEM'), // SYSTEM | MANAGER | STAFF | AI
+  representativeId: integer('representative_id') // nullable until backfilled
+}, (table) => {
+  return {
+    repOccIdx: index('task_events_rep_occ_idx').on(table.representativeId, table.occurredAt)
+  };
+});
+
+export const aiCommandLog = pgTable('ai_command_log', {
+  id: serial('id').primaryKey(),
+  correlationId: text('correlation_id').notNull().unique(),
+  command: text('command').notNull(),
+  envelope: json('envelope').notNull(),
+  response: json('response'),
+  issuedAt: timestamp('issued_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  status: text('status').default('PENDING'), // PENDING, SUCCESS, FAILED
+  validationPassed: boolean('validation_passed').default(true)
+});
+
+export const staffShiftSessions = pgTable('staff_shift_sessions', {
+  id: serial('id').primaryKey(),
+  staffId: integer('staff_id').notNull(),
+  startedAt: timestamp('started_at').defaultNow(),
+  endedAt: timestamp('ended_at'),
+  effectiveSeconds: integer('effective_seconds'), // computed after end
+  notes: text('notes')
+});
+
+export const insertTaskEventSchema = createInsertSchema(taskEvents).omit({ id: true, occurredAt: true });
+export const insertAiCommandLogSchema = createInsertSchema(aiCommandLog).omit({ id: true, issuedAt: true, completedAt: true });
+export const insertStaffShiftSessionSchema = createInsertSchema(staffShiftSessions).omit({ id: true, startedAt: true });
+
+export type TaskEvent = typeof taskEvents.$inferSelect;
+export type InsertTaskEvent = z.infer<typeof insertTaskEventSchema>;
+export type AiCommandLog = typeof aiCommandLog.$inferSelect;
+export type InsertAiCommandLog = z.infer<typeof insertAiCommandLogSchema>;
+export type StaffShiftSession = typeof staffShiftSessions.$inferSelect;
+export type InsertStaffShiftSession = z.infer<typeof insertStaffShiftSessionSchema>;
+
+// ================== Debt Snapshot Service (Iteration 1) ==================
+export const representativeDebtSnapshots = pgTable('representative_debt_snapshots', {
+  id: serial('id').primaryKey(),
+  representativeId: integer('representative_id').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD UTC
+  totalDebt: decimal('total_debt', { precision: 15, scale: 2 }).notNull(),
+  totalSales: decimal('total_sales', { precision: 15, scale: 2 }).notNull(),
+  capturedAt: timestamp('captured_at').defaultNow()
+}, (table) => {
+  return {
+    repDateUnique: index('rep_debt_snapshots_rep_date_idx').on(table.representativeId, table.date)
+  };
+});
+
+export const insertRepresentativeDebtSnapshotSchema = createInsertSchema(representativeDebtSnapshots).omit({ id: true, capturedAt: true });
+export type RepresentativeDebtSnapshot = typeof representativeDebtSnapshots.$inferSelect;
+export type InsertRepresentativeDebtSnapshot = z.infer<typeof insertRepresentativeDebtSnapshotSchema>;
+
+// ================== Iteration 29: Adaptive Governance Persistence ==================
+// Latest adaptive weight set (single logical row per key)
+export const adaptiveWeightsLatest = pgTable('adaptive_weights_latest', {
+  id: serial('id').primaryKey(),
+  version: text('version').notNull().default('v1'),
+  w1: decimal('w1', { precision: 8, scale: 6 }).notNull(),
+  w2: decimal('w2', { precision: 8, scale: 6 }).notNull(),
+  w3: decimal('w3', { precision: 8, scale: 6 }).notNull(),
+  w4: decimal('w4', { precision: 8, scale: 6 }).notNull(),
+  w5: decimal('w5', { precision: 8, scale: 6 }).notNull(),
+  freezeActive: boolean('freeze_active').default(false),
+  freezeSinceCycle: integer('freeze_since_cycle'),
+  lastAdjustmentCycle: integer('last_adjustment_cycle'),
+  cycle: integer('cycle'),
+  consecutiveZeroErrorCycles: integer('consecutive_zero_error_cycles'),
+  metricsSnapshot: json('metrics_snapshot'), // last metrics applied
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => {
+  return {
+    versionIdx: index('adaptive_weights_latest_version_idx').on(table.version)
+  };
+});
+
+// Historical weight adjustments (append-only)
+export const adaptiveWeightsHistory = pgTable('adaptive_weights_history', {
+  id: serial('id').primaryKey(),
+  capturedAt: timestamp('captured_at').defaultNow(),
+  version: text('version').notNull().default('v1'),
+  w1: decimal('w1', { precision: 8, scale: 6 }).notNull(),
+  w2: decimal('w2', { precision: 8, scale: 6 }).notNull(),
+  w3: decimal('w3', { precision: 8, scale: 6 }).notNull(),
+  w4: decimal('w4', { precision: 8, scale: 6 }).notNull(),
+  w5: decimal('w5', { precision: 8, scale: 6 }).notNull(),
+  reason: text('reason').notNull(), // applied|cooldown|freeze
+  cycle: integer('cycle'),
+  lastAdjustmentCycle: integer('last_adjustment_cycle'),
+  freezeActive: boolean('freeze_active').default(false),
+  meta: json('meta'), // errs, deltas maybe truncated
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    versionCapturedIdx: index('adaptive_weights_history_version_captured_idx').on(table.version, table.capturedAt)
+  };
+});
+
+// Latest suppression states snapshot (one per dedupGroup)
+export const suppressionStateLatest = pgTable('suppression_state_latest', {
+  id: serial('id').primaryKey(),
+  dedupGroup: text('dedup_group').notNull(),
+  state: text('state').notNull(),
+  noiseScore: decimal('noise_score', { precision: 10, scale: 6 }).notNull(),
+  noiseScoreEnter: decimal('noise_score_enter', { precision: 10, scale: 6 }),
+  noiseScoreExit: decimal('noise_score_exit', { precision: 10, scale: 6 }),
+  suppressedCount: integer('suppressed_count').default(0),
+  lastVolume: integer('last_volume'),
+  severityScope: text('severity_scope'),
+  strategy: text('strategy'),
+  lastStateChangeAt: timestamp('last_state_change_at'),
+  lastSuppressionStart: timestamp('last_suppression_start'),
+  consecutiveStable: integer('consecutive_stable'),
+  dynamicThresholds: json('dynamic_thresholds'),
+  robustHighStreak: integer('robust_high_streak'),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (table) => {
+  return {
+    dedupIdx: index('suppression_state_latest_dedup_idx').on(table.dedupGroup)
+  };
+});
+
+// Governance persistence audit trail
+export const governancePersistenceAudit = pgTable('governance_persistence_audit', {
+  id: serial('id').primaryKey(),
+  action: text('action').notNull(), // SAVE_WEIGHTS | LOAD_WEIGHTS | SAVE_SUPPRESSION | LOAD_SUPPRESSION
+  entity: text('entity').notNull(), // weights|suppression
+  version: text('version'),
+  count: integer('count'),
+  durationMs: integer('duration_ms'),
+  success: boolean('success').default(true),
+  error: text('error'),
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    actionIdx: index('governance_persist_audit_action_idx').on(table.action, table.createdAt)
+  };
+});
+
+// Iteration 30: Suppression State History
+export const suppressionStateHistory = pgTable('suppression_state_history', {
+  id: serial('id').primaryKey(),
+  dedupGroup: text('dedup_group').notNull(),
+  prevState: text('prev_state'),
+  newState: text('new_state').notNull(),
+  changedAt: timestamp('changed_at').defaultNow(),
+  durationMs: integer('duration_ms'),
+  noiseScoreEnter: decimal('noise_score_enter', { precision: 10, scale: 6 }),
+  noiseScoreExit: decimal('noise_score_exit', { precision: 10, scale: 6 }),
+  reenteredWithinMs: integer('reentered_within_ms'),
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    groupChangedIdx: index('suppression_state_history_group_changed_idx').on(table.dedupGroup, table.changedAt),
+    newStateIdx: index('suppression_state_history_new_state_idx').on(table.newState, table.changedAt)
+  };
+});
+
+// ================== Phase 41: Explainability Persistence ==================
+export const explainabilitySessions = pgTable('explainability_sessions', {
+  id: serial('id').primaryKey(),
+  sessionId: text('session_id').notNull().unique(),
+  policyVersionId: text('policy_version_id').notNull().unique(),
+  constraintsHash: text('constraints_hash').notNull(),
+  adjustedHash: text('adjusted_hash').notNull(),
+  totalAdjustments: integer('total_adjustments').default(0),
+  estimationUsed: boolean('estimation_used').default(false),
+  startedAt: timestamp('started_at').notNull(),
+  finishedAt: timestamp('finished_at'),
+  telemetryCounters: json('telemetry_counters').default({}),
+  sessionNodes: json('session_nodes'), // optional nodes snapshot for fast retrieval
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    pvIdx: index('explainability_sessions_pv_idx').on(table.policyVersionId),
+    startedIdx: index('explainability_sessions_started_idx').on(table.startedAt)
+  };
+});
+
+export const explainabilityAdjustments = pgTable('explainability_adjustments', {
+  id: serial('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  constraintId: text('constraint_id').notNull(),
+  action: text('action').notNull(),
+  originalExpression: text('original_expression').notNull(),
+  adjustedExpression: text('adjusted_expression'),
+  violationDelta: decimal('violation_delta', { precision: 10, scale: 6 }),
+  feasibilityDelta: decimal('feasibility_delta', { precision: 10, scale: 6 }),
+  estimationMode: boolean('estimation_mode').default(false),
+  avgSegmentDeltaPct: decimal('avg_segment_delta_pct', { precision: 10, scale: 6 }),
+  segments: json('segments').default([]),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    sessIdx: index('explainability_adjust_sess_idx').on(table.sessionId),
+    constraintIdx: index('explainability_adjust_constraint_idx').on(table.constraintId),
+    uniqAdj: index('explainability_adjust_unique_idx').on(table.sessionId, table.constraintId, table.action)
+  };
+});
+
+export const explainabilityLineageEdges = pgTable('explainability_lineage_edges', {
+  id: serial('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  fromNode: text('from_node').notNull(),
+  toNode: text('to_node').notNull(),
+  edgeType: text('edge_type').notNull(),
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow()
+}, (table) => {
+  return {
+    sessIdx: index('explainability_lineage_sess_idx').on(table.sessionId),
+    typeIdx: index('explainability_lineage_type_idx').on(table.edgeType)
+  };
+});
+
+export const insertAdaptiveWeightsLatestSchema = createInsertSchema(adaptiveWeightsLatest).omit({ id:true, updatedAt:true });
+export const insertAdaptiveWeightsHistorySchema = createInsertSchema(adaptiveWeightsHistory).omit({ id:true, createdAt:true, capturedAt:true });
+export const insertSuppressionStateLatestSchema = createInsertSchema(suppressionStateLatest).omit({ id:true, updatedAt:true });
+export const insertGovernancePersistenceAuditSchema = createInsertSchema(governancePersistenceAudit).omit({ id:true, createdAt:true });
+export const insertSuppressionStateHistorySchema = createInsertSchema(suppressionStateHistory).omit({ id:true, createdAt:true });
+
+export const insertExplainabilitySessionsSchema = createInsertSchema(explainabilitySessions).omit({ id:true, createdAt:true });
+export const insertExplainabilityAdjustmentsSchema = createInsertSchema(explainabilityAdjustments).omit({ id:true, createdAt:true });
+export const insertExplainabilityLineageEdgesSchema = createInsertSchema(explainabilityLineageEdges).omit({ id:true, createdAt:true });
+
+export type AdaptiveWeightsLatest = typeof adaptiveWeightsLatest.$inferSelect;
+export type InsertAdaptiveWeightsLatest = typeof adaptiveWeightsLatest.$inferInsert;
+export type AdaptiveWeightsHistory = typeof adaptiveWeightsHistory.$inferSelect;
+export type InsertAdaptiveWeightsHistory = typeof adaptiveWeightsHistory.$inferInsert;
+export type SuppressionStateLatest = typeof suppressionStateLatest.$inferSelect;
+export type InsertSuppressionStateLatest = typeof suppressionStateLatest.$inferInsert;
+export type GovernancePersistenceAudit = typeof governancePersistenceAudit.$inferSelect;
+export type InsertGovernancePersistenceAudit = typeof governancePersistenceAudit.$inferInsert;
+export type SuppressionStateHistory = typeof suppressionStateHistory.$inferSelect;
+export type InsertSuppressionStateHistory = typeof suppressionStateHistory.$inferInsert;
+export type ExplainabilitySession = typeof explainabilitySessions.$inferSelect;
+export type InsertExplainabilitySession = typeof explainabilitySessions.$inferInsert;
+export type ExplainabilityAdjustment = typeof explainabilityAdjustments.$inferSelect;
+export type InsertExplainabilityAdjustment = typeof explainabilityAdjustments.$inferInsert;
+export type ExplainabilityLineageEdge = typeof explainabilityLineageEdges.$inferSelect;
+export type InsertExplainabilityLineageEdge = typeof explainabilityLineageEdges.$inferInsert;

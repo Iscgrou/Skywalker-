@@ -1,6 +1,8 @@
 import { db } from "../db";
 import { activityLogs } from "../../shared/schema";
 import { desc, eq, lt } from "drizzle-orm";
+import { intelBus } from './intel-bus';
+import { createIntelEvent } from './intel-types';
 
 export type AuditLogLevel = 'info' | 'warning' | 'error' | 'critical';
 
@@ -58,6 +60,23 @@ class AuditLogger {
         severity: entry.severity || 'info',
         metadata: entry.metadata || null,
       });
+      // انتشار رویداد intel
+      const intelEvt = createIntelEvent({
+        domain: 'audit',
+        kind: entry.type.includes('governance') ? 'governance.alert' : 'user.activity',
+        priority: 3,
+        sensitivity: 'internal',
+        source: 'auditLogger',
+        payload: {
+          summary: entry.description,
+          actorId: entry.userId || userInfo.userId,
+          resourceId: entry.relatedId ? String(entry.relatedId) : undefined,
+          ip: userInfo.ipAddress,
+          tags: [entry.type, entry.severity || 'info'],
+          data: entry.metadata
+        }
+      });
+      intelBus.publish(intelEvt);
     } catch (error) {
       console.error('Failed to write audit log:', error);
       // Don't throw - logging failures shouldn't break the main flow

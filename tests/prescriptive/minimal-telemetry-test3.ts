@@ -1,0 +1,16 @@
+import { PrescriptiveTelemetry } from '../../shared/prescriptive/prescriptive-telemetry.ts';
+if (!process.env.PODSE_ROBUST_V1) process.env.PODSE_ROBUST_V1='true';
+PrescriptiveTelemetry.reset();
+let snap = PrescriptiveTelemetry.snapshot();
+if (!snap.rollups || snap.rollups.totalSpans !== 0) throw new Error('Rollups empty spans failed');
+PrescriptiveTelemetry.reset();
+PrescriptiveTelemetry.startSpan('alpha');
+PrescriptiveTelemetry.endSpan('alpha');
+PrescriptiveTelemetry.counter('constraints.evaluated',4);
+PrescriptiveTelemetry.counter('constraints.violation.hard',1);
+PrescriptiveTelemetry.counter('constraints.violation.soft',1);
+const s2 = PrescriptiveTelemetry.snapshot();
+const r = s2.rollups;
+if (!r) throw new Error('Missing rollups');
+if (!r.spanStats['alpha'] || r.spanStats['alpha'].count !== 1) throw new Error('alpha count mismatch');
+console.log('DONE');

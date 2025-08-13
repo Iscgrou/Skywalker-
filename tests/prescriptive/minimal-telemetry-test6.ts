@@ -1,0 +1,13 @@
+import { PrescriptiveTelemetry } from '../../shared/prescriptive/prescriptive-telemetry.ts';
+process.env.PODSE_ROBUST_V1='true';
+console.log('RESET');
+PrescriptiveTelemetry.reset();
+console.log('SNAP1');
+PrescriptiveTelemetry.snapshot();
+console.log('START');
+PrescriptiveTelemetry.startSpan('alpha');
+console.log('END');
+PrescriptiveTelemetry.endSpan('alpha');
+console.log('SNAP2');
+PrescriptiveTelemetry.snapshot();
+console.log('DONE');

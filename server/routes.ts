@@ -4,6 +4,10 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql, eq, and, or } from "drizzle-orm";
 import { invoices } from "@shared/schema";
+import { rbac } from './middleware/rbac';
+import { RBAC_VERSION } from '../shared/rbac';
+import { auditLogger } from './services/audit-logger';
+import { AuditEvents } from './services/audit-events';
 // CRM routes are imported in registerCrmRoutes function
 
 import multer from "multer";
@@ -67,6 +71,15 @@ function requireAuth(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // R1.5: Add security middleware early in the chain
+  const { roleIntegrityGuard } = await import('./middleware/role-integrity');
+  const { csrfIssue, csrfVerify } = await import('./middleware/csrf');
+  
+  // Apply security middleware globally
+  app.use(roleIntegrityGuard); // Check role integrity after session but before RBAC
+  app.use(csrfIssue); // Issue CSRF tokens for authenticated sessions
+  app.use(csrfVerify); // Verify CSRF tokens for state-changing requests
+  
   // Initialize default admin user
   try {
     await storage.initializeDefaultAdminUser("mgr", "8679");
@@ -86,6 +99,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register Settings routes (DA VINCI v1.0)
   registerSettingsRoutes(app);
+  
+  // Register Intelligence Dashboard routes (R2)
+  const intelligenceRoutes = (await import("./routes/intelligence-routes")).default;
+  app.use("/api/intelligence", intelligenceRoutes);
+  
+  // Register Adaptive Intelligence routes (R2.3)
+  const { adaptiveRoutes } = await import("./routes/adaptive-routes");
+  app.use("/api/adaptive", adaptiveRoutes);
   
   // Register Workspace routes (DA VINCI v2.0) - temporarily bypass auth for testing
   const workspaceRoutes = (await import("./routes/workspace-routes")).default;
@@ -154,6 +175,754 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "خطا در تست اتصال" });
     }
   });
+
+  // Iteration 22: Governance Alert Query & Analytics minimal endpoints
+  // Lightweight read-only observability layer (no acknowledgement workflow yet)
+  app.get('/api/governance/alerts', rbac({ anyOf:['governance.alert.list'] }), async (req, res) => {
+    try {
+  const { strategies, severities, alertIds, from, to, limit, order, cursor, includeContext, includeRationale, includeAckState, includeEscalationState, includeSuppressionState } = req.query as any;
+      const parseList = (v:any)=> v? String(v).split(',').filter(Boolean): undefined;
+      const { queryAlerts } = await import('./services/strategy-governance-alert-query-service.ts');
+      const data = await queryAlerts({
+        strategies: parseList(strategies),
+        severities: parseList(severities) as any,
+        alertIds: parseList(alertIds),
+        from, to,
+        limit: limit? Number(limit): undefined,
+        order: order==='asc'? 'asc':'desc',
+        cursor: cursor? String(cursor): undefined,
+  includeContext: includeContext==='1',
+  includeRationale: includeRationale==='1',
+  includeAckState: includeAckState==='1',
+  includeEscalationState: includeEscalationState==='1',
+  includeSuppressionState: includeSuppressionState==='1',
+      });
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'query_failed' });
+    }
+  });
+
+  app.get('/api/governance/alerts/analytics', rbac({ anyOf:['governance.alert.analytics.view'] }), async (req, res) => {
+    try {
+  const { strategies, windowMs } = req.query as any;
+      const parseList = (v:any)=> v? String(v).split(',').filter(Boolean): undefined;
+      const { computeAlertAnalytics } = await import('./services/strategy-governance-alert-query-service.ts');
+      const data = await computeAlertAnalytics({ strategies: parseList(strategies), windowMs: windowMs? Number(windowMs): undefined });
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'analytics_failed' });
+    }
+  });
+
+  // Iteration 23: Governance Alert Acknowledgements endpoints
+  app.post('/api/governance/alerts/:id/ack', rbac({ anyOf:['governance.alert.ack'] }), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: 'invalid_id' });
+      const { strategyGovernanceAlertAckService } = await import('./services/strategy-governance-alert-ack-service.ts');
+      const result = await strategyGovernanceAlertAckService.ackAlert({ alertId: id, actor: (req as any).user?.username || 'api', note: req.body?.note });
+      res.json(result);
+    } catch (e:any) {
+      if (e.message==='ALERT_NOT_FOUND') return res.status(404).json({ error: 'not_found' });
+      res.status(400).json({ error: e.message || 'ack_failed' });
+    }
+  });
+  app.post('/api/governance/alerts/:id/unack', rbac({ anyOf:['governance.alert.ack'] }), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error: 'invalid_id' });
+      const { strategyGovernanceAlertAckService } = await import('./services/strategy-governance-alert-ack-service.ts');
+      const result = await strategyGovernanceAlertAckService.unackAlert({ alertId: id });
+      res.json(result);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'unack_failed' });
+    }
+  });
+  app.get('/api/governance/alerts/ack/metrics', rbac({ anyOf:['governance.alert.analytics.view'] }), async (req, res) => {
+    try {
+  const { strategies, windowMs, includeSeverityBreakdown } = req.query as any;
+      const parseList = (v:any)=> v? String(v).split(',').filter(Boolean): undefined;
+      const { strategyGovernanceAlertAckService } = await import('./services/strategy-governance-alert-ack-service.ts');
+  const data = await strategyGovernanceAlertAckService.getAckMetrics({ strategies: parseList(strategies), windowMs: windowMs? Number(windowMs): undefined, includeSeverityBreakdown: includeSeverityBreakdown==='1' });
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'ack_metrics_failed' });
+    }
+  });
+
+  // Iteration 25: Escalations endpoints
+  app.post('/api/governance/alerts/:id/escalate', rbac({ anyOf:['governance.alert.escalate'] }), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ error:'invalid_id' });
+      const { governanceAlertEscalationService } = await import('./services/strategy-governance-alert-escalation-service.ts');
+      // fetch alert row minimal
+      const { db } = await import('./db.ts');
+      const { aiGovernanceAlerts } = await import('../shared/schema.ts');
+      const rows = await (db as any).select({ id: aiGovernanceAlerts.id, alertTimestamp: aiGovernanceAlerts.alertTimestamp, severity: aiGovernanceAlerts.severity }).from(aiGovernanceAlerts).where((await import('drizzle-orm')).eq(aiGovernanceAlerts.id, id)).limit(1);
+      if (!rows.length) return res.status(404).json({ error:'not_found' });
+      const rec = await governanceAlertEscalationService.escalateAlert(rows[0], req.body?.reasonCode || 'MANUAL_TEST', true);
+      res.json({ ok:true, escalation: { id: rec.id, alertId: rec.alertId, escalatedAt: rec.escalatedAt?.toISOString?.(), reasonCode: rec.reasonCode } });
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'escalate_failed' });
+    }
+  });
+  app.get('/api/governance/alerts/escalations', rbac({ anyOf:['governance.alert.escalate','governance.alert.analytics.view'] }), async (req, res) => {
+    try {
+      const { governanceAlertEscalationService } = await import('./services/strategy-governance-alert-escalation-service.ts');
+      const { db } = await import('./db.ts');
+      const { aiGovernanceAlertEscalations } = await import('../shared/schema.ts');
+      const rows = await (db as any).select().from(aiGovernanceAlertEscalations).orderBy((await import('drizzle-orm')).desc(aiGovernanceAlertEscalations.escalatedAt)).limit(500);
+      res.json({ items: rows });
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'list_escalations_failed' });
+    }
+  });
+
+  // Phase 41b: Explainability Retrieval Endpoints
+  app.get('/api/prescriptive/explain/history', rbac({ anyOf:['explain.history.view'] }), async (req, res) => {
+    try {
+      const { listExplainabilitySessions } = await import('./services/explainability-retrieval-service.ts');
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const data = await listExplainabilitySessions({ limit });
+      if ((data as any).reason === 'feature_flag_disabled') return res.status(403).json(data);
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'history_failed' });
+    }
+  });
+  app.get('/api/prescriptive/explain/session/:policyVersionId', rbac({ anyOf:['explain.session.meta.view'] }), async (req, res) => {
+    try {
+      const { getExplainabilitySessionMeta } = await import('./services/explainability-retrieval-service.ts');
+      const data = await getExplainabilitySessionMeta(req.params.policyVersionId);
+      if ((data as any).reason === 'feature_flag_disabled') return res.status(403).json(data);
+      if (!(data as any).found) return res.status(404).json(data);
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'session_meta_failed' });
+    }
+  });
+  app.get('/api/prescriptive/explain/session/:policyVersionId/full', rbac({ anyOf:['explain.session.full.view'] }), async (req, res) => {
+    try {
+      const { getExplainabilitySessionFull } = await import('./services/explainability-retrieval-service.ts');
+      const { redactSnapshot, defaultRedactionForRole } = await import('./services/explainability-redaction-service.ts');
+      const data = await getExplainabilitySessionFull(req.params.policyVersionId);
+      if ((data as any).reason === 'feature_flag_disabled') return res.status(403).json(data);
+      if (!(data as any).found) return res.status(404).json(data);
+      // Redaction handling
+      const levelParam = (req.query.redaction as string|undefined)?.toLowerCase();
+      const role = (req as any).session?.role || (req as any).session?.crmUser?.role;
+      const level = (levelParam==='full'||levelParam==='partial'||levelParam==='minimal')? levelParam : defaultRedactionForRole(role);
+      let payload: any = data;
+      let redactionMeta: any = { level:'full' };
+      if ((data as any).snapshot) {
+        const r = redactSnapshot((data as any).snapshot, level as any);
+        payload = { found:true, snapshot: r.snapshot, redaction: r.redaction };
+        redactionMeta = r.redaction;
+      }
+      auditLogger.info(AuditEvents.Explainability.FullView, 'explainability full session view', { policyVersionId: req.params.policyVersionId, redactionLevel: level }, req).catch(()=>{});
+      if (redactionMeta.level!=='full') auditLogger.info(AuditEvents.Data.RedactionApplied, 'redaction applied', { policyVersionId: req.params.policyVersionId, ...redactionMeta }, req).catch(()=>{});
+      res.json(payload);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'session_full_failed' });
+    }
+  });
+  app.get('/api/prescriptive/explain/diff', rbac({ anyOf:['explain.diff.view'] }), async (req, res) => {
+    try {
+      const { from, to, lineage } = req.query as any;
+      const { diffExplainability } = await import('./services/explainability-diff-service.ts');
+      const { redactDiffResult, defaultRedactionForRole } = await import('./services/explainability-redaction-service.ts');
+      const { diffRateLimitConsume, buildDiffCacheKey, getCachedDiff, setCachedDiff } = await import('./services/explainability-diff-cache-service.ts');
+      const result = await diffExplainability(from, to, { includeLineage: lineage==='1' });
+      if (!result.ok) {
+        const code = result.reason==='feature_flag_disabled'? 403 : (result.reason?.startsWith('missing_')? 404 : 400);
+        auditLogger.warning(AuditEvents.Explainability.DiffView, 'diff attempt failed', { from, to, reason: result.reason }, req).catch(()=>{});
+        return res.status(code).json(result);
+      }
+      const levelParam = (req.query.redaction as string|undefined)?.toLowerCase();
+      const role = (req as any).session?.role || (req as any).session?.crmUser?.role;
+      const level = (levelParam==='full'||levelParam==='partial'||levelParam==='minimal')? levelParam : defaultRedactionForRole(role);
+      // Rate limiting (identity: username || role)
+      const identity = (req as any).session?.user?.username || (req as any).session?.crmUser?.username || role || 'anon';
+      const rl = diffRateLimitConsume(identity, req);
+      if (!rl.allowed) return res.status(429).json({ ok:false, reason:'rate_limited', retryMs: 30000 });
+      // Cache lookup AFTER rate check to avoid bypass via cache hits? Decision: allow cache hits to skip token consumption (future). Simplicity: consume first.
+      const cacheKey = buildDiffCacheKey({ from, to, lineage: lineage==='1', redaction: level, rbacVersion: RBAC_VERSION });
+      const cached = getCachedDiff(cacheKey, req);
+      if (cached) {
+        return res.json(cached);
+      }
+      const rd = redactDiffResult(result as any, level as any);
+      auditLogger.info(AuditEvents.Explainability.DiffView, 'diff view', { from, to, lineage: lineage==='1', added: result.meta?.summary?.addedCount, removed: result.meta?.summary?.removedCount, modified: result.meta?.summary?.modifiedCount, redactionLevel: level }, req).catch(()=>{});
+      if (rd.redaction.level!=='full') auditLogger.info(AuditEvents.Data.RedactionApplied, 'diff redaction applied', { from, to, ...rd.redaction }, req).catch(()=>{});
+      const responsePayload = { ...rd.diff, redaction: rd.redaction };
+      setCachedDiff(cacheKey, responsePayload);
+      res.json(responsePayload);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'diff_failed' });
+    }
+  });
+  app.get('/api/governance/alerts/escalations/metrics', rbac({ anyOf:['governance.alert.analytics.view'] }), async (req, res) => {
+    try {
+      const { governanceAlertEscalationService } = await import('./services/strategy-governance-alert-escalation-service.ts');
+      const { windowMs } = req.query as any;
+      const data = await governanceAlertEscalationService.getEscalationMetrics({ windowMs: windowMs? Number(windowMs): undefined });
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'escalation_metrics_failed' });
+    }
+  });
+  // Iteration 26: Suppression metrics endpoint
+  app.get('/api/governance/alerts/suppression/metrics', rbac({ anyOf:['governance.alert.suppression.metrics'] }), async (req, res) => {
+    try {
+      const { governanceAlertSuppressionService } = await import('./services/strategy-governance-alert-suppression-service.ts');
+      const data = governanceAlertSuppressionService.getSuppressionMetrics();
+      res.json(data);
+    } catch (e:any) {
+      res.status(400).json({ error: e.message || 'suppression_metrics_failed' });
+    }
+  });
+
+  // Iteration 30: Adaptive governance metrics endpoint (cached 2s)
+  {
+    let cachedPayload: any = null; let cachedAt = 0; const CACHE_MS = 2000;
+  app.get('/api/governance/adaptive/metrics', rbac({ anyOf:['governance.adaptive.metrics'] }), async (req,res)=>{
+      try {
+        const force = req.query.force === '1' && req.headers['x-davinci-debug'] === 'true';
+        const now = Date.now();
+        if (!force && cachedPayload && (now - cachedAt) < CACHE_MS) {
+          return res.json(cachedPayload);
+        }
+        const { adaptiveWeightsRunner } = await import('./services/strategy-adaptive-runner.ts');
+        const { governanceAlertSuppressionService } = await import('./services/strategy-governance-alert-suppression-service.ts');
+        const status = adaptiveWeightsRunner.getStatus();
+        const suppression = governanceAlertSuppressionService.getSuppressionMetrics();
+        const pw = adaptiveWeightsRunner.getPersistenceWindow();
+        const weights = status.currentWeights;
+        const payload = {
+          ts: now,
+            runner: {
+              running: status.running,
+              cycle: status.cycle,
+              hydrated: status.hydrated,
+              failureRatio: +status.failureRatio.toFixed(4),
+              persistenceDisabled: status.persistenceDisabled,
+              debounceEvery: (adaptiveWeightsRunner as any).cfg?.persistence?.debounceCooldownEvery || 5
+            },
+            weights: { current: weights },
+            suppression: {
+              groups: (governanceAlertSuppressionService as any).getAllGroupSnapshots().length,
+              suppressed: suppression.suppressed,
+              reNoiseRate: suppression.reNoiseRate ?? 0,
+              falseSuppressionRate: suppression.falseSuppressionRate ?? 0
+            },
+            persistenceWindow: {
+              size: pw.size,
+              failures: pw.failures,
+              failureRatio: +pw.failureRatio.toFixed(4),
+              thresholdDisable: 0.6,
+              thresholdEnable: 0.2
+            },
+            meta: { version:1, cached:false, generatedMs: Date.now() - now }
+        };
+        cachedPayload = { ...payload, meta: { ...payload.meta, cached:false } };
+        cachedAt = now;
+        res.json(payload);
+      } catch(e:any) {
+        res.status(500).json({ error:'adaptive_metrics_failed', details: e.message });
+      }
+    });
+  }
+
+  // Iteration 31: Auto-Policy Engine status endpoint
+  app.get('/api/governance/auto-policy/status', rbac({ anyOf:['governance.auto-policy.status'] }), async (req,res)=>{
+    try {
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.ts');
+      const status = autoPolicyIntegrationService.getStatus();
+      const recentMetrics = autoPolicyIntegrationService.getRecentMetrics(5);
+      
+      res.json({
+        ts: Date.now(),
+        autoPolicyEngine: status,
+        recentMetrics: recentMetrics.length,
+        lastMetric: recentMetrics[recentMetrics.length - 1]?.metrics || null,
+        version: 31
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'auto_policy_status_failed', details: e.message });
+    }
+  });
+
+  // Iteration 31: Manual auto-policy evaluation trigger
+  app.post('/api/governance/auto-policy/evaluate', async (req,res)=>{
+    try {
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.ts');
+      const result = await autoPolicyIntegrationService.triggerManualEvaluation();
+      
+      res.json({
+        ts: Date.now(),
+        evaluation: {
+          metricsCollected: !!result.metricsSnapshot,
+          decisionsFound: result.analysisResult?.decisions?.length || 0,
+          decisionsApplied: result.decisionsApplied,
+          errors: result.errors || [],
+          confidence: result.analysisResult?.analysis?.confidence || 0,
+          patterns: result.analysisResult?.analysis?.patterns || null,
+          riskAssessment: result.analysisResult?.analysis?.riskAssessment || 'unknown'
+        },
+        version: 31
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'auto_policy_evaluation_failed', details: e.message });
+    }
+  });
+
+  // Iteration 33: Advanced Security Intelligence Engine endpoints
+  app.get('/api/security/status', async (req, res) => {
+    try {
+      const { advancedSecurityIntelligenceEngine } = await import('./services/strategy-advanced-security-intelligence.js');
+      const status = advancedSecurityIntelligenceEngine.getSystemStatus();
+      res.json({
+        ts: Date.now(),
+        status,
+        version: 33
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'security_status_failed', details: error.message });
+    }
+  });
+
+  app.get('/api/security/metrics', async (req, res) => {
+    try {
+      const { advancedSecurityIntelligenceEngine } = await import('./services/strategy-advanced-security-intelligence.js');
+      const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string) : undefined;
+      const metrics = advancedSecurityIntelligenceEngine.getSecurityMetrics(timeRange);
+      res.json({
+        ts: Date.now(),
+        metrics,
+        timeRange,
+        version: 33
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'security_metrics_failed', details: error.message });
+    }
+  });
+
+  app.get('/api/security/incidents', async (req, res) => {
+    try {
+      const { advancedSecurityIntelligenceEngine } = await import('./services/strategy-advanced-security-intelligence.js');
+      const incidents = advancedSecurityIntelligenceEngine.getActiveIncidents();
+      res.json({
+        ts: Date.now(),
+        incidents,
+        count: incidents.length,
+        version: 33
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'security_incidents_failed', details: error.message });
+    }
+  });
+
+  app.get('/api/security/dashboard', async (req, res) => {
+    try {
+      const { advancedSecurityIntelligenceEngine } = await import('./services/strategy-advanced-security-intelligence.js');
+      const dashboard = await advancedSecurityIntelligenceEngine.generateComprehensiveReport();
+      res.json({
+        ts: Date.now(),
+        dashboard,
+        version: 33
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'security_dashboard_failed', details: error.message });
+    }
+  });
+
+  app.post('/api/security/scan', async (req, res) => {
+    try {
+      const { advancedSecurityIntelligenceEngine } = await import('./services/strategy-advanced-security-intelligence.js');
+      const scanResult = await advancedSecurityIntelligenceEngine.triggerManualSecurityScan();
+      res.json({
+        ts: Date.now(),
+        scan: scanResult,
+        version: 33
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'security_scan_failed', details: error.message });
+    }
+  });
+
+  app.put('/api/security/config', async (req, res) => {
+    try {
+      const { advancedSecurityIntelligenceEngine } = await import('./services/strategy-advanced-security-intelligence.js');
+      advancedSecurityIntelligenceEngine.updateConfiguration(req.body);
+      res.json({
+        ts: Date.now(),
+        success: true,
+        message: 'Security configuration updated',
+        config: req.body,
+        version: 33
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: 'security_config_failed', details: error.message });
+    }
+  });
+
+  // Iteration 34: Business Operations Intelligence API endpoints
+  app.get('/api/business/summary', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const period = req.query.period as 'hourly' | 'daily' | 'weekly' | 'monthly' || 'daily';
+      const summary = businessOpsEngine.getBusinessOperationsSummary(period);
+      res.json({ success: true, data: summary, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Summary error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get business operations summary' });
+    }
+  });
+
+  app.get('/api/business/kpis', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const kpis = businessOpsEngine.getExecutiveKPIs();
+      res.json({ success: true, data: kpis, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] KPIs error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get executive KPIs' });
+    }
+  });
+
+  app.get('/api/business/recommendations', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 20;
+      const recommendations = businessOpsEngine.getBusinessRecommendations(limit);
+      res.json({ success: true, data: recommendations, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Recommendations error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get business recommendations' });
+    }
+  });
+
+  app.get('/api/business/alerts', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const level = req.query.level as 'info' | 'warning' | 'critical';
+      const alerts = businessOpsEngine.getBusinessAlerts(level);
+      res.json({ success: true, data: alerts, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Alerts error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get business alerts' });
+    }
+  });
+
+  app.get('/api/business/metrics', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const hours = parseInt(req.query.hours as string) || 24;
+      const metrics = businessOpsEngine.getOperationsMetrics(hours);
+      res.json({ success: true, data: metrics, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Metrics error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get operations metrics' });
+    }
+  });
+
+  app.post('/api/business/operation', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const operation = req.body;
+      const operationId = await businessOpsEngine.getOrchestrator().submitBusinessOperation(operation);
+      res.json({ success: true, data: { operationId }, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Operation error:', error);
+      res.status(500).json({ success: false, error: 'Failed to submit business operation' });
+    }
+  });
+
+  app.post('/api/business/decision', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const { context, options } = req.body;
+      const decisionId = await businessOpsEngine.getDecisionEngine().requestDecision(context, options);
+      res.json({ success: true, data: { decisionId }, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Decision error:', error);
+      res.status(500).json({ success: false, error: 'Failed to request business decision' });
+    }
+  });
+
+  app.post('/api/business/process', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const processDefinition = req.body;
+      const processId = await businessOpsEngine.getProcessEngine().createProcess(processDefinition);
+      res.json({ success: true, data: { processId }, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] Process error:', error);
+      res.status(500).json({ success: false, error: 'Failed to create business process' });
+    }
+  });
+
+  app.post('/api/business/datasource', async (req, res) => {
+    try {
+      const businessOpsEngine = (global as any).intelligentBusinessOperationsEngine;
+      if (!businessOpsEngine) {
+        return res.status(503).json({ success: false, error: 'Business Operations Engine not initialized' });
+      }
+      
+      const sourceConfig = req.body;
+      const sourceId = await businessOpsEngine.getDataHub().registerDataSource(sourceConfig);
+      res.json({ success: true, data: { sourceId }, timestamp: Date.now(), version: 34 });
+    } catch (error: any) {
+      console.error('[BusinessOpsAPI] DataSource error:', error);
+      res.status(500).json({ success: false, error: 'Failed to register data source' });
+    }
+  });
+
+  // Iteration 32: Real-time Intelligence Engine endpoints
+  app.get('/api/intelligence/dashboard', async (req,res)=>{
+    try {
+      const { realTimeIntelligenceIntegrationService } = await import('./services/strategy-realtime-intelligence-integration.ts');
+      const dashboard = await realTimeIntelligenceIntegrationService.generateIntelligenceDashboard();
+      
+      res.json({
+        ts: Date.now(),
+        dashboard,
+        version: 32
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'intelligence_dashboard_failed', details: e.message });
+    }
+  });
+
+  // Iteration 32: Business Intelligence metrics
+  app.get('/api/intelligence/business', async (req,res)=>{
+    try {
+      const { businessIntelligenceBridge } = await import('./services/strategy-business-intelligence-bridge.ts');
+      const executiveDashboard = businessIntelligenceBridge.generateExecutiveDashboard();
+      
+      res.json({
+        ts: Date.now(),
+        business: {
+          kpis: businessIntelligenceBridge.getBusinessKPIs(),
+          alerts: businessIntelligenceBridge.getBusinessAlerts(),
+          roi: businessIntelligenceBridge.getROICalculations(),
+          customerMetrics: businessIntelligenceBridge.getCustomerMetrics(),
+          executiveSummary: executiveDashboard
+        },
+        version: 32
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'business_intelligence_failed', details: e.message });
+    }
+  });
+
+  // Iteration 32: Real-time insights stream
+  app.get('/api/intelligence/insights', async (req,res)=>{
+    try {
+      const { realTimeIntelligenceEngine } = await import('./services/strategy-realtime-intelligence-engine.ts');
+      const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit||'20'),10)||20));
+      const type = req.query.type as string;
+      const severity = req.query.severity as string;
+      
+      let insights = realTimeIntelligenceEngine.getRecentInsights(limit);
+      
+      // Filter by type if specified
+      if (type) {
+        insights = insights.filter(insight => insight.type === type);
+      }
+      
+      // Filter by severity if specified  
+      if (severity) {
+        insights = insights.filter(insight => insight.severity === severity);
+      }
+      
+      const currentMetrics = realTimeIntelligenceEngine.getCurrentPerformanceSnapshot();
+      const status = realTimeIntelligenceEngine.getStatus();
+      
+      res.json({
+        ts: Date.now(),
+        insights,
+        currentMetrics,
+        status,
+        filters: { type, severity, limit },
+        version: 32
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'intelligence_insights_failed', details: e.message });
+    }
+  });
+
+  // Iteration 32: Intelligence system control
+  app.post('/api/intelligence/control', async (req,res)=>{
+    try {
+      const { realTimeIntelligenceIntegrationService } = await import('./services/strategy-realtime-intelligence-integration.ts');
+      const { action, config } = req.body;
+      
+      switch (action) {
+        case 'start':
+          await realTimeIntelligenceIntegrationService.startIntegration();
+          break;
+        case 'stop':
+          realTimeIntelligenceIntegrationService.stopIntegration();
+          break;
+        case 'update_config':
+          if (config) realTimeIntelligenceIntegrationService.updateConfig(config);
+          break;
+        case 'manual_update':
+          const result = await realTimeIntelligenceIntegrationService.triggerManualIntelligenceUpdate();
+          return res.json({ ts: Date.now(), action, result, version: 32 });
+        case 'emergency_shutdown':
+          const reason = req.body.reason || 'manual_trigger';
+          realTimeIntelligenceIntegrationService.emergencyShutdown(reason);
+          break;
+        default:
+          return res.status(400).json({ error: 'invalid_action', validActions: ['start', 'stop', 'update_config', 'manual_update', 'emergency_shutdown'] });
+      }
+      
+      const status = realTimeIntelligenceIntegrationService.getIntegrationStatus();
+      
+      res.json({
+        ts: Date.now(),
+        action,
+        status,
+        version: 32
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'intelligence_control_failed', details: e.message });
+    }
+  });
+
+  // Iteration 32: Intelligence system status
+  app.get('/api/intelligence/status', async (req,res)=>{
+    try {
+      const { realTimeIntelligenceIntegrationService } = await import('./services/strategy-realtime-intelligence-integration.ts');
+      const { realTimeIntelligenceEngine } = await import('./services/strategy-realtime-intelligence-engine.ts');
+      
+      const integrationStatus = realTimeIntelligenceIntegrationService.getIntegrationStatus();
+      const engineStatus = realTimeIntelligenceEngine.getStatus();
+      const currentMetrics = realTimeIntelligenceEngine.getCurrentPerformanceSnapshot();
+      
+      res.json({
+        ts: Date.now(),
+        integration: integrationStatus,
+        engine: engineStatus,
+        health: {
+          metricsCollection: !!currentMetrics,
+          lastMetricTimestamp: currentMetrics?.timestamp || 0,
+          systemResponsive: integrationStatus.active && engineStatus.enabled
+        },
+        version: 32
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'intelligence_status_failed', details: e.message });
+    }
+  });
+
+  // Iteration 31: Auto-policy control (enable/disable)
+  app.post('/api/governance/auto-policy/control', async (req,res)=>{
+    try {
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.ts');
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ error: 'enabled_field_required', expectedType: 'boolean' });
+      }
+      
+      autoPolicyIntegrationService.setEnabled(enabled);
+      
+      res.json({
+        ts: Date.now(),
+        status: 'updated',
+        enabled,
+        version: 31
+      });
+    } catch(e:any) {
+      res.status(500).json({ error:'auto_policy_control_failed', details: e.message });
+    }
+  });
+
+  // Iteration 30: Adaptive governance debug endpoint (redacted in production)
+  app.get('/api/governance/adaptive/debug', async (req,res)=>{
+    try {
+      const env = process.env.NODE_ENV || 'development';
+      const headerKey = req.headers['x-davinci-debug-key'];
+      if (env === 'production') {
+        const must = process.env.DAVINCI_DEBUG_KEY;
+        if (!must || headerKey !== must) return res.status(403).json({ error:'forbidden' });
+      }
+      const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limitLogs||'50'),10)||50));
+      const includes = (req.query.include? String(req.query.include).split(',').filter(Boolean): []);
+      const raw = req.query.raw === '1' && process.env.NODE_ENV !== 'production';
+      const { adaptiveWeightsRunner } = await import('./services/strategy-adaptive-runner.ts');
+      const { governanceAlertSuppressionService } = await import('./services/strategy-governance-alert-suppression-service.ts');
+      const status = adaptiveWeightsRunner.getStatus();
+      const logs = adaptiveWeightsRunner.getLogs(limit);
+      const transitions = governanceAlertSuppressionService.getRecentTransitions(150);
+      const pw = adaptiveWeightsRunner.getPersistenceWindow();
+      let redacted = !raw;
+      const sanitizeWeights = (w:any)=>{ const out:any={}; for (const k of Object.keys(w||{})) out[k]= +(+w[k]).toFixed(6); return out; };
+      const safeLogs = logs.map(l=>{
+        const base:any = { ts:l.ts, cycle:l.cycle, degraded:l.metrics?.degraded, reason:l.result?.reason||l.result?.reasonCode||l.result?.reason, adjusted: l.result?.adjusted };
+        if (!redacted) { base.weights = l.appliedWeights?.weights || l.result?.weights; base.errs = l.result?.errs; }
+        else {
+          if (l.result?.weights) base.weightDeltaCount = Object.keys(l.result.weights).length;
+          if (Array.isArray(l.result?.errs)) base.errCount = l.result.errs.length;
+        }
+        return base;
+      });
+      const suppressionSnapshots = includes.includes('suppression') ? governanceAlertSuppressionService.getAllGroupSnapshots() : undefined;
+      const body:any = {
+        ts: Date.now(),
+        runner: { ...status, cooldownDebounceCounter: (adaptiveWeightsRunner as any).cooldownDebounceCounter, lastWeightSaveCycle: (adaptiveWeightsRunner as any).lastWeightSaveCycle, lastSuppressionSaveCycle: (adaptiveWeightsRunner as any).lastSuppressionSaveCycle },
+        logs: safeLogs,
+        recentTransitions: transitions.map((t:any)=>({ group:t.dedupGroup, prev:t.prevState||t.prev, next:t.newState||t.next, at:t.changedAt||t.at, durationMs:t.durationMs })),
+        persistenceWindow: pw,
+        meta: { version:1, redacted, env }
+      };
+      if (includes.includes('weights')) body.weights = { current: sanitizeWeights(status.currentWeights) };
+      if (includes.includes('suppression')) {
+        body.suppression = { groups: suppressionSnapshots?.length || 0, suppressed: suppressionSnapshots?.filter((g:any)=>g.state==='SUPPRESSED').length || 0 };
+        if (!redacted) body.suppression.samples = suppressionSnapshots?.slice(0,20);
+      }
+      res.json(body);
+    } catch(e:any) {
+      res.status(500).json({ error:'adaptive_debug_failed', details: e.message });
+    }
+  });
   
   // SHERLOCK v15.0 FIX: Add backward compatibility for both login endpoints
   // Main admin login endpoint
@@ -188,6 +957,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req.session as any).username = adminUser.username;
       (req.session as any).role = adminUser.role || 'ADMIN';
       (req.session as any).permissions = adminUser.permissions || [];
+      
+      // Add role integrity signature (R1.5)
+      const { addRoleIntegrityToSession } = await import('./services/security-integrity-service');
+      addRoleIntegrityToSession(req.session);
 
       res.json({ 
         success: true, 
@@ -1818,7 +2591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const representativeId = parseInt(id);
       
       // Calculate total unpaid invoices for this representative
-      const unpaidResult = await db.select({ 
+  const unpaidResult = await (db as any).select({ 
         totalDebt: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
       }).from(invoices).where(
         and(
@@ -1828,7 +2601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Calculate total sales (all invoices)
-      const salesResult = await db.select({ 
+  const salesResult = await (db as any).select({ 
         totalSales: sql<string>`COALESCE(SUM(CAST(amount as DECIMAL)), 0)` 
       }).from(invoices).where(eq(invoices.representativeId, representativeId));
       
@@ -2692,6 +3465,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize CRM real-time sync
   // CRM data sync service removed for simplified system
 
+  // DA VINCI Iteration 31: Auto-Policy Evolution API Endpoints
+  
+  // Auto-policy status endpoint
+  app.get('/api/governance/auto-policy/status', async (req, res) => {
+    try {
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.js');
+      const status = autoPolicyIntegrationService.getStatus();
+      res.json({
+        timestamp: Date.now(),
+        ...status,
+        meta: {
+          version: 1,
+          iteration: 31,
+          description: 'Auto-Policy Evolution Engine Status'
+        }
+      });
+    } catch (error: any) {
+      console.error('Auto-policy status error:', error);
+      res.status(500).json({ 
+        error: 'auto_policy_status_failed', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Auto-policy control endpoint (enable/disable)
+  app.post('/api/governance/auto-policy/control', async (req, res) => {
+    try {
+      const { action } = req.body;
+      
+      if (!['enable', 'disable'].includes(action)) {
+        return res.status(400).json({ error: 'Invalid action. Use "enable" or "disable".' });
+      }
+      
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.js');
+      autoPolicyIntegrationService.setEnabled(action === 'enable');
+      
+      res.json({
+        timestamp: Date.now(),
+        action,
+        status: 'success',
+        message: `Auto-policy system ${action}d successfully`
+      });
+    } catch (error: any) {
+      console.error('Auto-policy control error:', error);
+      res.status(500).json({ 
+        error: 'auto_policy_control_failed', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Auto-policy metrics history endpoint
+  app.get('/api/governance/auto-policy/metrics', async (req, res) => {
+    try {
+      const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
+      
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.js');
+      const metrics = autoPolicyIntegrationService.getRecentMetrics(limit);
+      
+      res.json({
+        timestamp: Date.now(),
+        metrics,
+        meta: {
+          count: metrics.length,
+          limit,
+          version: 1
+        }
+      });
+    } catch (error: any) {
+      console.error('Auto-policy metrics error:', error);
+      res.status(500).json({ 
+        error: 'auto_policy_metrics_failed', 
+        details: error.message 
+      });
+    }
+  });
+
+  // Auto-policy manual evaluation trigger
+  app.post('/api/governance/auto-policy/evaluate', async (req, res) => {
+    try {
+      const { autoPolicyIntegrationService } = await import('./services/strategy-auto-policy-integration.js');
+      const result = await autoPolicyIntegrationService.triggerManualEvaluation();
+      
+      res.json({
+        timestamp: Date.now(),
+        evaluation: result,
+        meta: {
+          triggered: 'manual',
+          version: 1
+        }
+      });
+    } catch (error: any) {
+      console.error('Auto-policy evaluation error:', error);
+      res.status(500).json({ 
+        error: 'auto_policy_evaluation_failed', 
+        details: error.message 
+      });
+    }
+  });
+
   // Enhanced health check endpoint
   app.get("/health", (req, res) => {
     res.json({ 
@@ -2704,6 +3578,467 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sync: "simplified"
       }
     });
+  });
+
+  // ================================
+  // Iteration 35: Strategic Decision Support Engine APIs
+  // ================================
+  
+  app.get('/api/strategic/status', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const status = await strategicEngine.getStrategicSystemStatus();
+      res.json({ success: true, data: status, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Status error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get strategic status' });
+    }
+  });
+
+  app.post('/api/strategic/decision/process', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const { decisionRequest, executiveProfile } = req.body;
+      if (!decisionRequest || !executiveProfile) {
+        return res.status(400).json({ success: false, error: 'Missing required fields: decisionRequest, executiveProfile' });
+      }
+      
+      const result = await strategicEngine.processStrategicDecision(decisionRequest, executiveProfile);
+      res.json({ success: true, data: result, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Decision processing error:', error);
+      res.status(500).json({ success: false, error: 'Failed to process strategic decision' });
+    }
+  });
+
+  app.get('/api/strategic/intelligence/:executiveId', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const executiveId = req.params.executiveId;
+      const mockExecutiveProfile = {
+        id: executiveId,
+        name: `Executive ${executiveId}`,
+        role: 'Chief Executive',
+        priorities: req.query.priorities ? (req.query.priorities as string).split(',') : ['strategic-growth', 'operational-efficiency'],
+        decisionHistory: [],
+        visualPreferences: { theme: 'executive', complexity: 'medium' },
+        alertPreferences: { urgency: 'high', channels: ['dashboard', 'email'] },
+        dashboardPreferences: { refreshInterval: 300000, layout: 'strategic' },
+        organizationContext: { industry: 'technology', size: 'enterprise', maturity: 'advanced' }
+      };
+      
+      const intelligence = await strategicEngine.intelligenceAggregator.aggregateExecutiveIntelligence(mockExecutiveProfile);
+      
+      res.json({ success: true, data: intelligence, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Intelligence error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get executive intelligence' });
+    }
+  });
+
+  app.get('/api/strategic/dashboard/:executiveId', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const executiveId = req.params.executiveId;
+      const mockExecutiveProfile = {
+        id: executiveId,
+        name: `Executive ${executiveId}`,
+        role: 'Chief Executive',
+        priorities: ['strategic-growth', 'operational-efficiency'],
+        decisionHistory: [],
+        visualPreferences: { theme: 'executive', complexity: 'medium' },
+        alertPreferences: { urgency: 'high', channels: ['dashboard', 'email'] },
+        dashboardPreferences: { refreshInterval: 300000, layout: 'strategic', updatePreferences: { changeSensitivity: 'medium' } },
+        organizationContext: { industry: 'technology', size: 'enterprise', maturity: 'advanced' }
+      };
+      
+      // Generate mock intelligence
+      const mockIntelligence = {
+        executiveId,
+        timestamp: new Date(),
+        intelligence: { realTimeData: 'active', businessData: 'operational' },
+        insights: [
+          { type: 'strategic', content: 'Market expansion opportunity identified', urgency: 'high', actionRequired: true },
+          { type: 'operational', content: 'Efficiency improvements in progress', urgency: 'medium', actionRequired: false }
+        ],
+        recommendations: [
+          { type: 'strategic', title: 'Expand to new market segment', impact: 9.2, urgency: 8.5, confidence: 0.87 }
+        ],
+        urgencyLevel: 'HIGH' as const,
+        confidence: 0.92
+      };
+      
+      const dashboard = await strategicEngine.generateExecutiveDashboard(mockIntelligence, null, mockExecutiveProfile);
+      
+      res.json({ success: true, data: dashboard, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Dashboard error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get executive dashboard' });
+    }
+  });
+
+  app.get('/api/strategic/scenarios', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const decisionContext = req.query.context ? JSON.parse(req.query.context as string) : {
+        id: 'demo-strategic-decision',
+        decisionType: 'market-expansion',
+        industry: 'technology',
+        marketSegment: 'enterprise-software',
+        timeHorizon: 12,
+        options: [
+          { id: 'option-1', name: 'Expand domestically', description: 'Focus on domestic market expansion' },
+          { id: 'option-2', name: 'International expansion', description: 'Enter new international markets' }
+        ],
+        uncertainVariables: [
+          { name: 'market_growth', range: [0.05, 0.25], distribution: 'normal' },
+          { name: 'competition_intensity', range: [0.3, 0.8], distribution: 'uniform' }
+        ],
+        constraints: [
+          { type: 'budget', value: 10000000, unit: 'USD' },
+          { type: 'timeline', value: 18, unit: 'months' }
+        ]
+      };
+      
+      const probabilityDistribution = req.query.probabilities ? JSON.parse(req.query.probabilities as string) : {
+        best_case: 0.15,
+        likely_case: 0.60,
+        worst_case: 0.20,
+        black_swan: 0.05
+      };
+      
+      const scenarios = await strategicEngine.scenarioPlanner.generateStrategicScenarios(
+        decisionContext,
+        probabilityDistribution
+      );
+      
+      res.json({ success: true, data: scenarios, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Scenarios error:', error);
+      res.status(500).json({ success: false, error: 'Failed to generate scenarios' });
+    }
+  });
+
+  app.get('/api/strategic/communications', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const department = req.query.department as string;
+      
+      // Mock communications data
+      const communications = [
+        {
+          id: 'comm-1',
+          type: 'strategic-update',
+          department: department || 'sales',
+          title: 'Q4 Strategic Initiative Communication',
+          priority: 'HIGH',
+          status: 'active',
+          stakeholders: 15,
+          effectiveness: 0.89,
+          timestamp: new Date()
+        },
+        {
+          id: 'comm-2', 
+          type: 'coordination',
+          department: department || 'operations',
+          title: 'Cross-functional Coordination Update',
+          priority: 'MEDIUM',
+          status: 'pending',
+          stakeholders: 8,
+          effectiveness: 0.76,
+          timestamp: new Date()
+        }
+      ];
+      
+      res.json({ success: true, data: communications, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Communications error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get strategic communications' });
+    }
+  });
+
+  app.get('/api/strategic/alerts', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const priority = req.query.priority as string;
+      
+      // Mock alerts data
+      const allAlerts = [
+        {
+          id: 'alert-1',
+          type: 'STRATEGIC_OPPORTUNITY',
+          severity: 'HIGH',
+          priority: 8.5,
+          title: 'Market Expansion Opportunity',
+          description: 'New market segment showing 35% growth potential',
+          impact: 'High revenue potential identified',
+          actions: ['Conduct market analysis', 'Prepare expansion plan'],
+          generatedAt: new Date(),
+          status: 'ACTIVE'
+        },
+        {
+          id: 'alert-2',
+          type: 'COMPETITIVE_RISK',
+          severity: 'MEDIUM',
+          priority: 6.2,
+          title: 'Competitor Analysis Update',
+          description: 'Key competitor launching similar product',
+          impact: 'Potential market share impact',
+          actions: ['Review competitive strategy', 'Accelerate product roadmap'],
+          generatedAt: new Date(),
+          status: 'ACTIVE'
+        },
+        {
+          id: 'alert-3',
+          type: 'OPERATIONAL_INSIGHT',
+          severity: 'LOW',
+          priority: 3.1,
+          title: 'Process Optimization Opportunity',
+          description: 'Automation opportunity in customer service',
+          impact: 'Efficiency improvement potential',
+          actions: ['Evaluate automation tools'],
+          generatedAt: new Date(),
+          status: 'ACTIVE'
+        }
+      ];
+      
+      const alerts = priority ? allAlerts.filter(alert => alert.severity === priority.toUpperCase()) : allAlerts;
+      
+      res.json({ 
+        success: true, 
+        data: alerts, 
+        count: alerts.length,
+        totalAlerts: allAlerts.length,
+        timestamp: Date.now(), 
+        version: 35 
+      });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Alerts error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get strategic alerts' });
+    }
+  });
+
+  app.get('/api/strategic/performance', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const timeRange = req.query.timeRange ? parseInt(req.query.timeRange as string) : 24; // hours
+      const performance = await strategicEngine.performanceMonitor.getCurrentMetrics();
+      
+      res.json({ 
+        success: true, 
+        data: performance, 
+        timeRange,
+        timestamp: Date.now(), 
+        version: 35 
+      });
+    } catch (error: any) {
+      console.error('[StrategicAPI] Performance error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get performance metrics' });
+    }
+  });
+
+  app.get('/api/strategic/kpis', async (req, res) => {
+    try {
+      const strategicEngine = (global as any).strategicDecisionSupportEngine;
+      if (!strategicEngine) {
+        return res.status(503).json({ success: false, error: 'Strategic Decision Support Engine not initialized' });
+      }
+      
+      const executiveId = req.query.executiveId as string || 'default';
+      const mockIntelligence = {
+        executiveId,
+        timestamp: new Date(),
+        intelligence: { realTimeData: 'active', businessData: 'operational' },
+        insights: [
+          { type: 'business', metric: 'revenue_growth', value: 0.23, trend: 'positive' },
+          { type: 'operational', metric: 'efficiency', value: 0.88, trend: 'stable' },
+          { type: 'strategic', metric: 'market_position', value: 0.76, trend: 'improving' }
+        ],
+        recommendations: [],
+        urgencyLevel: 'MEDIUM' as const,
+        confidence: 0.91
+      };
+      
+      const kpis = await strategicEngine.kpiMetricsEngine.calculateStrategicKPIs(mockIntelligence);
+      
+      res.json({ success: true, data: kpis, timestamp: Date.now(), version: 35 });
+    } catch (error: any) {
+      console.error('[StrategicAPI] KPIs error:', error);
+      res.status(500).json({ success: false, error: 'Failed to get strategic KPIs' });
+    }
+  });
+
+  // =============================
+  // Iteration 36: Predictive Analytics & Forecasting Engine APIs
+  // =============================
+  app.get('/api/predictive/status', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PredictiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Predictive Engine not initialized' });
+      res.json({ success:true, iteration:36, status: eng.getStatus(), timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'predictive_status_failed', details:e.message }); }
+  });
+
+  app.post('/api/predictive/ingest/synthetic', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PredictiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Predictive Engine not initialized' });
+      const records = Array.isArray(req.body?.records)? req.body.records: [];
+      const result = await eng.ingestSynthetic(records);
+      res.json({ success:true, ...result, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'predictive_ingest_failed', details:e.message }); }
+  });
+
+  app.post('/api/predictive/forecast', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PredictiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Predictive Engine not initialized' });
+      const { horizon='P7D', kpis=['revenue'] } = req.body || {};
+      const forecast = await eng.generateForecast(horizon, kpis);
+      res.json({ success:true, forecast, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'predictive_forecast_failed', details:e.message }); }
+  });
+
+  app.get('/api/predictive/models', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PredictiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Predictive Engine not initialized' });
+      res.json({ success:true, versions: eng.getStatus().modelVersions, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'predictive_models_failed', details:e.message }); }
+  });
+
+  app.get('/api/predictive/serving', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PredictiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Predictive Engine not initialized' });
+      res.json({ success:true, serving: eng.getStatus().serving, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'predictive_serving_failed', details:e.message }); }
+  });
+
+  // =============================
+  // Iteration 37: Prescriptive Optimization & Decision Simulation Engine APIs
+  // =============================
+  app.get('/api/prescriptive/status', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PrescriptiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Prescriptive Engine missing' });
+      const status = eng.getStatus? eng.getStatus(): { initialized:false };
+      res.json({ success:true, iteration:37, status, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'prescriptive_status_failed', details:e.message }); }
+  });
+
+  app.post('/api/prescriptive/prescribe', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PrescriptiveEngine;
+      if(!eng || !eng.initialize) return res.status(503).json({ success:false, error:'Prescriptive Engine unavailable' });
+      if(!eng.getStatus || !eng.getStatus().initialized) await eng.initialize();
+      const body = req.body||{};
+      const request = {
+        requestId: 'REQ_'+Date.now(),
+        horizon: body.horizon||'P7D',
+        objectives: Array.isArray(body.objectives)? body.objectives: [{ id:'value' }, { id:'cost' }],
+        constraintsOverride: body.constraintsOverride,
+        scenarioConfig: body.scenarioConfig,
+        context: body.context
+      };
+      const result = await eng.prescribe(request);
+      res.json({ success:true, result, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'prescriptive_prescribe_failed', details:e.message }); }
+  });
+
+  app.get('/api/prescriptive/frontier', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PrescriptiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Prescriptive Engine missing' });
+      const last = eng.getStatus? eng.getStatus().lastRun: null;
+      res.json({ success:true, lastRun: last, timestamp: Date.now() });
+    } catch(e:any){ res.status(500).json({ success:false, error:'prescriptive_frontier_failed', details:e.message }); }
+  });
+
+  // Iteration 39c: Prescriptive Summary (Telemetry + Adaptive + Simulation Preview)
+  app.get('/api/prescriptive/summary', async (req, res) => {
+    try {
+      const eng: any = (globalThis as any).PrescriptiveEngine;
+      if(!eng) return res.status(503).json({ success:false, error:'Prescriptive Engine missing' });
+      // Collect baseline status
+      const status = eng.getStatus? eng.getStatus(): {};
+      const telemetry = (await import('../shared/prescriptive/prescriptive-telemetry.ts')).PrescriptiveTelemetry.snapshot();
+      // Attempt adaptive + constraints if available
+      let constraints = status.constraintsList || status.constraints || [];
+      if(!Array.isArray(constraints) && typeof constraints === 'number') constraints = []; // fallback
+      let adaptiveActions: any[] = [];
+  const adaptiveSummary: any = (telemetry as any).rollups?.adaptiveSummary;
+  if (adaptiveSummary?.top) adaptiveActions = adaptiveSummary.top;
+      // Optional lightweight simulation preview (only if constraints & actions present)
+      let simulation: any = { skipped: true };
+      if (constraints.length && adaptiveActions.length) {
+        try {
+          const { simulateAdaptiveAdjustments } = await import('../shared/prescriptive/prescriptive-adaptive-simulation.ts');
+          // Build minimal synthetic samples from status if possible
+          const sampleMetrics = status.sampleFactors || [];
+          const samples = Array.isArray(sampleMetrics) ? sampleMetrics.slice(0,5).map((m:any, i:number) => ({ scenarioId: 'preview_'+i, metrics: m })) : [];
+          simulation = simulateAdaptiveAdjustments({ constraints, adaptive: adaptiveActions.map(a => ({ id:a.id, action:a.action, suggestedDelta:a.suggestedDelta || 0, reason:a.reason || 'summary_preview', priority: a.priority || 0 })), samples });
+        } catch(e:any){ simulation = { error:'simulation_failed', message: e.message }; }
+      }
+      return res.json({ success:true, status, telemetry, adaptiveTop: adaptiveActions, simulation });
+    } catch(e:any){
+      return res.status(500).json({ success:false, error:'prescriptive_summary_failed', details:e.message });
+    }
+  });
+
+  // Phase 40: Explainability & Lineage Snapshot Endpoint (MVP)
+  app.get('/api/prescriptive/explain/latest', async (req, res) => {
+    try {
+      if (process.env.PODSE_ROBUST_V1 !== 'true') return res.status(200).json({ success:true, featureEnabled:false, reason:'feature_flag_disabled' });
+      const { PrescriptiveTraceRecorder } = await import('../shared/prescriptive/prescriptive-trace-recorder.ts');
+      const snap = PrescriptiveTraceRecorder.snapshot();
+      if (!snap) return res.status(200).json({ success:true, featureEnabled:true, snapshot:null, note:'no_active_session' });
+      // Optional persistence trigger (?persist=1)
+      let persistResult: any = undefined;
+      if (req.query?.persist === '1') {
+        try {
+          const { persistExplainabilitySnapshot } = await import('./services/explainability-persistence-service');
+          persistResult = await persistExplainabilitySnapshot(snap as any);
+        } catch(e:any) {
+          persistResult = { inserted:false, error:e.message||'persist_failed' };
+        }
+      }
+      return res.json({ success:true, featureEnabled:true, snapshot: snap, persisted: persistResult });
+    } catch(e:any) {
+      return res.status(500).json({ success:false, error:'explain_snapshot_failed', details: e.message });
+    }
   });
 
   const httpServer = createServer(app);

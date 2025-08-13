@@ -1,26 +1,38 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from "@shared/schema";
+import * as schema from "../shared/schema.ts";
 
-// Configure for local PostgreSQL
-
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+// Iteration 22: Lazy DB initialization (allows memory-only harness runs without env crash)
+let _pool: Pool | null = null;
+let _db: any = null;
+export function ensureDb() {
+  if (_db) return _db;
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set');
+  _pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 5,
+    maxUses: 1000,
+    allowExitOnIdle: false,
+    idleTimeoutMillis: 30000,
+  });
+  _db = drizzle(_pool, { schema });
+  return _db;
 }
 
-// Enhanced connection configuration with retry logic and connection pooling
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
-  max: 5, // Limit concurrent connections for stability
-  maxUses: 1000, // Connection reuse limit
-  allowExitOnIdle: false, // Keep connections alive
-  idleTimeoutMillis: 30000, // 30 second idle timeout
-});
-
-// Enhanced database instance with better error handling and performance monitoring
-export const db = drizzle(pool, { schema });
+// Safe getter for underlying PG pool (may return null if DB not configured yet)
+export function getPool(): Pool | null {
+  if (_pool) return _pool;
+  if (!process.env.DATABASE_URL) return null;
+  ensureDb();
+  return _pool;
+}
+export const db = new Proxy({}, {
+  get(_t, prop) {
+    const real = ensureDb();
+    // @ts-ignore
+    return real[prop];
+  }
+}) as ReturnType<typeof drizzle>;
 
 // Performance monitoring for slow queries
 export function logSlowQuery(queryName: string, duration: number) {
@@ -32,7 +44,8 @@ export function logSlowQuery(queryName: string, duration: number) {
 // Connection health check function
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
-    const client = await pool.connect();
+    const p = ensureDb(); // ensure init or throw
+    const client = await _pool!.connect();
     await client.query('SELECT 1');
     client.release();
     return true;
@@ -45,7 +58,7 @@ export async function checkDatabaseHealth(): Promise<boolean> {
 // Graceful shutdown handler
 export async function closeDatabaseConnection(): Promise<void> {
   try {
-    await pool.end();
+    if (_pool) await _pool.end();
     console.log('Database connections closed gracefully');
   } catch (error) {
     console.error('Error closing database connections:', error);
