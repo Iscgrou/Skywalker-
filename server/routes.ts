@@ -427,6 +427,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             meta: { version:1, cached:false, generatedMs: Date.now() - now }
         };
         cachedPayload = { ...payload, meta: { ...payload.meta, cached:false } };
+  
+            // Register Telemetry routes (R4)
+            const { registerTelemetryRoutes } = await import('./routes/telemetry-routes');
+            registerTelemetryRoutes(app);
         cachedAt = now;
         res.json(payload);
       } catch(e:any) {
