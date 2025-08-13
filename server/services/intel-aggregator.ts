@@ -24,6 +24,20 @@ class IntelAggregator {
     components: { governance:0, security:0, anomaly:0 }
   };
   private intervalHandle?: any;
+  private weights = { governance:0.4, security:0.35, anomaly:0.25 }; // dynamic adaptive weights
+
+  setWeights(w: Partial<{ governance:number; security:number; anomaly:number }>) {
+    // clamp + renormalize
+    const merged = { ...this.weights, ...w };
+    const clamp = (v:number)=> Math.min(0.8, Math.max(0.05, v));
+    let gw = clamp(merged.governance);
+    let sw = clamp(merged.security);
+    let aw = clamp(merged.anomaly);
+    const sum = gw+sw+aw || 1;
+    this.weights = { governance: gw/sum, security: sw/sum, anomaly: aw/sum };
+  }
+
+  getWeights(){ return this.weights; }
 
   start(intervalMs = 5000){
     if (this.intervalHandle) return;
@@ -52,8 +66,9 @@ class IntelAggregator {
     const sScore = norm(securitySignals);
     const aScore = norm(anomalies);
 
-    // وزن دهی پایه (می‌توان adaptive کرد بعداً)
-    const riskIndex = Math.round((gScore*0.4 + sScore*0.35 + aScore*0.25) * 100);
+  // وزن دهی پویا (fallback به weights داخلی)
+  const w = this.weights;
+  const riskIndex = Math.round((gScore*w.governance + sScore*w.security + aScore*w.anomaly) * 100);
 
     this.state = {
       lastUpdated: Date.now(),

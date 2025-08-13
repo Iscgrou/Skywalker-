@@ -1,5 +1,11 @@
 import { Router } from 'express';
 import { intelAggregator } from '../services/intel-aggregator';
+	import { intelAdaptiveThresholds } from '../services/intel-adaptive-thresholds';
+	import { intelCorrelationGraph } from '../services/intel-correlation-graph';
+	import { intelPredictiveEngine } from '../services/intel-predictive-engine';
+	import { intelPrescriptiveEngine } from '../services/intel-prescriptive-engine';
+	import { intelScenarioEngine } from '../services/intel-scenario-engine';
+	import { clusterCoordinator } from '../services/cluster-coordinator';
 import { intelWindowStore } from '../services/intel-window-store';
 import { intelBus } from '../services/intel-bus';
 import { createIntelEvent } from '../services/intel-types';
@@ -13,6 +19,52 @@ export function registerIntelRoutes(router: Router){
 	router.get('/intel/state', requireRoles(['ADMIN','SUPER_ADMIN','ANALYST']), (req, res)=>{
 		return res.json({ ok:true, state: intelAggregator.getState() });
 	});
+  
+		 router.get('/intel/adaptive/status', (_req,res)=>{
+			 res.json({
+				 adaptive: intelAdaptiveThresholds.getState(),
+				 aggregatorWeights: intelAggregator.getWeights()
+			 });
+		 });
+  
+		 router.post('/intel/adaptive/weights', (req:any, res)=>{
+			 // TODO: RBAC check (ADMIN)
+			 const body = req.body||{};
+			 intelAggregator.setWeights(body);
+			 res.json({ ok:true, weights: intelAggregator.getWeights() });
+		 });
+
+		  router.get('/intel/correlations', (_req,res)=>{
+		    const g = intelCorrelationGraph.getGraph();
+		    res.json({ updatedAt: g.lastComputed, edges: g.edges });
+		  });
+
+		  router.get('/intel/correlations/graph', (_req,res)=>{
+		    res.json(intelCorrelationGraph.getGraph());
+		  });
+
+		  router.get('/intel/predictive/forecast', (_req,res)=>{
+		    res.json(intelPredictiveEngine.getState());
+		  });
+
+		  router.get('/intel/prescriptive/recommendations', (_req,res)=>{
+		    res.json(intelPrescriptiveEngine.getState());
+		  });
+
+		  router.post('/intel/prescriptive/apply', (req:any,res)=>{
+		    const { id } = req.body||{};
+		    const result = intelPrescriptiveEngine.apply(id);
+		    res.json(result);
+		  });
+
+		  router.get('/intel/scenarios', (_req,res)=>{
+		    res.json(intelScenarioEngine.getState());
+		  });
+
+		  router.get('/intel/cluster/status', async (_req,res)=>{
+		    const status = await clusterCoordinator.getStatus();
+		    res.json(status);
+		  });
 	router.get('/intel/snapshots', requireRoles(['ADMIN','SUPER_ADMIN','ANALYST']), (req,res)=>{
 		const winParam = req.query.windows as string | undefined;
 		const windows = (winParam? winParam.split(',').map(v=> parseInt(v,10)).filter(v=> !isNaN(v)) : [60_000, 300_000, 3_600_000]);

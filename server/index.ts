@@ -207,12 +207,41 @@ app.use((req, res, next) => {
 
   // R3/R5: Start real-time aggregator & rollup writer
   try {
+    // R11: Cluster coordinator (start early to decide leader responsibilities)
+    import('./services/cluster-coordinator').then(m=>{
+      m.clusterCoordinator.start();
+    });
     const { intelAggregator } = await import('./services/intel-aggregator');
     intelAggregator.start(5000);
     log('[Intel] Aggregator started (5s)');
     import('./services/intel-rollup-writer').then(m=>{
       const jitter = 1500 + Math.random()*2000;
-      setTimeout(()=> { m.intelRollupWriter.start(); log('[Intel] Rollup writer started'); }, jitter);
+      setTimeout(async ()=> { const cc = (await import('./services/cluster-coordinator')).clusterCoordinator; if (cc.isLeader()) { m.intelRollupWriter.start(); log('[Intel] Rollup writer started (leader)'); } else { log('[Intel] Rollup writer skipped (follower)'); } }, jitter);
+    });
+    // R6: Adaptive thresholds (after short delay to allow initial rollups)
+    import('./services/intel-adaptive-thresholds').then(m=>{
+      const delay = 5000 + Math.random()*4000; // 5-9s
+      setTimeout(()=> { m.intelAdaptiveThresholds.start(); log('[Intel] Adaptive thresholds service started'); }, delay);
+    });
+    // R7: Correlation graph (start after adaptive thresholds stabilization)
+    import('./services/intel-correlation-graph').then(m=>{
+      const delay = 12_000 + Math.random()*4000; // ~12-16s post aggregator
+      setTimeout(async ()=> { const cc = (await import('./services/cluster-coordinator')).clusterCoordinator; if (cc.isLeader()) { m.intelCorrelationGraph.start(); log('[Intel] Correlation graph service started (leader)'); } else { log('[Intel] Correlation graph skipped (follower)'); } }, delay);
+    });
+    // R8: Predictive engine (start after correlation graph ~ later)
+    import('./services/intel-predictive-engine').then(m=>{
+      const delay = 20_000 + Math.random()*5000; // start ~20-25s after aggregator
+      setTimeout(async ()=> { const cc = (await import('./services/cluster-coordinator')).clusterCoordinator; if (cc.isLeader()) { m.intelPredictiveEngine.start(); log('[Intel] Predictive engine started (leader)'); } else { log('[Intel] Predictive engine skipped (follower)'); } }, delay);
+    });
+    // R9: Prescriptive engine (after predictive stabilization)
+    import('./services/intel-prescriptive-engine').then(m=>{
+      const delay = 30_000 + Math.random()*5000; // ~30-35s after aggregator
+      setTimeout(async ()=> { const cc = (await import('./services/cluster-coordinator')).clusterCoordinator; if (cc.isLeader()) { m.intelPrescriptiveEngine.start(); log('[Intel] Prescriptive engine started (leader)'); } else { log('[Intel] Prescriptive engine skipped (follower)'); } }, delay);
+    });
+    // R10: Scenario engine (after prescriptive)
+    import('./services/intel-scenario-engine').then(m=>{
+      const delay = 40_000 + Math.random()*5000; // ~40-45s after aggregator
+      setTimeout(async ()=> { const cc = (await import('./services/cluster-coordinator')).clusterCoordinator; if (cc.isLeader()) { m.intelScenarioEngine.start(); log('[Intel] Scenario engine started (leader)'); } else { log('[Intel] Scenario engine skipped (follower)'); } }, delay);
     });
   } catch(e:any){
     log(`[Intel] Startup error: ${e.message}`,'error');
